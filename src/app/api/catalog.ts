@@ -51,6 +51,8 @@ export interface ApiItem {
   max_minutes?: number | null;
   complexity?: number | string | null;
   rating?: number | string | null;
+  has_approved_listing?: boolean;
+  is_expansion?: boolean;
   categories?: ApiTaxonomyEntry[];
   mechanics?: ApiTaxonomyEntry[];
   families?: ApiTaxonomyEntry[];
