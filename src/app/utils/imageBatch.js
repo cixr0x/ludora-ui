@@ -78,3 +78,7 @@ export function getBufferedRowImageIds(items, scrollLeft, viewportWidth, preload
     .filter((item) => item.right >= start && item.left <= end)
     .map((item) => item.id);
 }
+
+export function areBufferedImagesSettled(bufferedIds, preloadedIds, settledIds) {
+  return bufferedIds.every((id) => preloadedIds.has(id) && settledIds.has(id));
+}

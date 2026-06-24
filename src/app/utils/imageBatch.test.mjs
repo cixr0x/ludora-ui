@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getBufferedRowImageIds, preloadImageBatch, preloadImageRow } from "./imageBatch.js";
+import {
+  areBufferedImagesSettled,
+  getBufferedRowImageIds,
+  preloadImageBatch,
+  preloadImageRow,
+} from "./imageBatch.js";
 
 test("preloadImageBatch resolves after every unique source settles", async () => {
   const events = [];
@@ -75,4 +80,13 @@ test("getBufferedRowImageIds includes visible cards plus one horizontal click", 
 
   assert.deepEqual(getBufferedRowImageIds(items, 0, 368, 720), ["0", "1", "2", "3", "4", "5"]);
   assert.deepEqual(getBufferedRowImageIds(items, 920, 368, 720), ["1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+});
+
+test("areBufferedImagesSettled waits for preloaded images to settle in the DOM", () => {
+  const bufferedIds = ["cover-1", "cover-2"];
+  const preloadedIds = new Set(["cover-1", "cover-2"]);
+
+  assert.equal(areBufferedImagesSettled(bufferedIds, preloadedIds, new Set(["cover-1"])), false);
+  assert.equal(areBufferedImagesSettled(bufferedIds, new Set(["cover-1"]), new Set(bufferedIds)), false);
+  assert.equal(areBufferedImagesSettled(bufferedIds, preloadedIds, new Set(bufferedIds)), true);
 });
