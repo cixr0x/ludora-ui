@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { preloadImageBatch } from "./imageBatch.js";
+import { preloadImageBatch, preloadImageRow } from "./imageBatch.js";
 
 test("preloadImageBatch resolves after every unique source settles", async () => {
   const events = [];
@@ -38,4 +38,30 @@ test("preloadImageBatch resolves after every unique source settles", async () =>
 
   assert.equal(resolved, true);
   assert.deepEqual(events, ["start:a.png", "start:b.png", "start:bad.png", "batch:done"]);
+});
+
+test("preloadImageRow waits for the full row before resolving", async () => {
+  const resolvers = new Map();
+  const preload = (src) =>
+    new Promise((resolve, reject) => {
+      resolvers.set(src, src === "broken.png" ? reject : resolve);
+    });
+
+  let rowVisible = false;
+  const row = preloadImageRow(["cover-1.png", "cover-2.png", "broken.png"], preload).then(() => {
+    rowVisible = true;
+  });
+
+  await Promise.resolve();
+  resolvers.get("cover-1.png")();
+  await Promise.resolve();
+  assert.equal(rowVisible, false);
+
+  resolvers.get("broken.png")(new Error("failed image"));
+  await Promise.resolve();
+  assert.equal(rowVisible, false);
+
+  resolvers.get("cover-2.png")();
+  await row;
+  assert.equal(rowVisible, true);
 });

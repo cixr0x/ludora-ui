@@ -201,25 +201,20 @@
       radial-gradient(circle at 50% 40%, rgba(212, 212, 216, 0.08), transparent 48%);
   }
 
-  .game-cover-image {
+  .game-row-content {
     opacity: 0;
-    animation: game-cover-fade-in 180ms ease-out forwards;
-  }
-}
-
-@keyframes game-cover-fade-in {
-  from {
-    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
   }
 
-  to {
+  .game-row-content--visible {
     opacity: 1;
+    pointer-events: auto;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .game-cover-image {
-    animation: none;
-    opacity: 1;
+  .game-row-content {
+    transition: none;
   }
 }

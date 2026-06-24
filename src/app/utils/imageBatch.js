@@ -65,3 +65,7 @@ export function preloadImageBatch(sources, preload = preloadImage) {
 
   return Promise.allSettled(uniqueSources.map((src) => preload(src))).then(() => undefined);
 }
+
+export function preloadImageRow(sources, preload = preloadImage) {
+  return preloadImageBatch(sources, preload);
+}
