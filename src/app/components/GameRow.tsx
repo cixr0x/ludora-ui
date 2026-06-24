@@ -74,7 +74,10 @@ export function GameRow({ title, games }: GameRowProps) {
                 <ImageWithFallback
                   src={game.image}
                   alt={game.name}
+                  lazy
                   className="w-full h-full object-contain"
+                  decoding="async"
+                  loading="lazy"
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/20 transition-colors duration-300" />
               </div>
