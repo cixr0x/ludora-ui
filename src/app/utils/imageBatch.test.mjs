@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { preloadImageBatch, preloadImageRow } from "./imageBatch.js";
+import { getBufferedRowImageIds, preloadImageBatch, preloadImageRow } from "./imageBatch.js";
 
 test("preloadImageBatch resolves after every unique source settles", async () => {
   const events = [];
@@ -64,4 +64,15 @@ test("preloadImageRow waits for the full row before resolving", async () => {
   resolvers.get("cover-2.png")();
   await row;
   assert.equal(rowVisible, true);
+});
+
+test("getBufferedRowImageIds includes visible cards plus one horizontal click", () => {
+  const items = Array.from({ length: 10 }, (_, index) => ({
+    id: String(index),
+    left: index * 184,
+    right: index * 184 + 168,
+  }));
+
+  assert.deepEqual(getBufferedRowImageIds(items, 0, 368, 720), ["0", "1", "2", "3", "4", "5"]);
+  assert.deepEqual(getBufferedRowImageIds(items, 920, 368, 720), ["1", "2", "3", "4", "5", "6", "7", "8", "9"]);
 });

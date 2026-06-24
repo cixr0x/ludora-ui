@@ -69,3 +69,12 @@ export function preloadImageBatch(sources, preload = preloadImage) {
 export function preloadImageRow(sources, preload = preloadImage) {
   return preloadImageBatch(sources, preload);
 }
+
+export function getBufferedRowImageIds(items, scrollLeft, viewportWidth, preloadWidth) {
+  const start = Math.max(0, scrollLeft - preloadWidth);
+  const end = scrollLeft + viewportWidth + preloadWidth;
+
+  return items
+    .filter((item) => item.right >= start && item.left <= end)
+    .map((item) => item.id);
+}
