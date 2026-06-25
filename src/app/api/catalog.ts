@@ -44,6 +44,7 @@ export interface ApiItem {
   image_url?: string;
   image_url_es?: string;
   item_type?: string;
+  parent_item_id?: number | string | null;
   year_published?: number | null;
   description?: string;
   description_es?: string;

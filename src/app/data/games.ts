@@ -6,6 +6,8 @@ export interface Game {
   name: string;
   image: string;
   altTitle?: string;
+  isExpansion?: boolean;
+  parentItemId?: number;
   genres: string[];
 }
 

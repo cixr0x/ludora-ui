@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, Sparkles } from "lucide-react";
 import type { GameDetail, GameTaxonomyEntry } from "../data/games";
 import { loadCatalogGameDetails, loadSemanticCatalogGameDetails } from "../data/catalog";
+import { ExpansionBadge } from "../components/ExpansionBadge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { t } from "../data/translations";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
@@ -47,6 +48,7 @@ interface EnrichedGame {
   name: string;
   altTitle?: string;
   image: string;
+  isExpansion?: boolean;
   genres: string[];
   categories: GameTaxonomyEntry[];
   mechanics: GameTaxonomyEntry[];
@@ -234,6 +236,7 @@ function mapDetailToEnriched(detail: GameDetail): EnrichedGame {
     name: detail.name,
     altTitle: detail.altTitle,
     image: detail.image,
+    isExpansion: detail.isExpansion,
     genres: detail.genres,
     categories,
     mechanics,
@@ -625,6 +628,7 @@ export function Search() {
                       alt={game.name}
                       className="w-full h-full object-contain"
                     />
+                    {game.isExpansion && <ExpansionBadge className="absolute left-2 top-2" />}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
                   </div>
                   <p className="text-neutral-300 text-sm text-center group-hover:text-white transition-colors truncate px-1 leading-snug">

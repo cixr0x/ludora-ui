@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { ArrowLeft, Users, Clock, Dices, ChevronLeft, ChevronRight, Youtube, ShoppingCart, ExternalLink } from "lucide-react";
+import { ExpansionBadge } from "../components/ExpansionBadge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import type { StoreEntry, Game, GameDetail as GameDetailData } from "../data/games";
 import { loadGameDetail, loadGames } from "../data/catalog";
+import { parentGamePath } from "../utils/expansionDisplay.js";
 import { hasStoreOfferLinks } from "../utils/storeLinks.js";
 import { Link } from "react-router";
 import { t } from "../data/translations";
@@ -178,6 +180,7 @@ export function GameDetail() {
   const navigate = useNavigate();
   const itemId = Number(id);
   const [detail, setDetail] = useState<GameDetailData | undefined>();
+  const [parentGame, setParentGame] = useState<Game | undefined>();
   const [allGames, setAllGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(() => Number.isInteger(itemId) && itemId > 0);
   const storesSectionRef = useRef<HTMLDivElement>(null);
@@ -191,11 +194,17 @@ export function GameDetail() {
 
     let isActive = true;
     setDetail(undefined);
+    setParentGame(undefined);
     setIsLoading(true);
 
-    Promise.all([loadGameDetail(itemId), loadGames()]).then(([nextDetail, nextGames]) => {
+    const gamesPromise = loadGames();
+    loadGameDetail(itemId).then(async (nextDetail) => {
+      const parentPromise =
+        nextDetail?.isExpansion && nextDetail.parentItemId ? loadGameDetail(nextDetail.parentItemId).catch(() => undefined) : undefined;
+      const [nextGames, nextParent] = await Promise.all([gamesPromise, parentPromise]);
       if (!isActive) return;
       setDetail(nextDetail);
+      setParentGame(nextParent);
       setAllGames(nextGames);
       setIsLoading(false);
     }).finally(() => {
@@ -232,6 +241,7 @@ export function GameDetail() {
     .filter((g) => g.id !== detail.id && g.genres.some((genre) => detail.genres.includes(genre)))
     .slice(0, 18);
   const hasLinkedStoreOffers = hasStoreOfferLinks(detail.stores);
+  const parentPath = detail.isExpansion && parentGame ? parentGamePath(parentGame.id) : undefined;
   const scrollToStores = () => {
     storesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -275,11 +285,14 @@ export function GameDetail() {
           {/* Cover image + Buy now */}
           <div className="flex-none flex flex-col items-stretch gap-3 self-start" style={{ width: 176 }}>
             <div className="w-full rounded-md overflow-hidden" style={{ height: 176 }}>
-              <ImageWithFallback
-                src={detail.image}
-                alt={detail.name}
-                className="w-full h-full object-contain"
-              />
+              <div className="relative h-full w-full">
+                <ImageWithFallback
+                  src={detail.image}
+                  alt={detail.name}
+                  className="w-full h-full object-contain"
+                />
+                {detail.isExpansion && <ExpansionBadge className="absolute left-2 top-2" />}
+              </div>
             </div>
             {hasLinkedStoreOffers ? (
               <button
@@ -323,6 +336,19 @@ export function GameDetail() {
                 <p className="text-neutral-400">{detail.altTitle}</p>
               )}
             </div>
+
+            {detail.isExpansion && (
+              <div className="rounded-lg border border-amber-300/20 bg-amber-950/10 px-3 py-2 text-sm text-neutral-300">
+                <span className="text-neutral-500">Expansión para: </span>
+                {parentPath ? (
+                  <Link to={parentPath} className="text-amber-200 hover:text-amber-100 transition-colors">
+                    {parentGame.name}
+                  </Link>
+                ) : (
+                  <span className="text-neutral-400">juego base no listado</span>
+                )}
+              </div>
+            )}
 
             {/* Categories */}
             <div>

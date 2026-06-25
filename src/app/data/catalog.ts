@@ -8,6 +8,7 @@ import {
   type ApiOffer,
   type ApiTaxonomyEntry,
 } from "../api/catalog";
+import { isExpansionItem, positiveInteger } from "../utils/expansionDisplay.js";
 import { storeOfferUrl } from "../utils/storeLinks.js";
 import {
   type Game,
@@ -105,6 +106,8 @@ function mapApiItemToGame(item: ApiItem, extraGenre?: string): Game {
     name,
     image: preferredText(item.image_url_es, item.image_url),
     altTitle: altTitle && altTitle !== name ? altTitle : undefined,
+    isExpansion: isExpansionItem(item),
+    parentItemId: positiveInteger(item.parent_item_id),
     genres,
   };
 }
