@@ -6,7 +6,11 @@ import { loadCatalogGameDetails, loadSemanticCatalogGameDetails } from "../data/
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { t } from "../data/translations";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
-import { parsePositiveIntegerSetParam, sortTaxonomyOptionsByActive } from "../utils/catalogSearch.js";
+import {
+  parsePositiveIntegerSetParam,
+  shouldShowFilterRemoveIcon,
+  sortTaxonomyOptionsByActive,
+} from "../utils/catalogSearch.js";
 
 type PlaytimeKey = "short" | "medium" | "long";
 
@@ -242,17 +246,31 @@ function mapDetailToEnriched(detail: GameDetail): EnrichedGame {
   };
 }
 
-function Toggle({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function Toggle({
+  active,
+  label,
+  onClick,
+  removable = false,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+  removable?: boolean;
+}) {
+  const showRemoveIcon = shouldShowFilterRemoveIcon({ active, removable });
+
   return (
     <button
+      aria-label={showRemoveIcon ? `${label}, desactivar filtro` : label}
       onClick={onClick}
-      className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+      className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
         active
           ? "bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40"
           : "bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-white hover:border-neutral-700"
       }`}
     >
-      {label}
+      <span>{label}</span>
+      {showRemoveIcon && <X aria-hidden="true" className="h-3 w-3 text-fuchsia-200" />}
     </button>
   );
 }
@@ -543,6 +561,7 @@ export function Search() {
                   label={t(category.name)}
                   active={activeCategories.has(category.id)}
                   onClick={() => toggle(activeCategories, category.id, setActiveCategories)}
+                  removable
                 />
               ))}
             </div>
@@ -563,6 +582,7 @@ export function Search() {
                   label={t(mechanic.name)}
                   active={activeMechanics.has(mechanic.id)}
                   onClick={() => toggle(activeMechanics, mechanic.id, setActiveMechanics)}
+                  removable
                 />
               ))}
             </div>

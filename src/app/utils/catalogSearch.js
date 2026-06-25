@@ -56,6 +56,10 @@ export function sortTaxonomyOptionsByActive(options, activeIds) {
   });
 }
 
+export function shouldShowFilterRemoveIcon({ active, removable }) {
+  return Boolean(active && removable);
+}
+
 function uniquePositiveIntegers(values) {
   return Array.from(new Set(parsePositiveIntegerList(values)));
 }

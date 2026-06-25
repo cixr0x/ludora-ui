@@ -5,6 +5,7 @@ import {
   buildCatalogSearchParams,
   buildExploreTaxonomyPath,
   parsePositiveIntegerSetParam,
+  shouldShowFilterRemoveIcon,
   sortTaxonomyOptionsByActive,
 } from "./catalogSearch.js";
 
@@ -65,4 +66,10 @@ test("sortTaxonomyOptionsByActive groups active filters first", () => {
 
   assert.deepEqual(sorted.map((option) => option.name), ["Economic", "Strategy", "Adventure", "Animals"]);
   assert.deepEqual(options.map((option) => option.name), ["Strategy", "Animals", "Economic", "Adventure"]);
+});
+
+test("shouldShowFilterRemoveIcon only marks active removable filters", () => {
+  assert.equal(shouldShowFilterRemoveIcon({ active: true, removable: true }), true);
+  assert.equal(shouldShowFilterRemoveIcon({ active: false, removable: true }), false);
+  assert.equal(shouldShowFilterRemoveIcon({ active: true, removable: false }), false);
 });
