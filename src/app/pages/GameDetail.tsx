@@ -5,7 +5,7 @@ import { ExpansionBadge } from "../components/ExpansionBadge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import type { StoreEntry, Game, GameDetail as GameDetailData } from "../data/games";
 import { loadGameDetail, loadGames } from "../data/catalog";
-import { parentGamePath } from "../utils/expansionDisplay.js";
+import { EXPANSION_BADGE_CORNER_CLASS, parentGamePath } from "../utils/expansionDisplay.js";
 import { hasStoreOfferLinks } from "../utils/storeLinks.js";
 import { Link } from "react-router";
 import { t } from "../data/translations";
@@ -284,14 +284,14 @@ export function GameDetail() {
           <div className="flex gap-8 items-start">
           {/* Cover image + Buy now */}
           <div className="flex-none flex flex-col items-stretch gap-3 self-start" style={{ width: 176 }}>
-            <div className="w-full rounded-md overflow-hidden" style={{ height: 176 }}>
-              <div className="relative h-full w-full">
+            <div className="flex w-full items-center justify-center rounded-md overflow-hidden" style={{ height: 176 }}>
+              <div className="relative inline-flex max-h-full max-w-full">
                 <ImageWithFallback
                   src={detail.image}
                   alt={detail.name}
-                  className="w-full h-full object-contain"
+                  className="block max-h-full max-w-full object-contain"
                 />
-                {detail.isExpansion && <ExpansionBadge className="absolute left-2 top-2" />}
+                {detail.isExpansion && <ExpansionBadge className={EXPANSION_BADGE_CORNER_CLASS} />}
               </div>
             </div>
             {hasLinkedStoreOffers ? (

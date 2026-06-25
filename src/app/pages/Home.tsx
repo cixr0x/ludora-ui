@@ -3,22 +3,25 @@ import { Search, Bell, User, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate, Link } from "react-router";
 import { GameRow } from "../components/GameRow";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
-import { gamesFromRows, loadFrontPageRows, type CatalogRow } from "../data/catalog";
+import { loadCatalogGameDetails, loadFrontPageRows, type CatalogRow } from "../data/catalog";
 import type { Game } from "../data/games";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { t } from "../data/translations";
 import { buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
+import { HOME_SEARCH_DEBOUNCE_MS, HOME_SEARCH_LIMIT, homeSearchQuery } from "../utils/homeSearch.js";
 
 
 export function Home() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [searchResults, setSearchResults] = useState<Game[]>([]);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [rows, setRows] = useState<CatalogRow[]>([]);
-  const [allGames, setAllGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const genreScrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const activeSearchQuery = homeSearchQuery(searchValue);
   const categoryStripItems = useMemo(() => {
     const seen = new Set<string>();
 
@@ -35,13 +38,6 @@ export function Home() {
       }];
     });
   }, [rows]);
-
-  const searchResults = searchValue.trim().length >= 2
-    ? allGames.filter((g) =>
-        g.name.toLowerCase().includes(searchValue.toLowerCase()) ||
-        (g.altTitle?.toLowerCase().includes(searchValue.toLowerCase()))
-      ).slice(0, 8)
-    : [];
 
   const openSearch = () => {
     setSearchOpen(true);
@@ -82,7 +78,6 @@ export function Home() {
       .then((nextRows) => {
         if (!isActive) return;
         setRows(nextRows);
-        setAllGames(gamesFromRows(nextRows));
       })
       .finally(() => {
         if (isActive) setIsLoading(false);
@@ -92,6 +87,35 @@ export function Home() {
       isActive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!searchOpen || !activeSearchQuery) {
+      setSearchResults([]);
+      setIsSearchLoading(false);
+      return undefined;
+    }
+
+    let isActive = true;
+    setIsSearchLoading(true);
+
+    const timeoutId = window.setTimeout(() => {
+      loadCatalogGameDetails({ query: activeSearchQuery, limit: HOME_SEARCH_LIMIT })
+        .then((results) => {
+          if (isActive) setSearchResults(results);
+        })
+        .catch(() => {
+          if (isActive) setSearchResults([]);
+        })
+        .finally(() => {
+          if (isActive) setIsSearchLoading(false);
+        });
+    }, HOME_SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [activeSearchQuery, searchOpen]);
 
   const scrollGenre = (dir: "left" | "right") => {
     const el = genreScrollRef.current;
@@ -168,9 +192,13 @@ export function Home() {
                 )}
               </div>
 
-              {searchOpen && searchValue.trim().length >= 2 && (
+              {searchOpen && activeSearchQuery && (
                 <div className="absolute right-0 top-full mt-2 w-80 bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl overflow-hidden z-50">
-                  {searchResults.length === 0 ? (
+                  {isSearchLoading ? (
+                    <div className="px-4 py-6 text-center text-neutral-500 text-sm">
+                      Buscando...
+                    </div>
+                  ) : searchResults.length === 0 ? (
                     <div className="px-4 py-6 text-center text-neutral-500 text-sm">
                       No se encontraron juegos para "{searchValue}"
                     </div>
