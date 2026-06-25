@@ -8,6 +8,10 @@ export function storeOfferUrl(offer) {
     .find(Boolean);
 }
 
+export function hasStoreOfferLinks(stores) {
+  return Array.isArray(stores) && stores.some((store) => typeof store?.url === "string" && store.url.trim().length > 0);
+}
+
 function normalizeHttpUrl(value) {
   const trimmed = typeof value === "string" ? value.trim() : "";
   if (!trimmed) return undefined;

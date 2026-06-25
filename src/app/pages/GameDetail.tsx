@@ -4,6 +4,7 @@ import { ArrowLeft, Users, Clock, Dices, ChevronLeft, ChevronRight, Youtube, Sho
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import type { StoreEntry, Game, GameDetail as GameDetailData } from "../data/games";
 import { loadGameDetail, loadGames } from "../data/catalog";
+import { hasStoreOfferLinks } from "../utils/storeLinks.js";
 import { Link } from "react-router";
 import { t } from "../data/translations";
 
@@ -179,6 +180,7 @@ export function GameDetail() {
   const [detail, setDetail] = useState<GameDetailData | undefined>();
   const [allGames, setAllGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(() => Number.isInteger(itemId) && itemId > 0);
+  const storesSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!Number.isInteger(itemId) || itemId <= 0) {
@@ -229,7 +231,10 @@ export function GameDetail() {
   const relatedGames = allGames
     .filter((g) => g.id !== detail.id && g.genres.some((genre) => detail.genres.includes(genre)))
     .slice(0, 18);
-  const firstStoreUrl = detail.stores.find((store) => store.url)?.url;
+  const hasLinkedStoreOffers = hasStoreOfferLinks(detail.stores);
+  const scrollToStores = () => {
+    storesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <div
@@ -276,16 +281,15 @@ export function GameDetail() {
                 className="w-full h-full object-contain"
               />
             </div>
-            {firstStoreUrl ? (
-              <a
-                href={firstStoreUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+            {hasLinkedStoreOffers ? (
+              <button
+                type="button"
+                onClick={scrollToStores}
                 className="w-full flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 hover:border-neutral-600 text-neutral-300 hover:text-white text-sm py-2 rounded-lg transition-colors"
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
                 Comprar ahora
-              </a>
+              </button>
             ) : (
               <button
                 type="button"
@@ -406,7 +410,7 @@ export function GameDetail() {
         </div>
 
         {/* ── Stores ───────────────────────────────────────────────────── */}
-        <div>
+        <div ref={storesSectionRef} id="store-offers" style={{ scrollMarginTop: 80 }}>
           <h2 className="text-white mb-4">Disponible en Tiendas</h2>
           <div className="flex flex-col gap-2 max-w-2xl">
             {detail.stores.map((store) => (
