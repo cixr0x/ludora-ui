@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, Users, Clock, Dices, ChevronLeft, ChevronRight, Youtube, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Users, Clock, Dices, ChevronLeft, ChevronRight, Youtube, ShoppingCart, ExternalLink } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import type { StoreEntry, Game, GameDetail as GameDetailData } from "../data/games";
 import { loadGameDetail, loadGames } from "../data/catalog";
@@ -82,8 +82,8 @@ function TikTokEmbed({ tiktokId, tiktokUser, gameName }: { tiktokId?: string; ti
 }
 
 function StoreCard({ store }: { store: StoreEntry }) {
-  return (
-    <div className="flex items-center gap-4 px-4 py-3 rounded-lg bg-neutral-900 border border-neutral-800 hover:border-fuchsia-500/40 hover:bg-neutral-800/60 transition-colors cursor-pointer group">
+  const content = (
+    <>
       <div className="flex-none w-12 h-12 rounded-md overflow-hidden">
         <ImageWithFallback
           src={store.image}
@@ -95,8 +95,28 @@ function StoreCard({ store }: { store: StoreEntry }) {
         <p className="text-white text-sm truncate">{store.name}</p>
         <p className="text-neutral-500 text-xs truncate">{store.gameTitle}</p>
       </div>
-      <p className="flex-none text-fuchsia-400 text-sm">{store.price}</p>
-    </div>
+      <div className="flex-none flex items-center gap-2">
+        <p className="text-fuchsia-400 text-sm">{store.price}</p>
+        {store.url && <ExternalLink className="w-3.5 h-3.5 text-neutral-500 group-hover:text-fuchsia-300 transition-colors" />}
+      </div>
+    </>
+  );
+  const cardClassName = "flex items-center gap-4 px-4 py-3 rounded-lg bg-neutral-900 border border-neutral-800 transition-colors group";
+
+  if (!store.url) {
+    return <div className={`${cardClassName} opacity-80`}>{content}</div>;
+  }
+
+  return (
+    <a
+      href={store.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Ver oferta de ${store.gameTitle} en ${store.name}`}
+      className={`${cardClassName} hover:border-fuchsia-500/40 hover:bg-neutral-800/60`}
+    >
+      {content}
+    </a>
   );
 }
 
@@ -209,6 +229,7 @@ export function GameDetail() {
   const relatedGames = allGames
     .filter((g) => g.id !== detail.id && g.genres.some((genre) => detail.genres.includes(genre)))
     .slice(0, 18);
+  const firstStoreUrl = detail.stores.find((store) => store.url)?.url;
 
   return (
     <div
@@ -255,10 +276,26 @@ export function GameDetail() {
                 className="w-full h-full object-contain"
               />
             </div>
-            <button className="w-full flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 hover:border-neutral-600 text-neutral-300 hover:text-white text-sm py-2 rounded-lg transition-colors">
-              <ShoppingCart className="w-3.5 h-3.5" />
-              Comprar ahora
-            </button>
+            {firstStoreUrl ? (
+              <a
+                href={firstStoreUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 hover:border-neutral-600 text-neutral-300 hover:text-white text-sm py-2 rounded-lg transition-colors"
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                Comprar ahora
+              </a>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="w-full flex items-center justify-center gap-2 bg-neutral-900 border border-neutral-800 text-neutral-600 text-sm py-2 rounded-lg cursor-not-allowed"
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                Comprar ahora
+              </button>
+            )}
           </div>
 
           {/* Info */}

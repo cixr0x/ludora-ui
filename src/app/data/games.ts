@@ -17,6 +17,7 @@ export interface GameTaxonomyEntry {
 export interface StoreEntry {
   id: number;
   name: string;
+  url?: string;
   country: string;
   image: string;
   gameTitle: string;

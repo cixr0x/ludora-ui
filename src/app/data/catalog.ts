@@ -8,6 +8,7 @@ import {
   type ApiOffer,
   type ApiTaxonomyEntry,
 } from "../api/catalog";
+import { storeOfferUrl } from "../utils/storeLinks.js";
 import {
   type Game,
   type GameDetail,
@@ -178,6 +179,7 @@ function mapOffer(offer: ApiOffer, game: Game): StoreEntry {
   return {
     id: offer.id,
     name: offer.store_name,
+    url: storeOfferUrl(offer),
     country: offer.store_country || "MX",
     image: offer.image_url || game.image,
     gameTitle: offer.game_title || game.name,
