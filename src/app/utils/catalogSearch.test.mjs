@@ -5,6 +5,7 @@ import {
   buildCatalogSearchParams,
   buildExploreTaxonomyPath,
   parsePositiveIntegerSetParam,
+  sortTaxonomyOptionsByActive,
 } from "./catalogSearch.js";
 
 test("buildCatalogSearchParams sends search filters using taxonomy ids", () => {
@@ -50,4 +51,18 @@ test("buildExploreTaxonomyPath links taxonomy ids to explore filters", () => {
 test("parsePositiveIntegerSetParam reads comma-separated URL filter ids", () => {
   assert.deepEqual(Array.from(parsePositiveIntegerSetParam("5,no,7,5,0,-1")), [5, 7]);
   assert.deepEqual(Array.from(parsePositiveIntegerSetParam(null)), []);
+});
+
+test("sortTaxonomyOptionsByActive groups active filters first", () => {
+  const options = [
+    { id: 1, name: "Strategy" },
+    { id: 2, name: "Animals" },
+    { id: 3, name: "Economic" },
+    { id: 4, name: "Adventure" },
+  ];
+
+  const sorted = sortTaxonomyOptionsByActive(options, new Set([3, 1]));
+
+  assert.deepEqual(sorted.map((option) => option.name), ["Economic", "Strategy", "Adventure", "Animals"]);
+  assert.deepEqual(options.map((option) => option.name), ["Strategy", "Animals", "Economic", "Adventure"]);
 });

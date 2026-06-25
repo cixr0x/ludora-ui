@@ -6,7 +6,7 @@ import { loadCatalogGameDetails, loadSemanticCatalogGameDetails } from "../data/
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { t } from "../data/translations";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
-import { parsePositiveIntegerSetParam } from "../utils/catalogSearch.js";
+import { parsePositiveIntegerSetParam, sortTaxonomyOptionsByActive } from "../utils/catalogSearch.js";
 
 type PlaytimeKey = "short" | "medium" | "long";
 
@@ -293,8 +293,16 @@ export function Search() {
   );
   const { filterGames, games, isLoading } = useCatalogSearchGames(searchRequest, semanticGames);
 
-  const allCategories = useMemo(() => taxonomyOptionsFromGames(filterGames, "categories"), [filterGames]);
-  const allMechanics = useMemo(() => taxonomyOptionsFromGames(filterGames, "mechanics"), [filterGames]);
+  const categoryOptions = useMemo(() => taxonomyOptionsFromGames(filterGames, "categories"), [filterGames]);
+  const mechanicOptions = useMemo(() => taxonomyOptionsFromGames(filterGames, "mechanics"), [filterGames]);
+  const allCategories = useMemo(
+    () => sortTaxonomyOptionsByActive(categoryOptions, activeCategories),
+    [activeCategories, categoryOptions],
+  );
+  const allMechanics = useMemo(
+    () => sortTaxonomyOptionsByActive(mechanicOptions, activeMechanics),
+    [activeMechanics, mechanicOptions],
+  );
 
   const toggle = <T,>(set: Set<T>, value: T, setter: (s: Set<T>) => void) => {
     const next = new Set(set);

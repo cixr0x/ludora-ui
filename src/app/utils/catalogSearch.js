@@ -45,6 +45,17 @@ export function parsePositiveIntegerSetParam(value) {
   return new Set(parsePositiveIntegerList(value));
 }
 
+export function sortTaxonomyOptionsByActive(options, activeIds) {
+  const activeIdSet = activeIds instanceof Set ? activeIds : new Set(activeIds ?? []);
+
+  return [...options].sort((left, right) => {
+    const leftActive = activeIdSet.has(left.id);
+    const rightActive = activeIdSet.has(right.id);
+    if (leftActive !== rightActive) return leftActive ? -1 : 1;
+    return left.name.localeCompare(right.name, "es");
+  });
+}
+
 function uniquePositiveIntegers(values) {
   return Array.from(new Set(parsePositiveIntegerList(values)));
 }
