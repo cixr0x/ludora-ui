@@ -6,6 +6,7 @@ import { loadCatalogGameDetails, loadSemanticCatalogGameDetails } from "../data/
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { t } from "../data/translations";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
+import { parsePositiveIntegerSetParam } from "../utils/catalogSearch.js";
 
 type PlaytimeKey = "short" | "medium" | "long";
 
@@ -74,7 +75,31 @@ function useCatalogSearchGames(
   const [games, setGames] = useState<EnrichedGame[]>([]);
   const [filterGames, setFilterGames] = useState<EnrichedGame[]>([]);
   const hasFilterOptionsRef = useRef(false);
+  const isLoadingFilterOptionsRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (semanticGames || hasFilterOptionsRef.current || isLoadingFilterOptionsRef.current || isDefaultSearchRequest(request)) {
+      return;
+    }
+
+    let isActive = true;
+    isLoadingFilterOptionsRef.current = true;
+
+    loadCatalogGameDetails({ limit: SEARCH_LIMIT })
+      .then((details) => {
+        if (!isActive || hasFilterOptionsRef.current) return;
+        setFilterGames(details.map(mapDetailToEnriched));
+        hasFilterOptionsRef.current = true;
+      })
+      .finally(() => {
+        isLoadingFilterOptionsRef.current = false;
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [request, semanticGames]);
 
   useEffect(() => {
     if (semanticGames) {
@@ -183,6 +208,12 @@ function localSearchResults(sourceGames: EnrichedGame[], request: CatalogSearchR
   });
 }
 
+function sameNumberSet(left: Set<number>, right: Set<number>): boolean {
+  if (left.size !== right.size) return false;
+  for (const value of left) if (!right.has(value)) return false;
+  return true;
+}
+
 function taxonomyEntriesFromDetail(detail: GameDetail, key: "categoryEntries" | "mechanicEntries", names: string[]) {
   const entries = detail[key];
   if (entries?.length) return entries;
@@ -230,8 +261,12 @@ export function Search() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
-  const [activeCategories, setActiveCategories] = useState<Set<number>>(new Set());
-  const [activeMechanics, setActiveMechanics] = useState<Set<number>>(new Set());
+  const [activeCategories, setActiveCategories] = useState<Set<number>>(() =>
+    parsePositiveIntegerSetParam(searchParams.get("category_ids")),
+  );
+  const [activeMechanics, setActiveMechanics] = useState<Set<number>>(() =>
+    parsePositiveIntegerSetParam(searchParams.get("mechanic_ids")),
+  );
   const [players, setPlayers] = useState<number | null>(null);
   const [playtimes, setPlaytimes] = useState<Set<PlaytimeKey>>(new Set());
   const [complexity, setComplexity] = useState<[number, number]>([1, 5]);
@@ -291,6 +326,10 @@ export function Search() {
     setComplexity([1, 5]);
     setSemanticQuery("");
     setSemanticGames(null);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("category_ids");
+    nextParams.delete("mechanic_ids");
+    setSearchParams(nextParams, { replace: true });
   };
 
   const handleTextQueryChange = (value: string) => {
@@ -322,6 +361,14 @@ export function Search() {
   }, [isSemanticLoading]);
 
   const shouldOpenLudoscopio = searchParams.get("ludoscopio") === "open";
+
+  useEffect(() => {
+    const nextCategories = parsePositiveIntegerSetParam(searchParams.get("category_ids"));
+    const nextMechanics = parsePositiveIntegerSetParam(searchParams.get("mechanic_ids"));
+
+    setActiveCategories((current) => (sameNumberSet(current, nextCategories) ? current : nextCategories));
+    setActiveMechanics((current) => (sameNumberSet(current, nextMechanics) ? current : nextMechanics));
+  }, [searchParams]);
 
   useEffect(() => {
     const ludoscopioParam = searchParams.get("ludoscopio")?.trim();

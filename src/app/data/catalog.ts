@@ -16,6 +16,9 @@ import {
 } from "./games";
 
 export interface CatalogRow {
+  categoryId: number;
+  categoryName: string;
+  categoryType: string;
   title: string;
   games: Game[];
 }
@@ -73,6 +76,9 @@ function mapFrontPageRow(row: ApiFrontPageRow): CatalogRow {
   const rowGenre = preferredText(row.category_name_es, row.category_name);
 
   return {
+    categoryId: row.category_id,
+    categoryName: rowGenre,
+    categoryType: row.category_type,
     title: frontPageRowTitle(row, rowGenre),
     games: (row.products ?? []).map((item) => mapApiItemToGame(item, rowGenre)),
   };

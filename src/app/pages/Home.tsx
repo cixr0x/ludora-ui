@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Search, Bell, User, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate, Link } from "react-router";
 import { GameRow } from "../components/GameRow";
@@ -7,15 +7,7 @@ import { gamesFromRows, loadFrontPageRows, type CatalogRow } from "../data/catal
 import type { Game } from "../data/games";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { t } from "../data/translations";
-
-const GENRES = [
-  "Strategy", "Party", "Classic", "RPG", "Cooperative", "Deck Building",
-  "Worker Placement", "Abstract", "Family", "Social Deduction", "Bluffing",
-  "Tile Placement", "Hand Management", "Set Collection", "Drafting", "Engine Building",
-  "Area Control", "Push Your Luck", "Legacy", "Roll & Write", "Negotiation",
-  "Fantasy", "Horror", "Economic", "Card Game", "Dice Rolling", "Adventure",
-  "Auction", "Trading", "Pattern Building",
-];
+import { buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
 
 
 export function Home() {
@@ -27,6 +19,22 @@ export function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const genreScrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const categoryStripItems = useMemo(() => {
+    const seen = new Set<string>();
+
+    return rows.flatMap((row) => {
+      const key = `${row.categoryType}:${row.categoryId}`;
+      const to = buildExploreTaxonomyPath(row.categoryType, row.categoryId);
+      if (seen.has(key) || to === "/search") return [];
+
+      seen.add(key);
+      return [{
+        key,
+        label: row.categoryName || row.title,
+        to,
+      }];
+    });
+  }, [rows]);
 
   const searchResults = searchValue.trim().length >= 2
     ? allGames.filter((g) =>
@@ -224,13 +232,13 @@ export function Home() {
             className="flex items-center gap-7 overflow-x-auto min-w-0 flex-1"
             style={{ scrollbarWidth: "none" }}
           >
-            {GENRES.map((genre) => (
+            {categoryStripItems.map((item) => (
               <Link
-                key={genre}
-                to={`/browse/${encodeURIComponent(genre)}`}
+                key={item.key}
+                to={item.to}
                 className="flex-none text-sm whitespace-nowrap text-neutral-400 hover:text-white transition-colors"
               >
-                {t(genre)}
+                {t(item.label)}
               </Link>
             ))}
           </div>

@@ -29,14 +29,39 @@ export function buildCatalogSearchParams(filters) {
   return params;
 }
 
+export function buildExploreTaxonomyPath(categoryType, categoryId) {
+  const id = Number(categoryId);
+  if (!Number.isInteger(id) || id <= 0) return "/search";
+
+  const paramName = taxonomyParamName(categoryType);
+  if (!paramName) return "/search";
+
+  const params = new URLSearchParams();
+  params.set(paramName, String(id));
+  return `/search?${params.toString()}`;
+}
+
+export function parsePositiveIntegerSetParam(value) {
+  return new Set(parsePositiveIntegerList(value));
+}
+
 function uniquePositiveIntegers(values) {
-  return Array.from(
-    new Set(
-      values
-        .map((value) => Number(value))
-        .filter((value) => Number.isInteger(value) && value > 0),
-    ),
-  );
+  return Array.from(new Set(parsePositiveIntegerList(values)));
+}
+
+function parsePositiveIntegerList(value) {
+  const values = Array.isArray(value) ? value : [value];
+
+  return values
+    .flatMap((entry) => String(entry ?? "").split(","))
+    .map((entry) => Number(entry.trim()))
+    .filter((entry) => Number.isInteger(entry) && entry > 0);
+}
+
+function taxonomyParamName(categoryType) {
+  if (categoryType === "category") return "category_ids";
+  if (categoryType === "mechanic") return "mechanic_ids";
+  return "";
 }
 
 function minRangeValue(ranges, index) {

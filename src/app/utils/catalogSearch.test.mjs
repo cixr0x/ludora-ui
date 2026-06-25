@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildCatalogSearchParams } from "./catalogSearch.js";
+import {
+  buildCatalogSearchParams,
+  buildExploreTaxonomyPath,
+  parsePositiveIntegerSetParam,
+} from "./catalogSearch.js";
 
 test("buildCatalogSearchParams sends search filters using taxonomy ids", () => {
   const params = buildCatalogSearchParams({
@@ -35,4 +39,15 @@ test("buildCatalogSearchParams omits inactive filters", () => {
   });
 
   assert.equal(params.toString(), "limit=80");
+});
+
+test("buildExploreTaxonomyPath links taxonomy ids to explore filters", () => {
+  assert.equal(buildExploreTaxonomyPath("category", 42), "/search?category_ids=42");
+  assert.equal(buildExploreTaxonomyPath("mechanic", 8), "/search?mechanic_ids=8");
+  assert.equal(buildExploreTaxonomyPath("family", 12), "/search");
+});
+
+test("parsePositiveIntegerSetParam reads comma-separated URL filter ids", () => {
+  assert.deepEqual(Array.from(parsePositiveIntegerSetParam("5,no,7,5,0,-1")), [5, 7]);
+  assert.deepEqual(Array.from(parsePositiveIntegerSetParam(null)), []);
 });
