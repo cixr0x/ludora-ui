@@ -5,7 +5,7 @@ import { ExpansionBadge } from "../components/ExpansionBadge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import type { StoreEntry, Game, GameDetail as GameDetailData } from "../data/games";
 import { loadGameDetail, loadGames } from "../data/catalog";
-import { EXPANSION_BADGE_CORNER_CLASS, parentGamePath } from "../utils/expansionDisplay.js";
+import { EXPANSION_BADGE_CORNER_CLASS } from "../utils/expansionDisplay.js";
 import { hasStoreOfferLinks } from "../utils/storeLinks.js";
 import { Link } from "react-router";
 import { t } from "../data/translations";
@@ -241,7 +241,6 @@ export function GameDetail() {
     .filter((g) => g.id !== detail.id && g.genres.some((genre) => detail.genres.includes(genre)))
     .slice(0, 18);
   const hasLinkedStoreOffers = hasStoreOfferLinks(detail.stores);
-  const parentPath = detail.isExpansion && parentGame ? parentGamePath(parentGame.id) : undefined;
   const scrollToStores = () => {
     storesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -337,16 +336,12 @@ export function GameDetail() {
               )}
             </div>
 
-            {detail.isExpansion && (
-              <div className="rounded-lg border border-amber-300/20 bg-amber-950/10 px-3 py-2 text-sm text-neutral-300">
-                <span className="text-neutral-500">Expansión para: </span>
-                {parentPath ? (
-                  <Link to={parentPath} className="text-amber-200 hover:text-amber-100 transition-colors">
-                    {parentGame.name}
-                  </Link>
-                ) : (
-                  <span className="text-neutral-400">juego base no listado</span>
-                )}
+            {detail.isExpansion && parentGame && (
+              <div>
+                <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Expansión para</p>
+                <Link to={`/game/${parentGame.id}`} className="text-white text-sm hover:text-fuchsia-300 transition-colors">
+                  {parentGame.name}
+                </Link>
               </div>
             )}
 
@@ -363,7 +358,7 @@ export function GameDetail() {
             </div>
 
             {/* Stats row */}
-            <div className="grid grid-cols-2 gap-x-10 gap-y-3 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-3 pt-1">
               <div>
                 <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Jugadores</p>
                 <p className="text-white text-sm flex items-center gap-1.5">
@@ -386,7 +381,7 @@ export function GameDetail() {
                 <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Diseñador</p>
                 <p className="text-white text-sm">{detail.designer}</p>
               </div>
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Editorial</p>
                 <p className="text-white text-sm">{detail.publisher}</p>
               </div>
