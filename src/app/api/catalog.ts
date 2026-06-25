@@ -1,3 +1,5 @@
+import { buildCatalogSearchParams } from "../utils/catalogSearch.js";
+
 export interface ApiTaxonomyEntry {
   id: number;
   bgg_id?: number | null;
@@ -84,11 +86,29 @@ export async function fetchFrontPage(): Promise<ApiFrontPageRow[]> {
   return fetchData<ApiFrontPageRow[]>("/api/front-page");
 }
 
-export async function fetchItems(query?: { q?: string; limit?: number; offset?: number }): Promise<ApiItem[]> {
-  const params = new URLSearchParams();
-  if (query?.q) params.set("q", query.q);
-  if (query?.limit) params.set("limit", String(query.limit));
-  if (query?.offset) params.set("offset", String(query.offset));
+export interface ApiItemsQuery {
+  categoryIds?: number[];
+  complexity?: [number, number];
+  limit?: number;
+  mechanicIds?: number[];
+  offset?: number;
+  players?: number | null;
+  playtimeRanges?: Array<[number, number]>;
+  query?: string;
+  q?: string;
+}
+
+export async function fetchItems(query?: ApiItemsQuery): Promise<ApiItem[]> {
+  const params = buildCatalogSearchParams({
+    categoryIds: query?.categoryIds,
+    complexity: query?.complexity,
+    limit: query?.limit,
+    mechanicIds: query?.mechanicIds,
+    offset: query?.offset,
+    players: query?.players,
+    playtimeRanges: query?.playtimeRanges,
+    query: query?.query ?? query?.q,
+  });
   const suffix = params.size ? `?${params.toString()}` : "";
 
   return fetchData<ApiItem[]>(`/api/items${suffix}`);

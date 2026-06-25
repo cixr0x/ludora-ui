@@ -11,6 +11,7 @@ import {
 import {
   type Game,
   type GameDetail,
+  type GameTaxonomyEntry,
   type StoreEntry,
 } from "./games";
 
@@ -46,9 +47,9 @@ export async function loadGames(): Promise<Game[]> {
   return gamesFromRows(await loadFrontPageRows());
 }
 
-export async function loadCatalogGameDetails(): Promise<GameDetail[]> {
+export async function loadCatalogGameDetails(query?: Parameters<typeof fetchItems>[0]): Promise<GameDetail[]> {
   try {
-    const items = await fetchItems({ limit: 200 });
+    const items = await fetchItems(query ?? { limit: 200 });
     return items.map((item) => mapApiItemToDetail(item));
   } catch {
     return [];
@@ -72,9 +73,19 @@ function mapFrontPageRow(row: ApiFrontPageRow): CatalogRow {
   const rowGenre = preferredText(row.category_name_es, row.category_name);
 
   return {
-    title: row.title || rowGenre || "Ludora",
+    title: frontPageRowTitle(row, rowGenre),
     games: (row.products ?? []).map((item) => mapApiItemToGame(item, rowGenre)),
   };
+}
+
+function frontPageRowTitle(row: ApiFrontPageRow, rowGenre: string): string {
+  const title = preferredText(row.title);
+  const categoryName = preferredText(row.category_name);
+  const translatedCategoryName = preferredText(row.category_name_es);
+
+  if (!title) return rowGenre || "Ludora";
+  if (translatedCategoryName && categoryName && title === categoryName) return translatedCategoryName;
+  return title;
 }
 
 function mapApiItemToGame(item: ApiItem, extraGenre?: string): Game {
@@ -93,8 +104,10 @@ function mapApiItemToGame(item: ApiItem, extraGenre?: string): Game {
 
 function mapApiItemToDetail(item: ApiItem): GameDetail {
   const base = mapApiItemToGame(item);
-  const categories = taxonomyNames(item.categories ?? []);
-  const mechanics = taxonomyNames(item.mechanics ?? []);
+  const categoryEntries = taxonomyEntries(item.categories ?? []);
+  const mechanicEntries = taxonomyEntries(item.mechanics ?? []);
+  const categories = categoryEntries.map((entry) => entry.name);
+  const mechanics = mechanicEntries.map((entry) => entry.name);
   const designers = taxonomyNames(item.designers ?? []);
   const publishers = taxonomyNames(item.publishers ?? []);
   const youtubeId = item.tutorials?.map((tutorial) => youtubeIdFromUrl(tutorial.url)).find(Boolean);
@@ -103,7 +116,9 @@ function mapApiItemToDetail(item: ApiItem): GameDetail {
     ...base,
     rating: numericValue(item.rating, 0),
     categories,
+    categoryEntries,
     mechanics,
+    mechanicEntries,
     description: descriptionParagraphs(item),
     players: rangeText(item.min_players, item.max_players) || "Sin registrar",
     playTime: minutesText(item.min_minutes, item.max_minutes) || "Sin registrar",
@@ -128,6 +143,15 @@ function collectGenres(item: ApiItem, extraGenre?: string): string[] {
 
 function taxonomyNames(entries: ApiTaxonomyEntry[]): string[] {
   return entries.map((entry) => preferredText(entry.name_es, entry.name)).filter(Boolean);
+}
+
+function taxonomyEntries(entries: ApiTaxonomyEntry[]): GameTaxonomyEntry[] {
+  return entries
+    .map((entry) => ({
+      id: entry.id,
+      name: preferredText(entry.name_es, entry.name),
+    }))
+    .filter((entry) => Number.isInteger(entry.id) && entry.id > 0 && entry.name);
 }
 
 function descriptionParagraphs(item: ApiItem): string[] {

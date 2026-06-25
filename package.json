@@ -6,7 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "test": "node --test src/app/utils/imageBatch.test.mjs"
+    "test": "node --test src/app/utils/*.test.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

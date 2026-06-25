@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, Sparkles } from "lucide-react";
-import type { GameDetail } from "../data/games";
+import type { GameDetail, GameTaxonomyEntry } from "../data/games";
 import { loadCatalogGameDetails, loadSemanticCatalogGameDetails } from "../data/catalog";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { t } from "../data/translations";
@@ -16,6 +16,7 @@ const PLAYTIME_OPTIONS: { key: PlaytimeKey; label: string; range: [number, numbe
 ];
 
 const PLAYER_OPTIONS = [1, 2, 3, 4, 5, 6];
+const SEARCH_LIMIT = 200;
 
 function parseRange(text: string): [number, number] {
   const nums = text.match(/\d+/g)?.map(Number) ?? [];
@@ -42,41 +43,156 @@ interface EnrichedGame {
   altTitle?: string;
   image: string;
   genres: string[];
-  categories: string[];
-  mechanics: string[];
+  categories: GameTaxonomyEntry[];
+  mechanics: GameTaxonomyEntry[];
+  categoryNames: string[];
+  mechanicNames: string[];
   minPlayers: number;
   maxPlayers: number;
   playtime: PlaytimeKey;
   complexity: number;
 }
 
-function useEnrichedGames(): { games: EnrichedGame[]; isLoading: boolean } {
+interface TaxonomyOption {
+  id: number;
+  name: string;
+}
+
+interface CatalogSearchRequest {
+  categoryIds: number[];
+  complexity: [number, number];
+  mechanicIds: number[];
+  players: number | null;
+  playtimeRanges: Array<[number, number]>;
+  query: string;
+}
+
+function useCatalogSearchGames(
+  request: CatalogSearchRequest,
+  semanticGames: EnrichedGame[] | null,
+): { filterGames: EnrichedGame[]; games: EnrichedGame[]; isLoading: boolean } {
   const [games, setGames] = useState<EnrichedGame[]>([]);
+  const [filterGames, setFilterGames] = useState<EnrichedGame[]>([]);
+  const hasFilterOptionsRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (semanticGames) {
+      setIsLoading(false);
+      return;
+    }
+
     let isActive = true;
+    const delay = request.query.trim() ? 250 : 0;
     setIsLoading(true);
 
-    loadCatalogGameDetails()
-      .then((details) => {
-        if (!isActive) return;
-        setGames(details.map(mapDetailToEnriched));
+    const timeout = window.setTimeout(() => {
+      loadCatalogGameDetails({
+        categoryIds: request.categoryIds,
+        complexity: request.complexity,
+        limit: SEARCH_LIMIT,
+        mechanicIds: request.mechanicIds,
+        players: request.players,
+        playtimeRanges: request.playtimeRanges,
+        query: request.query,
       })
-      .finally(() => {
-        if (isActive) setIsLoading(false);
-      });
+        .then((details) => {
+          if (!isActive) return;
+          const mappedGames = details.map(mapDetailToEnriched);
+          setGames(mappedGames);
+          if (!hasFilterOptionsRef.current && isDefaultSearchRequest(request)) {
+            setFilterGames(mappedGames);
+            hasFilterOptionsRef.current = true;
+          }
+        })
+        .finally(() => {
+          if (isActive) setIsLoading(false);
+        });
+    }, delay);
 
     return () => {
       isActive = false;
+      window.clearTimeout(timeout);
     };
-  }, []);
+  }, [request, semanticGames]);
 
-  return { games, isLoading };
+  return { filterGames, games, isLoading };
+}
+
+function isDefaultSearchRequest(request: CatalogSearchRequest) {
+  return (
+    request.query.trim() === "" &&
+    request.categoryIds.length === 0 &&
+    request.mechanicIds.length === 0 &&
+    request.players === null &&
+    request.playtimeRanges.length === 0 &&
+    request.complexity[0] === 1 &&
+    request.complexity[1] === 5
+  );
+}
+
+function taxonomyOptionsFromGames(games: EnrichedGame[], key: "categories" | "mechanics"): TaxonomyOption[] {
+  const options = new Map<number, string>();
+
+  for (const game of games) {
+    for (const entry of game[key]) {
+      if (!options.has(entry.id)) options.set(entry.id, entry.name);
+    }
+  }
+
+  return Array.from(options, ([id, name]) => ({ id, name })).sort((left, right) =>
+    left.name.localeCompare(right.name, "es"),
+  );
+}
+
+function localSearchResults(sourceGames: EnrichedGame[], request: CatalogSearchRequest): EnrichedGame[] {
+  const q = request.query.trim().toLowerCase();
+
+  return sourceGames.filter((game) => {
+    if (q.length > 0) {
+      const haystack = [game.name, game.altTitle, ...game.categoryNames, ...game.mechanicNames, ...game.genres]
+        .join(" ")
+        .toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    if (request.categoryIds.length > 0) {
+      const categoryIds = new Set(game.categories.map((entry) => entry.id));
+      for (const id of request.categoryIds) if (!categoryIds.has(id)) return false;
+    }
+    if (request.mechanicIds.length > 0) {
+      const mechanicIds = new Set(game.mechanics.map((entry) => entry.id));
+      for (const id of request.mechanicIds) if (!mechanicIds.has(id)) return false;
+    }
+    if (request.players !== null) {
+      if (request.players < game.minPlayers || request.players > game.maxPlayers) return false;
+    }
+    if (request.playtimeRanges.length > 0) {
+      const option = PLAYTIME_OPTIONS.find((candidate) => candidate.key === game.playtime);
+      const average = option ? (option.range[0] + option.range[1]) / 2 : 0;
+      if (!request.playtimeRanges.some(([minRange, maxRange]) => average >= minRange && average <= maxRange)) {
+        return false;
+      }
+    }
+    if (
+      (request.complexity[0] !== 1 || request.complexity[1] !== 5) &&
+      (game.complexity < request.complexity[0] || game.complexity > request.complexity[1])
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function taxonomyEntriesFromDetail(detail: GameDetail, key: "categoryEntries" | "mechanicEntries", names: string[]) {
+  const entries = detail[key];
+  if (entries?.length) return entries;
+  return names.map((name, index) => ({ id: -(index + 1), name }));
 }
 
 function mapDetailToEnriched(detail: GameDetail): EnrichedGame {
   const [min, max] = parseRange(detail.players);
+  const categories = taxonomyEntriesFromDetail(detail, "categoryEntries", detail.categories);
+  const mechanics = taxonomyEntriesFromDetail(detail, "mechanicEntries", detail.mechanics);
 
   return {
     id: detail.id,
@@ -84,8 +200,10 @@ function mapDetailToEnriched(detail: GameDetail): EnrichedGame {
     altTitle: detail.altTitle,
     image: detail.image,
     genres: detail.genres,
-    categories: detail.categories,
-    mechanics: detail.mechanics,
+    categories,
+    mechanics,
+    categoryNames: categories.map((entry) => entry.name),
+    mechanicNames: mechanics.map((entry) => entry.name),
     minPlayers: min,
     maxPlayers: max,
     playtime: playtimeBucket(detail.playTime),
@@ -111,29 +229,37 @@ function Toggle({ label, active, onClick }: { label: string; active: boolean; on
 export function Search() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { games, isLoading } = useEnrichedGames();
-
-  const allCategories = useMemo(() => {
-    const s = new Set<string>();
-    games.forEach((g) => g.categories.forEach((c) => s.add(c)));
-    return Array.from(s).sort();
-  }, [games]);
-
-  const allMechanics = useMemo(() => {
-    const s = new Set<string>();
-    games.forEach((g) => g.mechanics.forEach((m) => s.add(m)));
-    return Array.from(s).sort();
-  }, [games]);
-
   const [query, setQuery] = useState("");
-  const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set());
-  const [activeMechanics, setActiveMechanics] = useState<Set<string>>(new Set());
+  const [activeCategories, setActiveCategories] = useState<Set<number>>(new Set());
+  const [activeMechanics, setActiveMechanics] = useState<Set<number>>(new Set());
   const [players, setPlayers] = useState<number | null>(null);
   const [playtimes, setPlaytimes] = useState<Set<PlaytimeKey>>(new Set());
   const [complexity, setComplexity] = useState<[number, number]>([1, 5]);
   const [semanticQuery, setSemanticQuery] = useState("");
   const [semanticGames, setSemanticGames] = useState<EnrichedGame[] | null>(null);
   const [isSemanticLoading, setIsSemanticLoading] = useState(false);
+  const selectedPlaytimeRanges = useMemo(
+    () =>
+      Array.from(playtimes)
+        .map((playtime) => PLAYTIME_OPTIONS.find((option) => option.key === playtime)?.range)
+        .filter((range): range is [number, number] => Boolean(range)),
+    [playtimes],
+  );
+  const searchRequest = useMemo<CatalogSearchRequest>(
+    () => ({
+      categoryIds: Array.from(activeCategories).sort((left, right) => left - right),
+      complexity,
+      mechanicIds: Array.from(activeMechanics).sort((left, right) => left - right),
+      players,
+      playtimeRanges: selectedPlaytimeRanges,
+      query,
+    }),
+    [activeCategories, activeMechanics, complexity, players, query, selectedPlaytimeRanges],
+  );
+  const { filterGames, games, isLoading } = useCatalogSearchGames(searchRequest, semanticGames);
+
+  const allCategories = useMemo(() => taxonomyOptionsFromGames(filterGames, "categories"), [filterGames]);
+  const allMechanics = useMemo(() => taxonomyOptionsFromGames(filterGames, "mechanics"), [filterGames]);
 
   const toggle = <T,>(set: Set<T>, value: T, setter: (s: Set<T>) => void) => {
     const next = new Set(set);
@@ -141,35 +267,10 @@ export function Search() {
     setter(next);
   };
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const sourceGames = semanticGames ?? games;
-    return sourceGames.filter((g) => {
-      if (q.length > 0) {
-        const haystack = [g.name, g.altTitle, ...g.categories, ...g.mechanics, ...g.genres].join(" ").toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      if (activeCategories.size > 0) {
-        const pool = new Set(g.categories);
-        for (const c of activeCategories) if (!pool.has(c)) return false;
-      }
-      if (activeMechanics.size > 0) {
-        const pool = new Set(g.mechanics);
-        for (const m of activeMechanics) if (!pool.has(m)) return false;
-      }
-      if (players !== null) {
-        if (players < g.minPlayers || players > g.maxPlayers) return false;
-      }
-      if (playtimes.size > 0 && !playtimes.has(g.playtime)) return false;
-      if (
-        (complexity[0] !== 1 || complexity[1] !== 5) &&
-        (g.complexity < complexity[0] || g.complexity > complexity[1])
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [games, semanticGames, query, activeCategories, activeMechanics, players, playtimes, complexity]);
+  const results = useMemo(
+    () => (semanticGames ? localSearchResults(semanticGames, searchRequest) : games),
+    [games, searchRequest, semanticGames],
+  );
 
   const activeFilterCount =
     (query.trim() ? 1 : 0) +
@@ -381,12 +482,12 @@ export function Search() {
               )}
             </label>
             <div className="flex flex-wrap gap-1.5">
-              {allCategories.map((c) => (
+              {allCategories.map((category) => (
                 <Toggle
-                  key={c}
-                  label={t(c)}
-                  active={activeCategories.has(c)}
-                  onClick={() => toggle(activeCategories, c, setActiveCategories)}
+                  key={category.id}
+                  label={t(category.name)}
+                  active={activeCategories.has(category.id)}
+                  onClick={() => toggle(activeCategories, category.id, setActiveCategories)}
                 />
               ))}
             </div>
@@ -401,12 +502,12 @@ export function Search() {
               )}
             </label>
             <div className="flex flex-wrap gap-1.5">
-              {allMechanics.map((m) => (
+              {allMechanics.map((mechanic) => (
                 <Toggle
-                  key={m}
-                  label={t(m)}
-                  active={activeMechanics.has(m)}
-                  onClick={() => toggle(activeMechanics, m, setActiveMechanics)}
+                  key={mechanic.id}
+                  label={t(mechanic.name)}
+                  active={activeMechanics.has(mechanic.id)}
+                  onClick={() => toggle(activeMechanics, mechanic.id, setActiveMechanics)}
                 />
               ))}
             </div>

@@ -9,6 +9,11 @@ export interface Game {
   genres: string[];
 }
 
+export interface GameTaxonomyEntry {
+  id: number;
+  name: string;
+}
+
 export interface StoreEntry {
   id: number;
   name: string;
@@ -28,7 +33,9 @@ export interface StoreEntry {
 export interface GameDetail extends Game {
   rating: number;
   categories: string[];
+  categoryEntries?: GameTaxonomyEntry[];
   mechanics: string[];
+  mechanicEntries?: GameTaxonomyEntry[];
   description: string[];
   players: string;
   playTime: string;
