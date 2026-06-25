@@ -5,7 +5,7 @@ import type { Game } from "../data/games";
 import {
   areBufferedImagesSettled,
   getBufferedRowImageIds,
-  preloadImageRow,
+  getUnloadedBufferedImageIds,
 } from "../utils/imageBatch.js";
 
 export type { Game };
@@ -142,17 +142,15 @@ function GameRowSkeleton({ rowItems, overlay = false }: { rowItems: RowItem[]; o
 export function GameRow({ title, games }: GameRowProps) {
   const rowContainerRef = useRef<HTMLDivElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
-  const loadingImageIdsRef = useRef<Set<string>>(new Set());
-  const preloadedImageIdsRef = useRef<Set<string>>(new Set());
+  const mountedImageIdsRef = useRef<Set<string>>(new Set());
   const settledImageIdsRef = useRef<Set<string>>(new Set());
   const bufferedImageIdsRef = useRef<string[]>([]);
-  const preloadGenerationRef = useRef(0);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [shouldLoadRow, setShouldLoadRow] = useState(false);
   const [isRowReady, setIsRowReady] = useState(false);
   const [isRowVisible, setIsRowVisible] = useState(false);
-  const [preloadedImageIds, setPreloadedImageIds] = useState<Set<string>>(() => new Set());
+  const [mountedImageIds, setMountedImageIds] = useState<Set<string>>(() => new Set());
   const [settledImageIds, setSettledImageIds] = useState<Set<string>>(() => new Set());
   const [bufferedImageIds, setBufferedImageIds] = useState<string[]>([]);
   const rowItems = useMemo(
@@ -172,20 +170,18 @@ export function GameRow({ title, games }: GameRowProps) {
   const rowImageSignature = rowItems.map((item) => `${item.id}:${item.src}`).join("\n");
 
   useEffect(() => {
-    preloadedImageIdsRef.current = preloadedImageIds;
-  }, [preloadedImageIds]);
+    mountedImageIdsRef.current = mountedImageIds;
+  }, [mountedImageIds]);
 
   useEffect(() => {
     settledImageIdsRef.current = settledImageIds;
   }, [settledImageIds]);
 
   useEffect(() => {
-    preloadGenerationRef.current += 1;
-    loadingImageIdsRef.current.clear();
-    preloadedImageIdsRef.current = new Set();
+    mountedImageIdsRef.current = new Set();
     settledImageIdsRef.current = new Set();
     bufferedImageIdsRef.current = [];
-    setPreloadedImageIds(new Set());
+    setMountedImageIds(new Set());
     setSettledImageIds(new Set());
     setBufferedImageIds([]);
     setShouldLoadRow(false);
@@ -213,7 +209,7 @@ export function GameRow({ title, games }: GameRowProps) {
     });
   }, []);
 
-  const preloadCurrentWindow = useCallback(() => {
+  const loadCurrentWindow = useCallback(() => {
     if (!shouldLoadRow) return;
 
     const el = rowRef.current;
@@ -230,41 +226,23 @@ export function GameRow({ title, games }: GameRowProps) {
       HORIZONTAL_PRELOAD_PX,
     );
     updateBufferedImageIds(bufferedIds);
-    const bufferedIdSet = new Set(bufferedIds);
-    const windowItems = rowItems.filter((item) => bufferedIdSet.has(item.id));
-    const missingItems = windowItems.filter(
-      (item) => !preloadedImageIdsRef.current.has(item.id) && !loadingImageIdsRef.current.has(item.id),
-    );
 
-    if (missingItems.length === 0) {
-      if (bufferedIds.length === 0 || bufferedIds.every((id) => preloadedImageIdsRef.current.has(id))) {
-        setIsRowReady(true);
-      }
+    const unloadedIds = getUnloadedBufferedImageIds(bufferedIds, mountedImageIdsRef.current);
+
+    if (unloadedIds.length === 0) {
+      setIsRowReady(true);
       return;
     }
 
-    const generation = preloadGenerationRef.current;
-    for (const item of missingItems) {
-      loadingImageIdsRef.current.add(item.id);
-    }
-
-    preloadImageRow(missingItems.map((item) => item.src)).then(() => {
-      if (generation !== preloadGenerationRef.current) return;
-
-      for (const item of missingItems) {
-        loadingImageIdsRef.current.delete(item.id);
+    setMountedImageIds((previous) => {
+      const next = new Set(previous);
+      for (const id of unloadedIds) {
+        next.add(id);
       }
-
-      setPreloadedImageIds((previous) => {
-        const next = new Set(previous);
-        for (const item of missingItems) {
-          next.add(item.id);
-        }
-        preloadedImageIdsRef.current = next;
-        return next;
-      });
-      setIsRowReady(true);
+      mountedImageIdsRef.current = next;
+      return next;
     });
+    setIsRowReady(true);
   }, [rowItems, shouldLoadRow, updateBufferedImageIds]);
 
   const updateScrollState = useCallback(() => {
@@ -272,8 +250,8 @@ export function GameRow({ title, games }: GameRowProps) {
     if (!el) return;
     setCanScrollLeft(el.scrollLeft > 4);
     setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-    preloadCurrentWindow();
-  }, [preloadCurrentWindow]);
+    loadCurrentWindow();
+  }, [loadCurrentWindow]);
 
   useEffect(() => {
     const el = rowRef.current;
@@ -311,16 +289,16 @@ export function GameRow({ title, games }: GameRowProps) {
   }, [rowImageSignature, shouldLoadRow]);
 
   useEffect(() => {
-    preloadCurrentWindow();
-  }, [preloadCurrentWindow]);
+    loadCurrentWindow();
+  }, [loadCurrentWindow]);
 
   useEffect(() => {
     if (!isRowReady || isRowVisible) return;
-    if (!areBufferedImagesSettled(bufferedImageIds, preloadedImageIds, settledImageIds)) return;
+    if (!areBufferedImagesSettled(bufferedImageIds, mountedImageIds, settledImageIds)) return;
 
     const frame = requestAnimationFrame(() => setIsRowVisible(true));
     return () => cancelAnimationFrame(frame);
-  }, [bufferedImageIds, isRowReady, isRowVisible, preloadedImageIds, settledImageIds]);
+  }, [bufferedImageIds, isRowReady, isRowVisible, mountedImageIds, settledImageIds]);
 
   const scroll = (dir: "left" | "right") => {
     rowRef.current?.scrollBy({
@@ -357,14 +335,14 @@ export function GameRow({ title, games }: GameRowProps) {
               <div
                 className={`game-row-content flex gap-4 ${isRowVisible ? "game-row-content--visible" : ""}`}
                 data-row-image-status={isRowVisible ? "visible" : "hidden"}
-                data-row-preloaded-count={preloadedImageIds.size}
+                data-row-mounted-count={mountedImageIds.size}
                 data-row-buffered-count={bufferedImageIds.length}
                 data-row-dom-settled-count={settledImageIds.size}
               >
                 {rowItems.map(({ game, id }) => {
-                  const isImageReady = preloadedImageIds.has(id);
+                  const shouldMountImage = mountedImageIds.has(id);
 
-                  return isImageReady ? (
+                  return shouldMountImage ? (
                     <Link
                       key={game.id}
                       to={`/game/${game.id}`}

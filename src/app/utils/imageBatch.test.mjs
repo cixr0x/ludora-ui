@@ -4,72 +4,8 @@ import test from "node:test";
 import {
   areBufferedImagesSettled,
   getBufferedRowImageIds,
-  preloadImageBatch,
-  preloadImageRow,
+  getUnloadedBufferedImageIds,
 } from "./imageBatch.js";
-
-test("preloadImageBatch resolves after every unique source settles", async () => {
-  const events = [];
-  const resolvers = new Map();
-
-  const preload = (src) =>
-    new Promise((resolve, reject) => {
-      events.push(`start:${src}`);
-      resolvers.set(src, src === "bad.png" ? reject : resolve);
-    });
-
-  let resolved = false;
-  const batch = preloadImageBatch(
-    ["a.png", "b.png", "a.png", "", undefined, "bad.png"],
-    preload,
-  ).then(() => {
-    resolved = true;
-    events.push("batch:done");
-  });
-
-  await Promise.resolve();
-  assert.deepEqual(events, ["start:a.png", "start:b.png", "start:bad.png"]);
-
-  resolvers.get("a.png")();
-  await Promise.resolve();
-  assert.equal(resolved, false);
-
-  resolvers.get("bad.png")(new Error("broken image"));
-  await Promise.resolve();
-  assert.equal(resolved, false);
-
-  resolvers.get("b.png")();
-  await batch;
-
-  assert.equal(resolved, true);
-  assert.deepEqual(events, ["start:a.png", "start:b.png", "start:bad.png", "batch:done"]);
-});
-
-test("preloadImageRow waits for the full row before resolving", async () => {
-  const resolvers = new Map();
-  const preload = (src) =>
-    new Promise((resolve, reject) => {
-      resolvers.set(src, src === "broken.png" ? reject : resolve);
-    });
-
-  let rowVisible = false;
-  const row = preloadImageRow(["cover-1.png", "cover-2.png", "broken.png"], preload).then(() => {
-    rowVisible = true;
-  });
-
-  await Promise.resolve();
-  resolvers.get("cover-1.png")();
-  await Promise.resolve();
-  assert.equal(rowVisible, false);
-
-  resolvers.get("broken.png")(new Error("failed image"));
-  await Promise.resolve();
-  assert.equal(rowVisible, false);
-
-  resolvers.get("cover-2.png")();
-  await row;
-  assert.equal(rowVisible, true);
-});
 
 test("getBufferedRowImageIds includes visible cards plus one horizontal click", () => {
   const items = Array.from({ length: 10 }, (_, index) => ({
@@ -82,11 +18,18 @@ test("getBufferedRowImageIds includes visible cards plus one horizontal click", 
   assert.deepEqual(getBufferedRowImageIds(items, 920, 368, 720), ["1", "2", "3", "4", "5", "6", "7", "8", "9"]);
 });
 
-test("areBufferedImagesSettled waits for preloaded images to settle in the DOM", () => {
+test("areBufferedImagesSettled waits for mounted images to settle in the DOM", () => {
   const bufferedIds = ["cover-1", "cover-2"];
   const preloadedIds = new Set(["cover-1", "cover-2"]);
 
   assert.equal(areBufferedImagesSettled(bufferedIds, preloadedIds, new Set(["cover-1"])), false);
   assert.equal(areBufferedImagesSettled(bufferedIds, new Set(["cover-1"]), new Set(bufferedIds)), false);
   assert.equal(areBufferedImagesSettled(bufferedIds, preloadedIds, new Set(bufferedIds)), true);
+});
+
+test("getUnloadedBufferedImageIds returns only buffered images without mounted DOM images", () => {
+  const bufferedIds = ["cover-1", "cover-2", "cover-3"];
+  const mountedIds = new Set(["cover-1", "cover-3"]);
+
+  assert.deepEqual(getUnloadedBufferedImageIds(bufferedIds, mountedIds), ["cover-2"]);
 });
