@@ -1,5 +1,11 @@
 import { Outlet } from "react-router";
+import { SiteFooter } from "./components/SiteFooter";
 
 export function Root() {
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <SiteFooter />
+    </>
+  );
 }
