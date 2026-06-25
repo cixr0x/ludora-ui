@@ -6,6 +6,7 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import type { StoreEntry, Game, GameDetail as GameDetailData } from "../data/games";
 import { loadGameDetail, loadGames } from "../data/catalog";
 import { EXPANSION_BADGE_CORNER_CLASS, parentGamePath } from "../utils/expansionDisplay.js";
+import { BGG_LOGO_URL } from "../utils/bggLinks.js";
 import { hasStoreOfferLinks } from "../utils/storeLinks.js";
 import { Link } from "react-router";
 import { t } from "../data/translations";
@@ -321,16 +322,35 @@ export function GameDetail() {
             <div>
               <div className="flex items-start justify-between gap-4 mb-1">
                 <h1 className="text-white leading-tight">{detail.name}</h1>
-                <span className="flex-none mt-1" style={{ fontSize: "1.35rem" }}>
-                  {detail.rating > 0 ? (
-                    <>
-                      <span className="text-fuchsia-400 font-bold">{detail.rating.toFixed(1)}</span>
-                      <span className="text-neutral-600 text-base"> / 10</span>
-                    </>
-                  ) : (
-                    <span className="text-neutral-500 text-sm">Sin calificar</span>
+                <div className="flex-none mt-1 flex flex-col items-end gap-1">
+                  <span style={{ fontSize: "1.35rem" }}>
+                    {detail.rating > 0 ? (
+                      <>
+                        <span className="text-fuchsia-400 font-bold">{detail.rating.toFixed(1)}</span>
+                        <span className="text-neutral-600 text-base"> / 10</span>
+                      </>
+                    ) : (
+                      <span className="text-neutral-500 text-sm">Sin calificar</span>
+                    )}
+                  </span>
+                  {detail.bggUrl && (
+                    <a
+                      href={detail.bggUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Ver ${detail.name} en BoardGameGeek`}
+                      className="inline-flex rounded-sm opacity-80 transition-opacity hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-400"
+                    >
+                      <img
+                        src={BGG_LOGO_URL}
+                        alt="BoardGameGeek"
+                        className="h-4 w-auto"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </a>
                   )}
-                </span>
+                </div>
               </div>
               {detail.altTitle && (
                 <p className="text-neutral-400">{detail.altTitle}</p>

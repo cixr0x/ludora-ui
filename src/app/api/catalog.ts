@@ -56,6 +56,7 @@ export interface ApiItem {
   rating?: number | string | null;
   has_approved_listing?: boolean;
   is_expansion?: boolean;
+  bgg_url?: string | null;
   categories?: ApiTaxonomyEntry[];
   mechanics?: ApiTaxonomyEntry[];
   families?: ApiTaxonomyEntry[];

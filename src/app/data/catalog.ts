@@ -9,6 +9,7 @@ import {
   type ApiTaxonomyEntry,
 } from "../api/catalog";
 import { isExpansionItem, positiveInteger } from "../utils/expansionDisplay.js";
+import { bggItemUrl } from "../utils/bggLinks.js";
 import { storeOfferUrl } from "../utils/storeLinks.js";
 import {
   type Game,
@@ -125,6 +126,7 @@ function mapApiItemToDetail(item: ApiItem): GameDetail {
   return {
     ...base,
     rating: numericValue(item.rating, 0),
+    bggUrl: bggItemUrl(item),
     categories,
     categoryEntries,
     mechanics,
