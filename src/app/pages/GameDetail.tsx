@@ -341,7 +341,7 @@ export function GameDetail() {
               type="button"
               aria-label={`Ver imagen ampliada de ${detail.name}`}
               onClick={() => setIsImageOverlayOpen(true)}
-              className="group flex w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-md bg-neutral-900 transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-fuchsia-400 focus:ring-offset-2 focus:ring-offset-neutral-950"
+              className="group flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-md transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-fuchsia-400 focus:ring-offset-2 focus:ring-offset-neutral-950"
               style={{ height: 176 }}
             >
               <div className="relative inline-flex max-h-full max-w-full">

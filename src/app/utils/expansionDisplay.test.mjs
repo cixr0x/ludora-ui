@@ -69,3 +69,14 @@ test("GameDetail opens the product cover in a half-screen overlay", () => {
   assert.match(source, /h-\[50vh\] w-\[50vw\]/);
   assert.match(source, /Escape/);
 });
+
+test("GameDetail cover button keeps the regular image transparent with a pointer cursor", () => {
+  const source = gameDetailSource();
+  const coverButtonMatch = source.match(/aria-label=\{`Ver imagen ampliada de \$\{detail\.name\}`\}[\s\S]*?className="([^"]+)"/);
+
+  assert.ok(coverButtonMatch);
+  const coverButtonClassName = coverButtonMatch[1];
+  assert.match(coverButtonClassName, /\bcursor-pointer\b/);
+  assert.doesNotMatch(coverButtonClassName, /\bcursor-zoom-in\b/);
+  assert.doesNotMatch(coverButtonClassName, /\bbg-neutral-900\b/);
+});
