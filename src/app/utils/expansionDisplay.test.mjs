@@ -50,3 +50,10 @@ test("GameDetail stacks product stats on narrow viewports", () => {
   assert.match(source, /grid grid-cols-1 sm:grid-cols-2/);
   assert.match(source, /className="sm:col-span-2"/);
 });
+
+test("GameDetail uses a lighter blur for the cover backdrop", () => {
+  const source = gameDetailSource();
+
+  assert.match(source, /filter: "blur\(24px\)"/);
+  assert.doesNotMatch(source, /blur\(72px\)/);
+});

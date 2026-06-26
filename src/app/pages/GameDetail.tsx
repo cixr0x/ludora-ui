@@ -273,7 +273,7 @@ export function GameDetail() {
             alt=""
             aria-hidden
             className="w-full h-full object-cover"
-            style={{ filter: "blur(72px)", transform: "scale(1.4)", opacity: 0.5 }}
+            style={{ filter: "blur(24px)", transform: "scale(1.4)", opacity: 0.5 }}
           />
           <div className="absolute inset-0 bg-gradient-to-b from-neutral-950/30 via-neutral-950/60 to-neutral-950" />
           <div className="absolute inset-0 bg-gradient-to-r from-neutral-950/50 via-transparent to-neutral-950/50" />

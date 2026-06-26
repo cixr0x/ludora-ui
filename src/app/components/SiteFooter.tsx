@@ -19,7 +19,7 @@ export function SiteFooter() {
           <img
             src={BGG_FOOTER_LOGO_URL}
             alt="Powered by BoardGameGeek"
-            className="h-7 w-auto"
+            className="h-10 w-auto"
             loading="lazy"
             decoding="async"
           />

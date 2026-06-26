@@ -24,6 +24,7 @@ test("SiteFooter renders contact, privacy, and powered by BGG attribution", () =
   assert.match(footerSource, /Contact/);
   assert.match(footerSource, /Aviso de Privacidad/);
   assert.match(footerSource, /Powered by BoardGameGeek/);
+  assert.match(footerSource, /h-10 w-auto/);
   assert.match(footerSource, /loading="lazy"/);
   assert.match(footerSource, /decoding="async"/);
 });
