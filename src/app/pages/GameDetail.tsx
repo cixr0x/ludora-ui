@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, Users, Clock, Dices, ChevronLeft, ChevronRight, Youtube, ShoppingCart, ExternalLink } from "lucide-react";
+import { ArrowLeft, Users, Clock, Dices, ChevronLeft, ChevronRight, Youtube, ShoppingCart, ExternalLink, X } from "lucide-react";
 import { ExpansionBadge } from "../components/ExpansionBadge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import type { StoreEntry, Game, GameDetail as GameDetailData } from "../data/games";
@@ -183,12 +183,14 @@ export function GameDetail() {
   const [parentGame, setParentGame] = useState<Game | undefined>();
   const [allGames, setAllGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(() => Number.isInteger(itemId) && itemId > 0);
+  const [isImageOverlayOpen, setIsImageOverlayOpen] = useState(false);
   const storesSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!Number.isInteger(itemId) || itemId <= 0) {
       setDetail(undefined);
       setIsLoading(false);
+      setIsImageOverlayOpen(false);
       return;
     }
 
@@ -196,6 +198,7 @@ export function GameDetail() {
     setDetail(undefined);
     setParentGame(undefined);
     setIsLoading(true);
+    setIsImageOverlayOpen(false);
 
     const gamesPromise = loadGames();
     loadGameDetail(itemId).then(async (nextDetail) => {
@@ -215,6 +218,25 @@ export function GameDetail() {
       isActive = false;
     };
   }, [itemId]);
+
+  useEffect(() => {
+    if (!isImageOverlayOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsImageOverlayOpen(false);
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isImageOverlayOpen]);
 
   if (isLoading && !detail) {
     return (
@@ -252,6 +274,38 @@ export function GameDetail() {
         background: "radial-gradient(ellipse 120% 35% at 50% 0%, rgba(217, 70, 239, 0.06) 0%, transparent 55%), rgb(10, 10, 10)",
       }}
     >
+      {isImageOverlayOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Imagen ampliada de ${detail.name}`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-6 py-8"
+          onClick={() => setIsImageOverlayOpen(false)}
+        >
+          <button
+            type="button"
+            aria-label="Cerrar imagen ampliada"
+            className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-neutral-950/80 text-neutral-300 transition-colors hover:bg-neutral-900 hover:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-400"
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsImageOverlayOpen(false);
+            }}
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <div
+            className="flex h-[50vh] w-[50vw] max-h-[calc(100vh-4rem)] max-w-[calc(100vw-3rem)] items-center justify-center"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <ImageWithFallback
+              src={detail.image}
+              alt={detail.name}
+              className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Back header */}
       <div className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-white/5 px-8 h-14 flex items-center gap-4">
         <button
@@ -283,7 +337,13 @@ export function GameDetail() {
           <div className="flex gap-8 items-start">
           {/* Cover image + Buy now */}
           <div className="flex-none flex flex-col items-stretch gap-3 self-start" style={{ width: 176 }}>
-            <div className="flex w-full items-center justify-center rounded-md overflow-hidden" style={{ height: 176 }}>
+            <button
+              type="button"
+              aria-label={`Ver imagen ampliada de ${detail.name}`}
+              onClick={() => setIsImageOverlayOpen(true)}
+              className="group flex w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-md bg-neutral-900 transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-fuchsia-400 focus:ring-offset-2 focus:ring-offset-neutral-950"
+              style={{ height: 176 }}
+            >
               <div className="relative inline-flex max-h-full max-w-full">
                 <ImageWithFallback
                   src={detail.image}
@@ -292,7 +352,7 @@ export function GameDetail() {
                 />
                 {detail.isExpansion && <ExpansionBadge className={EXPANSION_BADGE_CORNER_CLASS} />}
               </div>
-            </div>
+            </button>
             {hasLinkedStoreOffers ? (
               <button
                 type="button"

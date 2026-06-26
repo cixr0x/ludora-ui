@@ -57,3 +57,15 @@ test("GameDetail uses a lighter blur for the cover backdrop", () => {
   assert.match(source, /filter: "blur\(24px\)"/);
   assert.doesNotMatch(source, /blur\(72px\)/);
 });
+
+test("GameDetail opens the product cover in a half-screen overlay", () => {
+  const source = gameDetailSource();
+
+  assert.match(source, /isImageOverlayOpen/);
+  assert.match(source, /setIsImageOverlayOpen\(true\)/);
+  assert.match(source, /role="dialog"/);
+  assert.match(source, /aria-modal="true"/);
+  assert.match(source, /bg-black\/75/);
+  assert.match(source, /h-\[50vh\] w-\[50vw\]/);
+  assert.match(source, /Escape/);
+});
