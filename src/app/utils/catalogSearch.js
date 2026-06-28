@@ -56,6 +56,25 @@ export function sortTaxonomyOptionsByActive(options, activeIds) {
   });
 }
 
+export function taxonomyOptionsFromItems(items, key) {
+  const options = new Map();
+
+  for (const item of items ?? []) {
+    const entries = Array.isArray(item?.[key]) ? item[key] : [];
+    for (const entry of entries) {
+      const id = Number(entry?.id);
+      const name = String(entry?.name ?? "").trim();
+      if (Number.isInteger(id) && id > 0 && name && !options.has(id)) {
+        options.set(id, name);
+      }
+    }
+  }
+
+  return Array.from(options, ([id, name]) => ({ id, name })).sort((left, right) =>
+    left.name.localeCompare(right.name, "es"),
+  );
+}
+
 export function shouldShowFilterRemoveIcon({ active, removable }) {
   return Boolean(active && removable);
 }

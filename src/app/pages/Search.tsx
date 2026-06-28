@@ -12,6 +12,7 @@ import {
   parsePositiveIntegerSetParam,
   shouldShowFilterRemoveIcon,
   sortTaxonomyOptionsByActive,
+  taxonomyOptionsFromItems,
 } from "../utils/catalogSearch.js";
 
 type PlaytimeKey = "short" | "medium" | "long";
@@ -59,11 +60,6 @@ interface EnrichedGame {
   maxPlayers: number;
   playtime: PlaytimeKey;
   complexity: number;
-}
-
-interface TaxonomyOption {
-  id: number;
-  name: string;
 }
 
 interface CatalogSearchRequest {
@@ -160,20 +156,6 @@ function isDefaultSearchRequest(request: CatalogSearchRequest) {
     request.playtimeRanges.length === 0 &&
     request.complexity[0] === 1 &&
     request.complexity[1] === 5
-  );
-}
-
-function taxonomyOptionsFromGames(games: EnrichedGame[], key: "categories" | "mechanics"): TaxonomyOption[] {
-  const options = new Map<number, string>();
-
-  for (const game of games) {
-    for (const entry of game[key]) {
-      if (!options.has(entry.id)) options.set(entry.id, entry.name);
-    }
-  }
-
-  return Array.from(options, ([id, name]) => ({ id, name })).sort((left, right) =>
-    left.name.localeCompare(right.name, "es"),
   );
 }
 
@@ -315,8 +297,8 @@ export function Search() {
   );
   const { filterGames, games, isLoading } = useCatalogSearchGames(searchRequest, semanticGames);
 
-  const categoryOptions = useMemo(() => taxonomyOptionsFromGames(filterGames, "categories"), [filterGames]);
-  const mechanicOptions = useMemo(() => taxonomyOptionsFromGames(filterGames, "mechanics"), [filterGames]);
+  const categoryOptions = useMemo(() => taxonomyOptionsFromItems(filterGames, "categories"), [filterGames]);
+  const mechanicOptions = useMemo(() => taxonomyOptionsFromItems(filterGames, "mechanics"), [filterGames]);
   const allCategories = useMemo(
     () => sortTaxonomyOptionsByActive(categoryOptions, activeCategories),
     [activeCategories, categoryOptions],

@@ -7,6 +7,7 @@ import {
   parsePositiveIntegerSetParam,
   shouldShowFilterRemoveIcon,
   sortTaxonomyOptionsByActive,
+  taxonomyOptionsFromItems,
 } from "./catalogSearch.js";
 
 test("buildCatalogSearchParams sends search filters using taxonomy ids", () => {
@@ -66,6 +67,33 @@ test("sortTaxonomyOptionsByActive groups active filters first", () => {
 
   assert.deepEqual(sorted.map((option) => option.name), ["Economic", "Strategy", "Adventure", "Animals"]);
   assert.deepEqual(options.map((option) => option.name), ["Strategy", "Animals", "Economic", "Adventure"]);
+});
+
+test("taxonomyOptionsFromItems builds unique sorted taxonomy options", () => {
+  const items = [
+    {
+      categories: [
+        { id: 5, name: "Estrategia" },
+        { id: 2, name: "Aventura" },
+      ],
+    },
+    {
+      categories: [
+        { id: 5, name: "Estrategia duplicada" },
+        { id: 9, name: "Ciencia Ficcion" },
+        { id: 0, name: "Sin id" },
+        { id: 10, name: "" },
+      ],
+    },
+  ];
+
+  const options = taxonomyOptionsFromItems(items, "categories");
+
+  assert.deepEqual(options, [
+    { id: 2, name: "Aventura" },
+    { id: 9, name: "Ciencia Ficcion" },
+    { id: 5, name: "Estrategia" },
+  ]);
 });
 
 test("shouldShowFilterRemoveIcon only marks active removable filters", () => {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Search, Bell, User, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate, Link } from "react-router";
 import { GameRow } from "../components/GameRow";
@@ -7,9 +7,16 @@ import { loadCatalogGameDetails, loadFrontPageRows, type CatalogRow } from "../d
 import type { Game } from "../data/games";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { t } from "../data/translations";
-import { buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
+import { buildExploreTaxonomyPath, taxonomyOptionsFromItems } from "../utils/catalogSearch.js";
 import { HOME_SEARCH_DEBOUNCE_MS, HOME_SEARCH_LIMIT, homeSearchQuery } from "../utils/homeSearch.js";
 
+const CATEGORY_STRIP_CATALOG_LIMIT = 200;
+
+interface CategoryStripItem {
+  key: string;
+  label: string;
+  to: string;
+}
 
 export function Home() {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -17,27 +24,12 @@ export function Home() {
   const [searchResults, setSearchResults] = useState<Game[]>([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [rows, setRows] = useState<CatalogRow[]>([]);
+  const [categoryStripItems, setCategoryStripItems] = useState<CategoryStripItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const genreScrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const activeSearchQuery = homeSearchQuery(searchValue);
-  const categoryStripItems = useMemo(() => {
-    const seen = new Set<string>();
-
-    return rows.flatMap((row) => {
-      const key = `${row.categoryType}:${row.categoryId}`;
-      const to = buildExploreTaxonomyPath(row.categoryType, row.categoryId);
-      if (seen.has(key) || to === "/search") return [];
-
-      seen.add(key);
-      return [{
-        key,
-        label: row.categoryName || row.title,
-        to,
-      }];
-    });
-  }, [rows]);
 
   const openSearch = () => {
     setSearchOpen(true);
@@ -81,6 +73,31 @@ export function Home() {
       })
       .finally(() => {
         if (isActive) setIsLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    loadCatalogGameDetails({ limit: CATEGORY_STRIP_CATALOG_LIMIT })
+      .then((details) => {
+        if (!isActive) return;
+        const items = taxonomyOptionsFromItems(details, "categoryEntries").map((category) => {
+          const to = buildExploreTaxonomyPath("category", category.id);
+          return {
+            key: `category:${category.id}`,
+            label: category.name,
+            to,
+          };
+        });
+        setCategoryStripItems(items.filter((item) => item.to !== "/search"));
+      })
+      .catch(() => {
+        if (isActive) setCategoryStripItems([]);
       });
 
     return () => {
