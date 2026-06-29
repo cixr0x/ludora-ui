@@ -26,3 +26,14 @@ test("game detail uses the TikTok player iframe without the share card embed", (
   assert.doesNotMatch(source, /https:\/\/www\.tiktok\.com\/embed\.js/);
   assert.doesNotMatch(source, /tiktok\.com\/embed\/v2/);
 });
+
+test("game detail thanks and links to the TikTok tutorial creator", () => {
+  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /Gracias a/);
+  assert.match(source, /No olviden/);
+  assert.match(source, /seguirlos/);
+  assert.match(source, /para m(?:a|\u00e1)s contenido!/u);
+  assert.match(source, /https:\/\/www\.tiktok\.com\/@\$\{tiktokUser\}/);
+  assert.equal(source.match(/href=\{tiktokProfileUrl\}/g)?.length, 2);
+});

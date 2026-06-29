@@ -48,41 +48,57 @@ function TikTokEmbed({ tiktokId, tiktokUser, gameName }: { tiktokId?: string; ti
   const tiktokPlayerUrl = tiktokId
     ? `https://www.tiktok.com/player/v1/${tiktokId}?description=0&music_info=0&controls=1&progress_bar=1&play_button=1&volume_control=1&fullscreen_button=1`
     : "";
+  const tiktokProfileUrl = tiktokUser ? `https://www.tiktok.com/@${tiktokUser}` : "";
 
   return (
-    <div
-      className="relative flex-none w-full md:w-[325px] max-w-[325px] self-center md:self-auto overflow-hidden rounded-xl bg-black"
-      style={{ aspectRatio: "9 / 16" }}
-    >
-      {tiktokPlayerUrl ? (
-        <iframe
-          src={tiktokPlayerUrl}
-          className="h-full w-full"
-          allow="encrypted-media; fullscreen; picture-in-picture"
-          allowFullScreen
-          title={`${gameName} tutorial en TikTok`}
-          style={{ border: "none" }}
-        />
-      ) : (
-        <div className="flex h-full flex-col">
-          <div className="flex-1 bg-gradient-to-b from-neutral-800 to-neutral-950 flex flex-col items-center justify-center gap-4 p-6">
-            <div className="w-14 h-14 rounded-full bg-fuchsia-500/20 flex items-center justify-center">
-              <Dices className="w-7 h-7 text-fuchsia-400" />
+    <div className="flex flex-none w-full md:w-[325px] max-w-[325px] flex-col gap-2 self-center md:self-auto">
+      <div
+        className="relative overflow-hidden rounded-xl bg-black"
+        style={{ aspectRatio: "9 / 16" }}
+      >
+        {tiktokPlayerUrl ? (
+          <iframe
+            src={tiktokPlayerUrl}
+            className="h-full w-full"
+            allow="encrypted-media; fullscreen; picture-in-picture"
+            allowFullScreen
+            title={`${gameName} tutorial en TikTok`}
+            style={{ border: "none" }}
+          />
+        ) : (
+          <div className="flex h-full flex-col">
+            <div className="flex-1 bg-gradient-to-b from-neutral-800 to-neutral-950 flex flex-col items-center justify-center gap-4 p-6">
+              <div className="w-14 h-14 rounded-full bg-fuchsia-500/20 flex items-center justify-center">
+                <Dices className="w-7 h-7 text-fuchsia-400" />
+              </div>
+              <p className="text-white text-center text-sm leading-snug">
+                Cómo jugar {gameName} en 60 segundos
+              </p>
+              <p className="text-neutral-500 text-xs">@ludora</p>
             </div>
-            <p className="text-white text-center text-sm leading-snug">
-              Cómo jugar {gameName} en 60 segundos
-            </p>
-            <p className="text-neutral-500 text-xs">@ludora</p>
+            <div className="bg-black px-4 py-3 flex items-center gap-2">
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white flex-none">
+                <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.79 1.54V6.79a4.85 4.85 0 01-1.02-.1z" />
+              </svg>
+              <span className="text-neutral-500 text-xs">
+                {tiktokUser ? `@${tiktokUser}` : "Tutorial en TikTok"}
+              </span>
+            </div>
           </div>
-          <div className="bg-black px-4 py-3 flex items-center gap-2">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white flex-none">
-              <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.79 1.54V6.79a4.85 4.85 0 01-1.02-.1z" />
-            </svg>
-            <span className="text-neutral-500 text-xs">
-              {tiktokUser ? `@${tiktokUser}` : "Tutorial en TikTok"}
-            </span>
-          </div>
-        </div>
+        )}
+      </div>
+      {tiktokProfileUrl && (
+        <p className="text-xs leading-snug text-neutral-500">
+          Gracias a{" "}
+          <a href={tiktokProfileUrl} target="_blank" rel="noreferrer" className="text-fuchsia-300 hover:text-fuchsia-200">
+            @{tiktokUser}
+          </a>
+          . No olviden{" "}
+          <a href={tiktokProfileUrl} target="_blank" rel="noreferrer" className="text-fuchsia-300 hover:text-fuchsia-200">
+            seguirlos
+          </a>{" "}
+          para más contenido!
+        </p>
       )}
     </div>
   );
