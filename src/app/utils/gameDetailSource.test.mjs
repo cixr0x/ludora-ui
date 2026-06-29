@@ -15,3 +15,12 @@ test("catalog detail mapping extracts TikTok tutorial metadata", () => {
   assert.match(source, /tiktokId:\s*tiktokTutorial\?\.id/);
   assert.match(source, /tiktokUser:\s*tiktokTutorial\?\.user/);
 });
+
+test("game detail uses TikTok official embed markup", () => {
+  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /className="tiktok-embed"/);
+  assert.match(source, /data-video-id/);
+  assert.match(source, /https:\/\/www\.tiktok\.com\/embed\.js/);
+  assert.doesNotMatch(source, /tiktok\.com\/embed\/v2/);
+});

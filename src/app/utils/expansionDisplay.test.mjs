@@ -65,7 +65,7 @@ test("GameDetail stacks secondary content on mobile and keeps desktop side by si
 
   assert.match(source, /px-4 sm:px-6 md:px-8 pb-10 flex flex-col gap-8 md:gap-10/);
   assert.match(source, /flex flex-col md:flex-row gap-8 md:gap-10 items-stretch md:items-start/);
-  assert.match(source, /w-full md:w-\[260px\]/);
+  assert.match(source, /w-full md:w-\[325px\]/);
   assert.match(source, /aspectRatio: "260 \/ 462"/);
 });
 

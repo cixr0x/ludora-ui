@@ -44,23 +44,51 @@ function TagPills({ items, color }: { items: string[]; color: "fuchsia" | "neutr
   );
 }
 
+const TIKTOK_EMBED_SCRIPT_ID = "tiktok-embed-script";
+
+function loadTikTokEmbedScript() {
+  const embedWindow = window as Window & { tiktokEmbed?: { load?: () => void } };
+  const existingScript = document.getElementById(TIKTOK_EMBED_SCRIPT_ID);
+
+  if (existingScript) {
+    embedWindow.tiktokEmbed?.load?.();
+    return;
+  }
+
+  const script = document.createElement("script");
+  script.id = TIKTOK_EMBED_SCRIPT_ID;
+  script.async = true;
+  script.src = "https://www.tiktok.com/embed.js";
+  document.body.appendChild(script);
+}
+
 function TikTokEmbed({ tiktokId, tiktokUser, gameName }: { tiktokId?: string; tiktokUser?: string; gameName: string }) {
+  const tiktokUrl = tiktokId && tiktokUser ? `https://www.tiktok.com/@${tiktokUser}/video/${tiktokId}` : "";
+
+  useEffect(() => {
+    if (tiktokId) loadTikTokEmbedScript();
+  }, [tiktokId]);
+
   return (
     <div
-      className="relative flex-none w-full md:w-[260px] max-w-[260px] self-center md:self-auto bg-neutral-900 rounded-xl overflow-hidden border border-neutral-800"
-      style={{ aspectRatio: "260 / 462" }}
+      className="relative flex-none w-full md:w-[325px] max-w-[325px] self-center md:self-auto bg-neutral-900 rounded-xl overflow-hidden border border-neutral-800"
     >
-      {tiktokId ? (
-        <iframe
-          src={`https://www.tiktok.com/embed/v2/${tiktokId}?lang=en-US&autoplay=1`}
-          className="w-full h-full"
-          allow="autoplay; encrypted-media"
-          allowFullScreen
-          title={`${gameName} tutorial`}
-          style={{ border: "none" }}
-        />
+      {tiktokId && tiktokUrl ? (
+        <blockquote
+          className="tiktok-embed"
+          cite={tiktokUrl}
+          data-video-id={tiktokId}
+          style={{ margin: 0, maxWidth: 325, minWidth: 260 }}
+        >
+          <section>
+            <a target="_blank" title={`@${tiktokUser}`} href={`https://www.tiktok.com/@${tiktokUser}?refer=embed`} rel="noreferrer">
+              @{tiktokUser}
+            </a>
+            <p>{gameName} tutorial</p>
+          </section>
+        </blockquote>
       ) : (
-        <div className="absolute inset-0 flex flex-col">
+        <div className="flex flex-col" style={{ aspectRatio: "260 / 462" }}>
           <div className="flex-1 bg-gradient-to-b from-neutral-800 to-neutral-950 flex flex-col items-center justify-center gap-4 p-6">
             <div className="w-14 h-14 rounded-full bg-fuchsia-500/20 flex items-center justify-center">
               <Dices className="w-7 h-7 text-fuchsia-400" />
