@@ -4,7 +4,9 @@ import test from "node:test";
 import {
   areBufferedImagesSettled,
   getBufferedRowImageIds,
+  getPendingVisibleImageIds,
   getUnloadedBufferedImageIds,
+  getVisibleRowImageIds,
 } from "./imageBatch.js";
 
 test("getBufferedRowImageIds includes visible cards plus one horizontal click", () => {
@@ -32,4 +34,22 @@ test("getUnloadedBufferedImageIds returns only buffered images without mounted D
   const mountedIds = new Set(["cover-1", "cover-3"]);
 
   assert.deepEqual(getUnloadedBufferedImageIds(bufferedIds, mountedIds), ["cover-2"]);
+});
+
+test("getVisibleRowImageIds excludes preloaded cards outside the viewport", () => {
+  const items = Array.from({ length: 6 }, (_, index) => ({
+    id: String(index),
+    left: index * 184,
+    right: index * 184 + 168,
+  }));
+
+  assert.deepEqual(getVisibleRowImageIds(items, 0, 368), ["0", "1"]);
+  assert.deepEqual(getVisibleRowImageIds(items, 200, 368), ["1", "2", "3"]);
+});
+
+test("getPendingVisibleImageIds excludes visible images that have settled", () => {
+  const visibleIds = ["cover-1", "cover-2", "cover-3"];
+  const settledIds = new Set(["cover-2"]);
+
+  assert.deepEqual(getPendingVisibleImageIds(visibleIds, settledIds), ["cover-1", "cover-3"]);
 });

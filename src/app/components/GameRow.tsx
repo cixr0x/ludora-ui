@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { Link } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Game } from "../data/games";
 import {
-  areBufferedImagesSettled,
   getBufferedRowImageIds,
+  getPendingVisibleImageIds,
   getUnloadedBufferedImageIds,
+  getVisibleRowImageIds,
 } from "../utils/imageBatch.js";
 
 export type { Game };
@@ -17,6 +19,7 @@ interface GameRowProps {
 
 const CARD_SIZE = 168;
 const CARD_GAP = 16;
+const ROW_BODY_MIN_HEIGHT = CARD_SIZE + 42;
 const HORIZONTAL_PRELOAD_PX = 720;
 const ROW_VERTICAL_PRELOAD_PX = 520;
 const ROW_PRELOAD_ROOT_MARGIN = `0px 0px ${ROW_VERTICAL_PRELOAD_PX}px 0px`;
@@ -110,33 +113,93 @@ function RowCoverImage({ game, imageId, onSettled }: RowCoverImageProps) {
   );
 }
 
-function GameRowSkeleton({ rowItems, overlay = false }: { rowItems: RowItem[]; overlay?: boolean }) {
+function RowCoverPlaceholder({ game, overlay = false }: { game: Game; overlay?: boolean }) {
   return (
     <div
-      className={`flex gap-4 ${overlay ? "absolute inset-x-0 top-0 pointer-events-none" : ""}`}
-      data-row-image-status="loading"
+      className={`game-cover-placeholder rounded-md animate-pulse ${overlay ? "absolute inset-0" : "mb-1.5"}`}
+      style={overlay ? undefined : { width: CARD_SIZE, height: CARD_SIZE }}
+      data-original-url={game.image}
+      data-row-image-placeholder="true"
+    />
+  );
+}
+
+function RowPendingImageCard({ game }: { game: Game }) {
+  return (
+    <div
+      className="flex-none"
+      style={{ width: CARD_SIZE }}
+      aria-label={game.name}
+      data-row-image-placeholder-card="true"
     >
-      {rowItems.map(({ game }) => (
-        <div
-          key={game.id}
-          className="flex-none"
-          style={{ width: CARD_SIZE }}
-          aria-label={game.name}
-          data-row-image-placeholder="true"
-        >
-          <div
-            className="game-cover-placeholder rounded-md mb-1.5 animate-pulse"
-            style={{ width: CARD_SIZE, height: CARD_SIZE }}
-            data-original-url={game.image}
-          />
-          <div className="mx-auto h-4 w-28 rounded bg-neutral-800/80 animate-pulse" />
-          {game.altTitle && (
-            <div className="mx-auto mt-1 h-3 w-20 rounded bg-neutral-900 animate-pulse" />
-          )}
-        </div>
-      ))}
+      <RowCoverPlaceholder game={game} />
+      <p className="text-gray-300 text-sm text-center truncate px-1 leading-snug">{game.name}</p>
+      {game.altTitle && <p className="text-neutral-500 text-xs text-center mt-0.5 truncate px-1">{game.altTitle}</p>}
     </div>
   );
+}
+
+function RowCardSpacer({ game }: { game: Game }) {
+  return (
+    <div
+      className="flex-none"
+      style={{ width: CARD_SIZE }}
+      aria-label={game.name}
+      data-row-image-spacer="true"
+    />
+  );
+}
+
+function RowLoadedImageCard({
+  game,
+  imageId,
+  onSettled,
+  showPlaceholder,
+}: {
+  game: Game;
+  imageId: string;
+  onSettled: (id: string) => void;
+  showPlaceholder: boolean;
+}) {
+  return (
+    <Link
+      to={`/game/${game.id}`}
+      className="flex-none group/card"
+      style={{ width: CARD_SIZE }}
+    >
+      <div
+        className="relative rounded-md overflow-hidden mb-1.5"
+        style={{ width: CARD_SIZE, height: CARD_SIZE }}
+      >
+        <RowCoverImage game={game} imageId={imageId} onSettled={onSettled} />
+        {showPlaceholder && <RowCoverPlaceholder game={game} overlay />}
+        <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/20 transition-colors duration-300" />
+      </div>
+      <p className="text-gray-300 text-sm text-center group-hover/card:text-white transition-colors truncate px-1 leading-snug">
+        {game.name}
+      </p>
+      {game.altTitle && (
+        <p className="text-neutral-500 text-xs text-center mt-0.5 truncate px-1">{game.altTitle}</p>
+      )}
+    </Link>
+  );
+}
+
+function addIds(previous: Set<string>, ids: string[]) {
+  let hasChanges = false;
+  const next = new Set(previous);
+
+  for (const id of ids) {
+    if (next.has(id)) continue;
+    next.add(id);
+    hasChanges = true;
+  }
+
+  return hasChanges ? next : previous;
+}
+
+function setBooleanState(setState: Dispatch<SetStateAction<boolean>>, value: boolean) {
+  setState((previous) => (previous === value ? previous : value));
 }
 
 export function GameRow({ title, games }: GameRowProps) {
@@ -145,6 +208,7 @@ export function GameRow({ title, games }: GameRowProps) {
   const mountedImageIdsRef = useRef<Set<string>>(new Set());
   const settledImageIdsRef = useRef<Set<string>>(new Set());
   const bufferedImageIdsRef = useRef<string[]>([]);
+  const visibleImageIdsRef = useRef<string[]>([]);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [shouldLoadRow, setShouldLoadRow] = useState(false);
@@ -153,6 +217,7 @@ export function GameRow({ title, games }: GameRowProps) {
   const [mountedImageIds, setMountedImageIds] = useState<Set<string>>(() => new Set());
   const [settledImageIds, setSettledImageIds] = useState<Set<string>>(() => new Set());
   const [bufferedImageIds, setBufferedImageIds] = useState<string[]>([]);
+  const [visibleImageIds, setVisibleImageIds] = useState<string[]>([]);
   const rowItems = useMemo(
     () =>
       games.map((game, index) => {
@@ -168,6 +233,14 @@ export function GameRow({ title, games }: GameRowProps) {
     [games],
   );
   const rowImageSignature = rowItems.map((item) => `${item.id}:${item.src}`).join("\n");
+  const pendingVisibleImageIds = useMemo(
+    () => getPendingVisibleImageIds(visibleImageIds, settledImageIds),
+    [settledImageIds, visibleImageIds],
+  );
+  const pendingVisibleImageIdSet = useMemo(
+    () => new Set(pendingVisibleImageIds),
+    [pendingVisibleImageIds],
+  );
 
   useEffect(() => {
     mountedImageIdsRef.current = mountedImageIds;
@@ -181,9 +254,11 @@ export function GameRow({ title, games }: GameRowProps) {
     mountedImageIdsRef.current = new Set();
     settledImageIdsRef.current = new Set();
     bufferedImageIdsRef.current = [];
+    visibleImageIdsRef.current = [];
     setMountedImageIds(new Set());
     setSettledImageIds(new Set());
     setBufferedImageIds([]);
+    setVisibleImageIds([]);
     setShouldLoadRow(false);
     setIsRowReady(false);
     setIsRowVisible(false);
@@ -196,60 +271,70 @@ export function GameRow({ title, games }: GameRowProps) {
     setBufferedImageIds(ids);
   }, []);
 
+  const updateVisibleImageIds = useCallback((ids: string[]) => {
+    if (areIdListsEqual(visibleImageIdsRef.current, ids)) return;
+
+    visibleImageIdsRef.current = ids;
+    setVisibleImageIds(ids);
+  }, []);
+
   const markImageSettled = useCallback((id: string) => {
     if (settledImageIdsRef.current.has(id)) return;
 
     setSettledImageIds((previous) => {
       if (previous.has(id)) return previous;
 
-      const next = new Set(previous);
-      next.add(id);
+      const next = addIds(previous, [id]);
       settledImageIdsRef.current = next;
       return next;
     });
   }, []);
 
   const loadCurrentWindow = useCallback(() => {
-    if (!shouldLoadRow) return;
+    if (!shouldLoadRow) {
+      updateBufferedImageIds([]);
+      updateVisibleImageIds([]);
+      return;
+    }
 
     const el = rowRef.current;
     if (!el || rowItems.length === 0) {
       updateBufferedImageIds([]);
+      updateVisibleImageIds([]);
       setIsRowReady(true);
       return;
     }
 
+    const visibleIds = getVisibleRowImageIds(rowItems, el.scrollLeft, el.clientWidth);
     const bufferedIds = getBufferedRowImageIds(
       rowItems,
       el.scrollLeft,
       el.clientWidth,
       HORIZONTAL_PRELOAD_PX,
     );
+    updateVisibleImageIds(visibleIds);
     updateBufferedImageIds(bufferedIds);
 
     const unloadedIds = getUnloadedBufferedImageIds(bufferedIds, mountedImageIdsRef.current);
 
     if (unloadedIds.length === 0) {
-      setIsRowReady(true);
+      setBooleanState(setIsRowReady, true);
       return;
     }
 
     setMountedImageIds((previous) => {
-      const next = new Set(previous);
-      for (const id of unloadedIds) {
-        next.add(id);
-      }
+      const next = addIds(previous, unloadedIds);
       mountedImageIdsRef.current = next;
       return next;
     });
-    setIsRowReady(true);
-  }, [rowItems, shouldLoadRow, updateBufferedImageIds]);
+    setBooleanState(setIsRowReady, true);
+  }, [rowItems, shouldLoadRow, updateBufferedImageIds, updateVisibleImageIds]);
 
   const updateScrollState = useCallback(() => {
     const el = rowRef.current;
     if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+    setBooleanState(setCanScrollLeft, el.scrollLeft > 4);
+    setBooleanState(setCanScrollRight, el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
     loadCurrentWindow();
   }, [loadCurrentWindow]);
 
@@ -294,11 +379,10 @@ export function GameRow({ title, games }: GameRowProps) {
 
   useEffect(() => {
     if (!isRowReady || isRowVisible) return;
-    if (!areBufferedImagesSettled(bufferedImageIds, mountedImageIds, settledImageIds)) return;
 
     const frame = requestAnimationFrame(() => setIsRowVisible(true));
     return () => cancelAnimationFrame(frame);
-  }, [bufferedImageIds, isRowReady, isRowVisible, mountedImageIds, settledImageIds]);
+  }, [isRowReady, isRowVisible]);
 
   const scroll = (dir: "left" | "right") => {
     rowRef.current?.scrollBy({
@@ -313,7 +397,7 @@ export function GameRow({ title, games }: GameRowProps) {
 
       <div className="relative group/row">
         {/* Left arrow */}
-        {canScrollLeft && (
+        {isRowReady && canScrollLeft && (
           <button
             onClick={() => scroll("left")}
             aria-label="Scroll left"
@@ -328,69 +412,53 @@ export function GameRow({ title, games }: GameRowProps) {
           ref={rowRef}
           className="overflow-x-auto px-14 pb-1"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-          onScroll={updateScrollState}
         >
-          <div className="relative" style={{ width: "max-content", minWidth: "100%" }}>
+          <div
+            className="relative"
+            style={{
+              width: isRowReady ? "max-content" : "100%",
+              minWidth: "100%",
+              minHeight: ROW_BODY_MIN_HEIGHT,
+            }}
+          >
             {isRowReady && (
               <div
                 className={`game-row-content flex gap-4 ${isRowVisible ? "game-row-content--visible" : ""}`}
                 data-row-image-status={isRowVisible ? "visible" : "hidden"}
                 data-row-mounted-count={mountedImageIds.size}
                 data-row-buffered-count={bufferedImageIds.length}
+                data-row-visible-count={visibleImageIds.length}
+                data-row-pending-visible-count={pendingVisibleImageIds.length}
                 data-row-dom-settled-count={settledImageIds.size}
               >
                 {rowItems.map(({ game, id }) => {
                   const shouldMountImage = mountedImageIds.has(id);
+                  const shouldRenderPlaceholder = pendingVisibleImageIdSet.has(id);
 
                   return shouldMountImage ? (
-                    <Link
+                    <RowLoadedImageCard
                       key={game.id}
-                      to={`/game/${game.id}`}
-                      className="flex-none group/card"
-                      style={{ width: CARD_SIZE }}
-                    >
-                      <div
-                        className="relative rounded-md overflow-hidden mb-1.5"
-                        style={{ width: CARD_SIZE, height: CARD_SIZE }}
-                      >
-                        <RowCoverImage game={game} imageId={id} onSettled={markImageSettled} />
-                        <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/20 transition-colors duration-300" />
-                      </div>
-                      <p className="text-gray-300 text-sm text-center group-hover/card:text-white transition-colors truncate px-1 leading-snug">
-                        {game.name}
-                      </p>
-                      {game.altTitle && (
-                        <p className="text-neutral-500 text-xs text-center mt-0.5 truncate px-1">{game.altTitle}</p>
-                      )}
-                    </Link>
+                      game={game}
+                      imageId={id}
+                      onSettled={markImageSettled}
+                      showPlaceholder={shouldRenderPlaceholder}
+                    />
+                  ) : shouldRenderPlaceholder ? (
+                    <RowPendingImageCard
+                      key={game.id}
+                      game={game}
+                    />
                   ) : (
-                    <div
-                      key={game.id}
-                      className="flex-none"
-                      style={{ width: CARD_SIZE }}
-                      aria-label={game.name}
-                      data-row-image-placeholder="true"
-                    >
-                      <div
-                        className="game-cover-placeholder rounded-md mb-1.5 animate-pulse"
-                        style={{ width: CARD_SIZE, height: CARD_SIZE }}
-                        data-original-url={game.image}
-                      />
-                      <div className="mx-auto h-4 w-28 rounded bg-neutral-800/80 animate-pulse" />
-                      {game.altTitle && (
-                        <div className="mx-auto mt-1 h-3 w-20 rounded bg-neutral-900 animate-pulse" />
-                      )}
-                    </div>
+                    <RowCardSpacer key={game.id} game={game} />
                   );
                 })}
               </div>
             )}
-            {!isRowVisible && <GameRowSkeleton rowItems={rowItems} overlay={isRowReady} />}
           </div>
         </div>
 
         {/* Right arrow */}
-        {canScrollRight && (
+        {isRowReady && canScrollRight && (
           <button
             onClick={() => scroll("right")}
             aria-label="Scroll right"
