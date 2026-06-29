@@ -13,6 +13,7 @@ import {
 } from "../api/catalog";
 import { isExpansionItem, positiveInteger } from "../utils/expansionDisplay.js";
 import { storeOfferUrl } from "../utils/storeLinks.js";
+import { tiktokTutorialFromUrl, youtubeIdFromUrl } from "../utils/tutorialLinks.js";
 import {
   type Game,
   type GameDetail,
@@ -196,7 +197,9 @@ function mapApiItemToDetail(item: ApiItem): GameDetail {
   const mechanics = mechanicEntries.map((entry) => entry.name);
   const designers = taxonomyNames(item.designers ?? []);
   const publishers = taxonomyNames(item.publishers ?? []);
-  const youtubeId = item.tutorials?.map((tutorial) => youtubeIdFromUrl(tutorial.url)).find(Boolean);
+  const tutorials = item.tutorials ?? [];
+  const youtubeId = tutorials.map((tutorial) => youtubeIdFromUrl(tutorial.url)).find(Boolean);
+  const tiktokTutorial = tutorials.map((tutorial) => tiktokTutorialFromUrl(tutorial.url)).find(Boolean);
 
   return {
     ...base,
@@ -211,6 +214,8 @@ function mapApiItemToDetail(item: ApiItem): GameDetail {
     complexity: Math.max(0, Math.min(5, Math.round(numericValue(item.complexity, 0)))),
     designer: designers.join(", ") || "Sin registrar",
     publisher: publishers.join(", ") || "Sin registrar",
+    tiktokId: tiktokTutorial?.id,
+    tiktokUser: tiktokTutorial?.user,
     youtubeId,
     stores: (item.offers ?? []).map((offer) => mapOffer(offer, base)).slice(0, 8),
   };
@@ -316,17 +321,6 @@ function formatPrice(value: number, currency: string, raw?: string): string {
   } catch {
     return `${currency} ${value.toFixed(2)}`;
   }
-}
-
-function youtubeIdFromUrl(url: string): string | undefined {
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname.includes("youtu.be")) return parsed.pathname.split("/").filter(Boolean)[0];
-    if (parsed.hostname.includes("youtube.com")) return parsed.searchParams.get("v") ?? undefined;
-  } catch {
-    return undefined;
-  }
-  return undefined;
 }
 
 function genreAliases(value: string): string[] {
