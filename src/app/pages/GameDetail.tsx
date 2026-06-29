@@ -88,7 +88,7 @@ function TikTokEmbed({ tiktokId, tiktokUser, gameName }: { tiktokId?: string; ti
         )}
       </div>
       {tiktokProfileUrl && (
-        <p className="text-xs leading-snug text-neutral-500">
+        <p className="text-sm leading-snug text-neutral-500">
           Gracias a{" "}
           <a href={tiktokProfileUrl} target="_blank" rel="noreferrer" className="text-fuchsia-300 hover:text-fuchsia-200">
             @{tiktokUser}

@@ -34,6 +34,7 @@ test("game detail thanks and links to the TikTok tutorial creator", () => {
   assert.match(source, /No olviden/);
   assert.match(source, /seguirlos/);
   assert.match(source, /para m(?:a|\u00e1)s contenido!/u);
+  assert.match(source, /className="text-sm leading-snug text-neutral-500"/);
   assert.match(source, /https:\/\/www\.tiktok\.com\/@\$\{tiktokUser\}/);
   assert.equal(source.match(/href=\{tiktokProfileUrl\}/g)?.length, 2);
 });
