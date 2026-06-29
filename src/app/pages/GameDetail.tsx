@@ -47,8 +47,8 @@ function TagPills({ items, color }: { items: string[]; color: "fuchsia" | "neutr
 function TikTokEmbed({ tiktokId, tiktokUser, gameName }: { tiktokId?: string; tiktokUser?: string; gameName: string }) {
   return (
     <div
-      className="relative flex-none bg-neutral-900 rounded-xl overflow-hidden border border-neutral-800"
-      style={{ width: 260, height: 462 }}
+      className="relative flex-none w-full md:w-[260px] max-w-[260px] self-center md:self-auto bg-neutral-900 rounded-xl overflow-hidden border border-neutral-800"
+      style={{ aspectRatio: "260 / 462" }}
     >
       {tiktokId ? (
         <iframe
@@ -294,7 +294,7 @@ export function GameDetail() {
             <X className="h-5 w-5" />
           </button>
           <div
-            className="flex h-[50vh] w-[50vw] max-h-[calc(100vh-4rem)] max-w-[calc(100vw-3rem)] items-center justify-center"
+            className="flex h-[70vh] w-[calc(100vw-2rem)] md:h-[50vh] md:w-[50vw] max-h-[calc(100vh-4rem)] max-w-[calc(100vw-3rem)] items-center justify-center"
             onClick={(event) => event.stopPropagation()}
           >
             <ImageWithFallback
@@ -307,7 +307,7 @@ export function GameDetail() {
       )}
 
       {/* Back header */}
-      <div className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-white/5 px-8 h-14 flex items-center gap-4">
+      <div className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-white/5 px-4 md:px-8 h-14 flex items-center gap-4">
         <button
           onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate("/"))}
           className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors"
@@ -333,10 +333,10 @@ export function GameDetail() {
           <div className="absolute inset-0 bg-gradient-to-r from-neutral-950/50 via-transparent to-neutral-950/50" />
         </div>
 
-        <div className="relative z-10 max-w-5xl mx-auto px-8 pt-10 pb-10">
-          <div className="flex gap-8 items-start">
+        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pt-6 md:pt-10 pb-8 md:pb-10">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-stretch md:items-start">
           {/* Cover image + Buy now */}
-          <div className="flex-none flex flex-col items-stretch gap-3 self-start" style={{ width: 176 }}>
+          <div className="flex-none flex flex-col items-stretch gap-3 self-center md:self-start" style={{ width: 176 }}>
             <button
               type="button"
               aria-label={`Ver imagen ampliada de ${detail.name}`}
@@ -378,7 +378,7 @@ export function GameDetail() {
           <div className="flex-1 flex flex-col gap-4 min-w-0">
             {/* Title + rating */}
             <div>
-              <div className="flex items-start justify-between gap-4 mb-1">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 md:gap-4 mb-1">
                 <h1 className="text-white leading-tight">{detail.name}</h1>
                 <span className="flex-none mt-1" style={{ fontSize: "1.35rem" }}>
                   {detail.rating > 0 ? (
@@ -451,10 +451,10 @@ export function GameDetail() {
         </div>{/* end relative z-10 */}
       </div>{/* end backdrop */}
 
-      <div className="max-w-5xl mx-auto px-8 pb-10 flex flex-col gap-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pb-10 flex flex-col gap-8 md:gap-10">
 
         {/* ── Description + Tutorial side by side ──────────────────────── */}
-        <div className="flex gap-10 items-start">
+        <div className="flex flex-col md:flex-row gap-8 md:gap-10 items-stretch md:items-start">
           <div className="flex-1 min-w-0">
             <h2 className="text-white mb-4">Acerca de</h2>
             <div className="space-y-5">

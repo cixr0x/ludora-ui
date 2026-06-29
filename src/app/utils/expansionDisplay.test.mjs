@@ -51,6 +51,30 @@ test("GameDetail stacks product stats on narrow viewports", () => {
   assert.match(source, /className="sm:col-span-2"/);
 });
 
+test("GameDetail uses a stacked mobile hero while preserving desktop row layout", () => {
+  const source = gameDetailSource();
+
+  assert.match(source, /flex flex-col md:flex-row gap-6 md:gap-8 items-stretch md:items-start/);
+  assert.match(source, /px-4 sm:px-6 md:px-8 pt-6 md:pt-10 pb-8 md:pb-10/);
+  assert.match(source, /self-center md:self-start/);
+  assert.match(source, /flex flex-col md:flex-row md:items-start md:justify-between gap-2 md:gap-4/);
+});
+
+test("GameDetail stacks secondary content on mobile and keeps desktop side by side", () => {
+  const source = gameDetailSource();
+
+  assert.match(source, /px-4 sm:px-6 md:px-8 pb-10 flex flex-col gap-8 md:gap-10/);
+  assert.match(source, /flex flex-col md:flex-row gap-8 md:gap-10 items-stretch md:items-start/);
+  assert.match(source, /w-full md:w-\[260px\]/);
+  assert.match(source, /aspectRatio: "260 \/ 462"/);
+});
+
+test("GameDetail image overlay expands for mobile and keeps desktop half-screen sizing", () => {
+  const source = gameDetailSource();
+
+  assert.match(source, /h-\[70vh\] w-\[calc\(100vw-2rem\)\] md:h-\[50vh\] md:w-\[50vw\]/);
+});
+
 test("GameDetail uses a lighter blur for the cover backdrop", () => {
   const source = gameDetailSource();
 
@@ -66,7 +90,7 @@ test("GameDetail opens the product cover in a half-screen overlay", () => {
   assert.match(source, /role="dialog"/);
   assert.match(source, /aria-modal="true"/);
   assert.match(source, /bg-black\/75/);
-  assert.match(source, /h-\[50vh\] w-\[50vw\]/);
+  assert.match(source, /md:h-\[50vh\] md:w-\[50vw\]/);
   assert.match(source, /Escape/);
 });
 
