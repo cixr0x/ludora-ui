@@ -27,3 +27,10 @@ export function getUnloadedBufferedImageIds(bufferedIds, mountedIds) {
 export function getPendingVisibleImageIds(visibleIds, settledIds) {
   return visibleIds.filter((id) => !settledIds.has(id));
 }
+
+export function getRowScrollState({ scrollLeft, scrollWidth, clientWidth }) {
+  return {
+    canScrollLeft: scrollLeft > 4,
+    canScrollRight: scrollLeft < scrollWidth - clientWidth - 4,
+  };
+}

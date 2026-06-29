@@ -6,6 +6,7 @@ import type { Game } from "../data/games";
 import {
   getBufferedRowImageIds,
   getPendingVisibleImageIds,
+  getRowScrollState,
   getUnloadedBufferedImageIds,
   getVisibleRowImageIds,
 } from "../utils/imageBatch.js";
@@ -333,8 +334,13 @@ export function GameRow({ title, games }: GameRowProps) {
   const updateScrollState = useCallback(() => {
     const el = rowRef.current;
     if (!el) return;
-    setBooleanState(setCanScrollLeft, el.scrollLeft > 4);
-    setBooleanState(setCanScrollRight, el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+    const scrollState = getRowScrollState({
+      clientWidth: el.clientWidth,
+      scrollLeft: el.scrollLeft,
+      scrollWidth: el.scrollWidth,
+    });
+    setBooleanState(setCanScrollLeft, scrollState.canScrollLeft);
+    setBooleanState(setCanScrollRight, scrollState.canScrollRight);
     loadCurrentWindow();
   }, [loadCurrentWindow]);
 
@@ -376,6 +382,13 @@ export function GameRow({ title, games }: GameRowProps) {
   useEffect(() => {
     loadCurrentWindow();
   }, [loadCurrentWindow]);
+
+  useEffect(() => {
+    if (!isRowReady) return undefined;
+
+    const frame = requestAnimationFrame(updateScrollState);
+    return () => cancelAnimationFrame(frame);
+  }, [isRowReady, updateScrollState]);
 
   useEffect(() => {
     if (!isRowReady || isRowVisible) return;

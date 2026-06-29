@@ -5,6 +5,7 @@ import {
   areBufferedImagesSettled,
   getBufferedRowImageIds,
   getPendingVisibleImageIds,
+  getRowScrollState,
   getUnloadedBufferedImageIds,
   getVisibleRowImageIds,
 } from "./imageBatch.js";
@@ -52,4 +53,21 @@ test("getPendingVisibleImageIds excludes visible images that have settled", () =
   const settledIds = new Set(["cover-2"]);
 
   assert.deepEqual(getPendingVisibleImageIds(visibleIds, settledIds), ["cover-1", "cover-3"]);
+});
+
+test("getRowScrollState updates when row content expands after loading", () => {
+  assert.deepEqual(getRowScrollState({ scrollLeft: 0, scrollWidth: 1265, clientWidth: 1265 }), {
+    canScrollLeft: false,
+    canScrollRight: false,
+  });
+
+  assert.deepEqual(getRowScrollState({ scrollLeft: 0, scrollWidth: 5984, clientWidth: 1265 }), {
+    canScrollLeft: false,
+    canScrollRight: true,
+  });
+
+  assert.deepEqual(getRowScrollState({ scrollLeft: 4719, scrollWidth: 5984, clientWidth: 1265 }), {
+    canScrollLeft: true,
+    canScrollRight: false,
+  });
 });
