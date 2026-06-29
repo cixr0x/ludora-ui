@@ -66,6 +66,33 @@ export interface ApiItem {
   semantic_distance?: number | string | null;
 }
 
+export type ApiItemSummary = Pick<
+  ApiItem,
+  | "id"
+  | "canonical_name"
+  | "canonical_name_es"
+  | "image_url"
+  | "image_url_es"
+  | "item_type"
+  | "parent_item_id"
+  | "year_published"
+  | "min_players"
+  | "max_players"
+  | "min_minutes"
+  | "max_minutes"
+  | "complexity"
+  | "rating"
+  | "has_approved_listing"
+  | "is_expansion"
+  | "categories"
+  | "mechanics"
+>;
+
+export interface ApiCatalogFilterOptions {
+  categories: ApiTaxonomyEntry[];
+  mechanics: ApiTaxonomyEntry[];
+}
+
 export interface ApiFrontPageRow {
   id: number;
   category_type: string;
@@ -100,6 +127,22 @@ export interface ApiItemsQuery {
 }
 
 export async function fetchItems(query?: ApiItemsQuery): Promise<ApiItem[]> {
+  const suffix = itemSearchSuffix(query);
+
+  return fetchData<ApiItem[]>(`/api/items${suffix}`);
+}
+
+export async function fetchItemSummaries(query?: ApiItemsQuery): Promise<ApiItemSummary[]> {
+  const suffix = itemSearchSuffix(query);
+
+  return fetchData<ApiItemSummary[]>(`/api/items/summary${suffix}`);
+}
+
+export async function fetchCatalogFilterOptions(): Promise<ApiCatalogFilterOptions> {
+  return fetchData<ApiCatalogFilterOptions>("/api/items/filter-options");
+}
+
+function itemSearchSuffix(query?: ApiItemsQuery): string {
   const params = buildCatalogSearchParams({
     categoryIds: query?.categoryIds,
     complexity: query?.complexity,
@@ -110,9 +153,7 @@ export async function fetchItems(query?: ApiItemsQuery): Promise<ApiItem[]> {
     playtimeRanges: query?.playtimeRanges,
     query: query?.query ?? query?.q,
   });
-  const suffix = params.size ? `?${params.toString()}` : "";
-
-  return fetchData<ApiItem[]>(`/api/items${suffix}`);
+  return params.size ? `?${params.toString()}` : "";
 }
 
 export async function fetchSemanticItems(query: { q: string; limit?: number }): Promise<ApiItem[]> {

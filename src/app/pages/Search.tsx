@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, Sparkles } from "lucide-react";
 import type { GameDetail, GameTaxonomyEntry } from "../data/games";
-import { loadCatalogGameDetails, loadSemanticCatalogGameDetails } from "../data/catalog";
+import {
+  loadCatalogFilterOptions,
+  loadCatalogGameSummaries,
+  loadSemanticCatalogGameDetails,
+  type CatalogFilterOptions,
+  type CatalogGameSummary,
+} from "../data/catalog";
 import { ExpansionBadge } from "../components/ExpansionBadge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { t } from "../data/translations";
@@ -12,7 +18,6 @@ import {
   parsePositiveIntegerSetParam,
   shouldShowFilterRemoveIcon,
   sortTaxonomyOptionsByActive,
-  taxonomyOptionsFromItems,
 } from "../utils/catalogSearch.js";
 
 type PlaytimeKey = "short" | "medium" | "long";
@@ -71,28 +76,30 @@ interface CatalogSearchRequest {
   query: string;
 }
 
+type SearchCatalogGame = GameDetail | CatalogGameSummary;
+
 function useCatalogSearchGames(
   request: CatalogSearchRequest,
   semanticGames: EnrichedGame[] | null,
-): { filterGames: EnrichedGame[]; games: EnrichedGame[]; isLoading: boolean } {
+): { filterOptions: CatalogFilterOptions; games: EnrichedGame[]; isLoading: boolean } {
   const [games, setGames] = useState<EnrichedGame[]>([]);
-  const [filterGames, setFilterGames] = useState<EnrichedGame[]>([]);
+  const [filterOptions, setFilterOptions] = useState<CatalogFilterOptions>({ categories: [], mechanics: [] });
   const hasFilterOptionsRef = useRef(false);
   const isLoadingFilterOptionsRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (semanticGames || hasFilterOptionsRef.current || isLoadingFilterOptionsRef.current || isDefaultSearchRequest(request)) {
+    if (hasFilterOptionsRef.current || isLoadingFilterOptionsRef.current) {
       return;
     }
 
     let isActive = true;
     isLoadingFilterOptionsRef.current = true;
 
-    loadCatalogGameDetails({ limit: SEARCH_LIMIT })
-      .then((details) => {
+    loadCatalogFilterOptions()
+      .then((options) => {
         if (!isActive || hasFilterOptionsRef.current) return;
-        setFilterGames(details.map(mapDetailToEnriched));
+        setFilterOptions(options);
         hasFilterOptionsRef.current = true;
       })
       .finally(() => {
@@ -102,7 +109,7 @@ function useCatalogSearchGames(
     return () => {
       isActive = false;
     };
-  }, [request, semanticGames]);
+  }, []);
 
   useEffect(() => {
     if (semanticGames) {
@@ -115,7 +122,7 @@ function useCatalogSearchGames(
     setIsLoading(true);
 
     const timeout = window.setTimeout(() => {
-      loadCatalogGameDetails({
+      loadCatalogGameSummaries({
         categoryIds: request.categoryIds,
         complexity: request.complexity,
         limit: SEARCH_LIMIT,
@@ -128,10 +135,6 @@ function useCatalogSearchGames(
           if (!isActive) return;
           const mappedGames = details.map(mapDetailToEnriched);
           setGames(mappedGames);
-          if (!hasFilterOptionsRef.current && isDefaultSearchRequest(request)) {
-            setFilterGames(mappedGames);
-            hasFilterOptionsRef.current = true;
-          }
         })
         .finally(() => {
           if (isActive) setIsLoading(false);
@@ -144,19 +147,7 @@ function useCatalogSearchGames(
     };
   }, [request, semanticGames]);
 
-  return { filterGames, games, isLoading };
-}
-
-function isDefaultSearchRequest(request: CatalogSearchRequest) {
-  return (
-    request.query.trim() === "" &&
-    request.categoryIds.length === 0 &&
-    request.mechanicIds.length === 0 &&
-    request.players === null &&
-    request.playtimeRanges.length === 0 &&
-    request.complexity[0] === 1 &&
-    request.complexity[1] === 5
-  );
+  return { filterOptions, games, isLoading };
 }
 
 function localSearchResults(sourceGames: EnrichedGame[], request: CatalogSearchRequest): EnrichedGame[] {
@@ -203,13 +194,13 @@ function sameNumberSet(left: Set<number>, right: Set<number>): boolean {
   return true;
 }
 
-function taxonomyEntriesFromDetail(detail: GameDetail, key: "categoryEntries" | "mechanicEntries", names: string[]) {
+function taxonomyEntriesFromDetail(detail: SearchCatalogGame, key: "categoryEntries" | "mechanicEntries", names: string[]) {
   const entries = detail[key];
   if (entries?.length) return entries;
   return names.map((name, index) => ({ id: -(index + 1), name }));
 }
 
-function mapDetailToEnriched(detail: GameDetail): EnrichedGame {
+function mapDetailToEnriched(detail: SearchCatalogGame): EnrichedGame {
   const [min, max] = parseRange(detail.players);
   const categories = taxonomyEntriesFromDetail(detail, "categoryEntries", detail.categories);
   const mechanics = taxonomyEntriesFromDetail(detail, "mechanicEntries", detail.mechanics);
@@ -295,10 +286,10 @@ export function Search() {
     }),
     [activeCategories, activeMechanics, complexity, players, query, selectedPlaytimeRanges],
   );
-  const { filterGames, games, isLoading } = useCatalogSearchGames(searchRequest, semanticGames);
+  const { filterOptions, games, isLoading } = useCatalogSearchGames(searchRequest, semanticGames);
 
-  const categoryOptions = useMemo(() => taxonomyOptionsFromItems(filterGames, "categories"), [filterGames]);
-  const mechanicOptions = useMemo(() => taxonomyOptionsFromItems(filterGames, "mechanics"), [filterGames]);
+  const categoryOptions = useMemo(() => filterOptions.categories, [filterOptions.categories]);
+  const mechanicOptions = useMemo(() => filterOptions.mechanics, [filterOptions.mechanics]);
   const allCategories = useMemo(
     () => sortTaxonomyOptionsByActive(categoryOptions, activeCategories),
     [activeCategories, categoryOptions],

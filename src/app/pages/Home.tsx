@@ -3,14 +3,12 @@ import { Search, Bell, User, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate, Link } from "react-router";
 import { GameRow } from "../components/GameRow";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
-import { loadCatalogGameDetails, loadFrontPageRows, type CatalogRow } from "../data/catalog";
+import { loadCatalogFilterOptions, loadCatalogGameSummaries, loadFrontPageRows, type CatalogRow } from "../data/catalog";
 import type { Game } from "../data/games";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { t } from "../data/translations";
-import { buildExploreTaxonomyPath, taxonomyOptionsFromItems } from "../utils/catalogSearch.js";
+import { buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
 import { HOME_SEARCH_DEBOUNCE_MS, HOME_SEARCH_LIMIT, homeSearchQuery } from "../utils/homeSearch.js";
-
-const CATEGORY_STRIP_CATALOG_LIMIT = 200;
 
 interface CategoryStripItem {
   key: string;
@@ -83,10 +81,10 @@ export function Home() {
   useEffect(() => {
     let isActive = true;
 
-    loadCatalogGameDetails({ limit: CATEGORY_STRIP_CATALOG_LIMIT })
-      .then((details) => {
+    loadCatalogFilterOptions()
+      .then((options) => {
         if (!isActive) return;
-        const items = taxonomyOptionsFromItems(details, "categoryEntries").map((category) => {
+        const items = options.categories.map((category) => {
           const to = buildExploreTaxonomyPath("category", category.id);
           return {
             key: `category:${category.id}`,
@@ -116,7 +114,7 @@ export function Home() {
     setIsSearchLoading(true);
 
     const timeoutId = window.setTimeout(() => {
-      loadCatalogGameDetails({ query: activeSearchQuery, limit: HOME_SEARCH_LIMIT })
+      loadCatalogGameSummaries({ query: activeSearchQuery, limit: HOME_SEARCH_LIMIT })
         .then((results) => {
           if (isActive) setSearchResults(results);
         })

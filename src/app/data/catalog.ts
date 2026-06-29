@@ -1,10 +1,13 @@
 import {
+  fetchCatalogFilterOptions,
   fetchFrontPage,
   fetchItem,
   fetchItems,
+  fetchItemSummaries,
   fetchSemanticItems,
   type ApiFrontPageRow,
   type ApiItem,
+  type ApiItemSummary,
   type ApiOffer,
   type ApiTaxonomyEntry,
 } from "../api/catalog";
@@ -24,6 +27,38 @@ export interface CatalogRow {
   title: string;
   games: Game[];
 }
+
+export interface CatalogGameSummary extends Game {
+  rating: number;
+  categories: string[];
+  categoryEntries: GameTaxonomyEntry[];
+  mechanics: string[];
+  mechanicEntries: GameTaxonomyEntry[];
+  players: string;
+  playTime: string;
+  complexity: number;
+}
+
+export interface CatalogFilterOptions {
+  categories: GameTaxonomyEntry[];
+  mechanics: GameTaxonomyEntry[];
+}
+
+type ApiCatalogGameBase = Pick<
+  ApiItem,
+  | "id"
+  | "canonical_name"
+  | "canonical_name_es"
+  | "image_url"
+  | "image_url_es"
+  | "item_type"
+  | "parent_item_id"
+  | "is_expansion"
+> & {
+  categories?: ApiTaxonomyEntry[];
+  families?: ApiTaxonomyEntry[];
+  mechanics?: ApiTaxonomyEntry[];
+};
 
 export function gamesFromRows(rows: CatalogRow[]): Game[] {
   const gamesById = new Map<number, Game>();
@@ -50,6 +85,27 @@ export async function loadFrontPageRows(): Promise<CatalogRow[]> {
 
 export async function loadGames(): Promise<Game[]> {
   return gamesFromRows(await loadFrontPageRows());
+}
+
+export async function loadCatalogGameSummaries(query?: Parameters<typeof fetchItemSummaries>[0]): Promise<CatalogGameSummary[]> {
+  try {
+    const items = await fetchItemSummaries(query ?? { limit: 200 });
+    return items.map((item) => mapApiItemToSummary(item));
+  } catch {
+    return [];
+  }
+}
+
+export async function loadCatalogFilterOptions(): Promise<CatalogFilterOptions> {
+  try {
+    const options = await fetchCatalogFilterOptions();
+    return {
+      categories: taxonomyEntries(options.categories ?? []),
+      mechanics: taxonomyEntries(options.mechanics ?? []),
+    };
+  } catch {
+    return { categories: [], mechanics: [] };
+  }
 }
 
 export async function loadCatalogGameDetails(query?: Parameters<typeof fetchItems>[0]): Promise<GameDetail[]> {
@@ -96,7 +152,7 @@ function frontPageRowTitle(row: ApiFrontPageRow, rowGenre: string): string {
   return title;
 }
 
-function mapApiItemToGame(item: ApiItem, extraGenre?: string): Game {
+function mapApiItemToGame(item: ApiCatalogGameBase, extraGenre?: string): Game {
   const name = preferredText(item.canonical_name_es, item.canonical_name, "Juego sin nombre");
   const altTitle = item.canonical_name_es ? item.canonical_name : undefined;
   const genres = collectGenres(item, extraGenre);
@@ -109,6 +165,26 @@ function mapApiItemToGame(item: ApiItem, extraGenre?: string): Game {
     isExpansion: isExpansionItem(item),
     parentItemId: positiveInteger(item.parent_item_id),
     genres,
+  };
+}
+
+function mapApiItemToSummary(item: ApiItemSummary): CatalogGameSummary {
+  const base = mapApiItemToGame(item);
+  const categoryEntries = taxonomyEntries(item.categories ?? []);
+  const mechanicEntries = taxonomyEntries(item.mechanics ?? []);
+  const categories = categoryEntries.map((entry) => entry.name);
+  const mechanics = mechanicEntries.map((entry) => entry.name);
+
+  return {
+    ...base,
+    rating: numericValue(item.rating, 0),
+    categories,
+    categoryEntries,
+    mechanics,
+    mechanicEntries,
+    players: rangeText(item.min_players, item.max_players) || "Sin registrar",
+    playTime: minutesText(item.min_minutes, item.max_minutes) || "Sin registrar",
+    complexity: Math.max(0, Math.min(5, Math.round(numericValue(item.complexity, 0)))),
   };
 }
 
@@ -140,7 +216,7 @@ function mapApiItemToDetail(item: ApiItem): GameDetail {
   };
 }
 
-function collectGenres(item: ApiItem, extraGenre?: string): string[] {
+function collectGenres(item: ApiCatalogGameBase, extraGenre?: string): string[] {
   const names = [
     extraGenre,
     ...taxonomyNames(item.categories ?? []),
