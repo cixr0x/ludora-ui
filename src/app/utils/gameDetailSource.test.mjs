@@ -16,11 +16,13 @@ test("catalog detail mapping extracts TikTok tutorial metadata", () => {
   assert.match(source, /tiktokUser:\s*tiktokTutorial\?\.user/);
 });
 
-test("game detail uses TikTok official embed markup", () => {
+test("game detail uses the TikTok player iframe without the share card embed", () => {
   const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
 
-  assert.match(source, /className="tiktok-embed"/);
-  assert.match(source, /data-video-id/);
-  assert.match(source, /https:\/\/www\.tiktok\.com\/embed\.js/);
+  assert.match(source, /https:\/\/www\.tiktok\.com\/player\/v1\/\$\{tiktokId\}/);
+  assert.match(source, /description=0/);
+  assert.match(source, /music_info=0/);
+  assert.doesNotMatch(source, /className="tiktok-embed"/);
+  assert.doesNotMatch(source, /https:\/\/www\.tiktok\.com\/embed\.js/);
   assert.doesNotMatch(source, /tiktok\.com\/embed\/v2/);
 });

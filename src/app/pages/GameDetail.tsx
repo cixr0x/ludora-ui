@@ -44,51 +44,27 @@ function TagPills({ items, color }: { items: string[]; color: "fuchsia" | "neutr
   );
 }
 
-const TIKTOK_EMBED_SCRIPT_ID = "tiktok-embed-script";
-
-function loadTikTokEmbedScript() {
-  const embedWindow = window as Window & { tiktokEmbed?: { load?: () => void } };
-  const existingScript = document.getElementById(TIKTOK_EMBED_SCRIPT_ID);
-
-  if (existingScript) {
-    embedWindow.tiktokEmbed?.load?.();
-    return;
-  }
-
-  const script = document.createElement("script");
-  script.id = TIKTOK_EMBED_SCRIPT_ID;
-  script.async = true;
-  script.src = "https://www.tiktok.com/embed.js";
-  document.body.appendChild(script);
-}
-
 function TikTokEmbed({ tiktokId, tiktokUser, gameName }: { tiktokId?: string; tiktokUser?: string; gameName: string }) {
-  const tiktokUrl = tiktokId && tiktokUser ? `https://www.tiktok.com/@${tiktokUser}/video/${tiktokId}` : "";
-
-  useEffect(() => {
-    if (tiktokId) loadTikTokEmbedScript();
-  }, [tiktokId]);
+  const tiktokPlayerUrl = tiktokId
+    ? `https://www.tiktok.com/player/v1/${tiktokId}?description=0&music_info=0&controls=1&progress_bar=1&play_button=1&volume_control=1&fullscreen_button=1`
+    : "";
 
   return (
     <div
-      className="relative flex-none w-full md:w-[325px] max-w-[325px] self-center md:self-auto bg-neutral-900 rounded-xl overflow-hidden border border-neutral-800"
+      className="relative flex-none w-full md:w-[325px] max-w-[325px] self-center md:self-auto overflow-hidden rounded-xl bg-black"
+      style={{ aspectRatio: "9 / 16" }}
     >
-      {tiktokId && tiktokUrl ? (
-        <blockquote
-          className="tiktok-embed"
-          cite={tiktokUrl}
-          data-video-id={tiktokId}
-          style={{ margin: 0, maxWidth: 325, minWidth: 260 }}
-        >
-          <section>
-            <a target="_blank" title={`@${tiktokUser}`} href={`https://www.tiktok.com/@${tiktokUser}?refer=embed`} rel="noreferrer">
-              @{tiktokUser}
-            </a>
-            <p>{gameName} tutorial</p>
-          </section>
-        </blockquote>
+      {tiktokPlayerUrl ? (
+        <iframe
+          src={tiktokPlayerUrl}
+          className="h-full w-full"
+          allow="encrypted-media; fullscreen; picture-in-picture"
+          allowFullScreen
+          title={`${gameName} tutorial en TikTok`}
+          style={{ border: "none" }}
+        />
       ) : (
-        <div className="flex flex-col" style={{ aspectRatio: "260 / 462" }}>
+        <div className="flex h-full flex-col">
           <div className="flex-1 bg-gradient-to-b from-neutral-800 to-neutral-950 flex flex-col items-center justify-center gap-4 p-6">
             <div className="w-14 h-14 rounded-full bg-fuchsia-500/20 flex items-center justify-center">
               <Dices className="w-7 h-7 text-fuchsia-400" />
