@@ -230,11 +230,11 @@ export function Home() {
                           onMouseDown={() => handleResultClick(game.id)}
                           className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-neutral-800 transition-colors text-left"
                         >
-                          <div className="flex-none w-9 h-9 rounded-md overflow-hidden">
+                          <div className="flex-none w-9 h-9 rounded-md overflow-hidden flex items-center justify-center">
                             <ImageWithFallback
                               src={game.image}
                               alt={game.name}
-                              className="w-full h-full object-contain"
+                              className="h-full w-auto max-w-full max-h-full rounded-md object-contain"
                             />
                           </div>
                           <div className="flex-1 min-w-0">

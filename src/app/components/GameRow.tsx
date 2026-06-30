@@ -10,6 +10,7 @@ import {
   getUnloadedBufferedImageIds,
   getVisibleRowImageIds,
 } from "../utils/imageBatch.js";
+import { containedImageSize } from "../utils/imageSizing.js";
 
 export type { Game };
 
@@ -39,6 +40,11 @@ interface RowCoverImageProps {
   onSettled: (id: string) => void;
 }
 
+interface ContainedImageSize {
+  width: number;
+  height: number;
+}
+
 function areIdListsEqual(left: string[], right: string[]) {
   return left.length === right.length && left.every((id, index) => id === right[index]);
 }
@@ -46,6 +52,7 @@ function areIdListsEqual(left: string[], right: string[]) {
 function RowCoverImage({ game, imageId, onSettled }: RowCoverImageProps) {
   const imageRef = useRef<HTMLImageElement>(null);
   const [didError, setDidError] = useState(false);
+  const [imageSize, setImageSize] = useState<ContainedImageSize | undefined>();
 
   const markSettled = useCallback(() => {
     onSettled(imageId);
@@ -62,9 +69,20 @@ function RowCoverImage({ game, imageId, onSettled }: RowCoverImageProps) {
     image.decode().then(markSettled, markSettled);
   }, [markSettled]);
 
+  const updateImageSize = useCallback(() => {
+    const image = imageRef.current;
+    if (!image) return;
+
+    const nextSize = containedImageSize(image.naturalWidth, image.naturalHeight, CARD_SIZE);
+    setImageSize((previous) =>
+      previous?.width === nextSize?.width && previous?.height === nextSize?.height ? previous : nextSize,
+    );
+  }, []);
+
   const handleLoad = useCallback(() => {
+    updateImageSize();
     settleAfterDecode();
-  }, [settleAfterDecode]);
+  }, [settleAfterDecode, updateImageSize]);
 
   const handleError = useCallback(() => {
     setDidError(true);
@@ -73,6 +91,7 @@ function RowCoverImage({ game, imageId, onSettled }: RowCoverImageProps) {
 
   useEffect(() => {
     setDidError(false);
+    setImageSize(undefined);
   }, [game.image]);
 
   useEffect(() => {
@@ -86,7 +105,8 @@ function RowCoverImage({ game, imageId, onSettled }: RowCoverImageProps) {
     }
 
     settleAfterDecode();
-  }, [didError, game.image, markSettled, settleAfterDecode]);
+    updateImageSize();
+  }, [didError, game.image, markSettled, settleAfterDecode, updateImageSize]);
 
   if (didError) {
     return (
@@ -104,7 +124,8 @@ function RowCoverImage({ game, imageId, onSettled }: RowCoverImageProps) {
       ref={imageRef}
       src={game.image}
       alt={game.name}
-      className="w-full h-full object-contain"
+      className="block h-full w-auto max-w-full max-h-full rounded-md object-contain"
+      style={imageSize}
       decoding="async"
       loading="eager"
       onLoad={handleLoad}
@@ -169,7 +190,7 @@ function RowLoadedImageCard({
       style={{ width: CARD_SIZE }}
     >
       <div
-        className="relative rounded-md overflow-hidden mb-1.5"
+        className="relative flex items-center justify-center rounded-md overflow-hidden mb-1.5"
         style={{ width: CARD_SIZE, height: CARD_SIZE }}
       >
         <RowCoverImage game={game} imageId={imageId} onSettled={onSettled} />
