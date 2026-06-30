@@ -124,7 +124,7 @@ function RowCoverImage({ game, imageId, onSettled }: RowCoverImageProps) {
       ref={imageRef}
       src={game.image}
       alt={game.name}
-      className="block h-full w-auto max-w-full max-h-full rounded-md object-contain"
+      className="block h-full w-auto max-w-full max-h-full rounded-[4px] object-contain"
       style={imageSize}
       decoding="async"
       loading="eager"
@@ -138,7 +138,7 @@ function RowCoverImage({ game, imageId, onSettled }: RowCoverImageProps) {
 function RowCoverPlaceholder({ game, overlay = false }: { game: Game; overlay?: boolean }) {
   return (
     <div
-      className={`game-cover-placeholder rounded-md animate-pulse ${overlay ? "absolute inset-0" : "mb-1.5"}`}
+      className={`game-cover-placeholder rounded-[4px] animate-pulse ${overlay ? "absolute inset-0" : "mb-1.5"}`}
       style={overlay ? undefined : { width: CARD_SIZE, height: CARD_SIZE }}
       data-original-url={game.image}
       data-row-image-placeholder="true"
@@ -190,7 +190,7 @@ function RowLoadedImageCard({
       style={{ width: CARD_SIZE }}
     >
       <div
-        className="relative flex items-center justify-center rounded-md overflow-hidden mb-1.5"
+        className="relative flex items-center justify-center rounded-[4px] overflow-hidden mb-1.5"
         style={{ width: CARD_SIZE, height: CARD_SIZE }}
       >
         <RowCoverImage game={game} imageId={imageId} onSettled={onSettled} />
