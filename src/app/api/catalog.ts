@@ -100,6 +100,7 @@ export interface ApiFrontPageRow {
   category_name: string;
   category_name_es?: string;
   title: string;
+  title_display?: string | null;
   order: number | string;
   products: ApiItem[];
 }

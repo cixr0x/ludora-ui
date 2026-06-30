@@ -144,6 +144,9 @@ function mapFrontPageRow(row: ApiFrontPageRow): CatalogRow {
 }
 
 function frontPageRowTitle(row: ApiFrontPageRow, rowGenre: string): string {
+  const titleDisplay = preferredText(row.title_display);
+  if (titleDisplay) return titleDisplay;
+
   const title = preferredText(row.title);
   const categoryName = preferredText(row.category_name);
   const translatedCategoryName = preferredText(row.category_name_es);

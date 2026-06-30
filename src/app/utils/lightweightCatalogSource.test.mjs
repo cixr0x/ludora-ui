@@ -11,6 +11,14 @@ test("catalog api exposes lightweight summary and filter-option endpoints", () =
   assert.match(apiSource, /\/api\/items\/filter-options/);
 });
 
+test("front page row titles prefer explicit display titles", () => {
+  const apiSource = source("../api/catalog.ts");
+  const catalogSource = source("../data/catalog.ts");
+
+  assert.match(apiSource, /title_display\??:/);
+  assert.match(catalogSource, /row\.title_display/);
+});
+
 test("landing page uses lightweight filter options for the category strip", () => {
   const homeSource = source("../pages/Home.tsx");
 
