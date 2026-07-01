@@ -9,6 +9,7 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { t } from "../data/translations";
 import { buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
 import { HOME_SEARCH_DEBOUNCE_MS, HOME_SEARCH_LIMIT, homeSearchQuery } from "../utils/homeSearch.js";
+import { BGG_FOOTER_LOGO_URL } from "../utils/siteFooter.js";
 
 interface CategoryStripItem {
   key: string;
@@ -306,7 +307,17 @@ export function Home() {
           />
         </div>
         {isLoading ? (
-          <div className="px-14 py-16 text-neutral-500 text-sm">Cargando catálogo...</div>
+          <div className="px-14 py-16 text-neutral-500 text-sm">
+            <span className="inline-flex items-center gap-3">
+              <span>Cargando catálogo...</span>
+              <img
+                src={BGG_FOOTER_LOGO_URL}
+                alt="Powered by BGG"
+                className="h-6 w-auto opacity-80"
+                decoding="async"
+              />
+            </span>
+          </div>
         ) : rows.length > 0 ? (
           rows.map((row) => (
             <GameRow key={row.title} title={row.title} games={row.games} />

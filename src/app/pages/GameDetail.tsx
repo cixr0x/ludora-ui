@@ -9,6 +9,7 @@ import { EXPANSION_BADGE_CORNER_CLASS } from "../utils/expansionDisplay.js";
 import { hasStoreOfferLinks } from "../utils/storeLinks.js";
 import { Link } from "react-router";
 import { t } from "../data/translations";
+import { BGG_FOOTER_LOGO_URL } from "../utils/siteFooter.js";
 
 function ComplexityBar({ value }: { value: number }) {
   if (value <= 0) {
@@ -261,7 +262,15 @@ export function GameDetail() {
   if (isLoading && !detail) {
     return (
       <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
-        <p className="text-neutral-500 text-sm">Cargando juego...</p>
+        <div className="inline-flex items-center gap-3 text-neutral-500 text-sm">
+          <span>Cargando juego...</span>
+          <img
+            src={BGG_FOOTER_LOGO_URL}
+            alt="Powered by BGG"
+            className="h-6 w-auto opacity-80"
+            decoding="async"
+          />
+        </div>
       </div>
     );
   }
