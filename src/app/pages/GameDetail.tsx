@@ -262,12 +262,12 @@ export function GameDetail() {
   if (isLoading && !detail) {
     return (
       <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
-        <div className="inline-flex items-center gap-3 text-neutral-500 text-sm">
+        <div className="flex flex-col items-center justify-center gap-3 text-center text-neutral-500 text-sm">
           <span>Cargando juego...</span>
           <img
             src={BGG_FOOTER_LOGO_URL}
             alt="Powered by BGG"
-            className="h-6 w-auto opacity-80"
+            className="h-10 w-auto opacity-80"
             decoding="async"
           />
         </div>

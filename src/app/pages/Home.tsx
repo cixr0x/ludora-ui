@@ -307,13 +307,13 @@ export function Home() {
           />
         </div>
         {isLoading ? (
-          <div className="px-14 py-16 text-neutral-500 text-sm">
-            <span className="inline-flex items-center gap-3">
+          <div className="flex min-h-[60vh] items-center justify-center px-14 py-16 text-center text-neutral-500 text-sm">
+            <span className="flex flex-col items-center justify-center gap-3">
               <span>Cargando catálogo...</span>
               <img
                 src={BGG_FOOTER_LOGO_URL}
                 alt="Powered by BGG"
-                className="h-6 w-auto opacity-80"
+                className="h-10 w-auto opacity-80"
                 decoding="async"
               />
             </span>
