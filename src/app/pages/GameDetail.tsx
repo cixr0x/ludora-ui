@@ -386,7 +386,7 @@ export function GameDetail() {
               <button
                 type="button"
                 onClick={scrollToStores}
-                className="w-full flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 hover:border-neutral-600 text-neutral-300 hover:text-white text-sm py-2 rounded-lg transition-colors"
+                className="w-full flex items-center justify-center gap-2 bg-fuchsia-500 hover:bg-fuchsia-400 border border-fuchsia-400/70 hover:border-fuchsia-300 text-white text-sm py-2 rounded-lg shadow-[0_0_18px_rgba(217,70,239,0.25)] transition-colors"
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
                 Comprar ahora
