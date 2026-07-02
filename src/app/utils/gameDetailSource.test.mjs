@@ -27,6 +27,15 @@ test("game detail uses the TikTok player iframe without the share card embed", (
   assert.doesNotMatch(source, /tiktok\.com\/embed\/v2/);
 });
 
+test("game detail hides the TikTok player when no linked tutorial exists", () => {
+  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /\{detail\.tiktokId && \(/);
+  assert.doesNotMatch(source, /tiktokPlayerUrl \? \(/);
+  assert.doesNotMatch(source, /\bDices\b/);
+  assert.doesNotMatch(source, /@ludora/);
+});
+
 test("game detail thanks and links to the TikTok tutorial creator", () => {
   const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
 
