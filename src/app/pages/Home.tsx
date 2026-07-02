@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Search, Bell, User, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate, Link } from "react-router";
 import { GameRow } from "../components/GameRow";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
@@ -18,34 +18,22 @@ interface CategoryStripItem {
 }
 
 export function Home() {
-  const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [searchResults, setSearchResults] = useState<Game[]>([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [rows, setRows] = useState<CatalogRow[]>([]);
   const [categoryStripItems, setCategoryStripItems] = useState<CategoryStripItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const inputRef = useRef<HTMLInputElement>(null);
   const genreScrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const activeSearchQuery = homeSearchQuery(searchValue);
 
-  const openSearch = () => {
-    setSearchOpen(true);
-    setTimeout(() => inputRef.current?.focus(), 50);
-  };
-
-  const closeSearch = () => {
-    setSearchOpen(false);
+  const clearSearch = useCallback(() => {
     setSearchValue("");
-  };
-
-  const handleSearchBlur = useCallback(() => {
-    setTimeout(() => setSearchOpen(false), 150);
   }, []);
 
   const handleResultClick = (id: number) => {
-    closeSearch();
+    clearSearch();
     navigate(`/game/${id}`);
   };
 
@@ -55,11 +43,11 @@ export function Home() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeSearch();
+      if (e.key === "Escape") clearSearch();
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, []);
+  }, [clearSearch]);
 
   useEffect(() => {
     let isActive = true;
@@ -105,7 +93,7 @@ export function Home() {
   }, []);
 
   useEffect(() => {
-    if (!searchOpen || !activeSearchQuery) {
+    if (!activeSearchQuery) {
       setSearchResults([]);
       setIsSearchLoading(false);
       return undefined;
@@ -131,7 +119,7 @@ export function Home() {
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [activeSearchQuery, searchOpen]);
+  }, [activeSearchQuery]);
 
   const scrollGenre = (dir: "left" | "right") => {
     const el = genreScrollRef.current;
@@ -156,7 +144,7 @@ export function Home() {
     >
       {/* Navbar */}
       <header className="sticky top-0 z-50 bg-neutral-950/85 backdrop-blur-md border-b border-white/5">
-        <div className="flex items-center justify-between px-8 h-16">
+        <div className="flex items-center justify-between gap-4 px-4 sm:px-8 h-16">
           {/* Brand */}
           <div className="flex items-center">
             <span className="ludora-wordmark">
@@ -175,32 +163,25 @@ export function Home() {
           </nav>
 
           {/* Right actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center">
             <div className="relative">
-              <div
-                className={`flex items-center gap-2 rounded-full border transition-all duration-200 ${
-                  searchOpen
-                    ? "bg-neutral-800 border-neutral-600 px-3 py-1.5"
-                    : "border-transparent px-2 py-1.5"
-                }`}
-              >
-                <button onClick={searchOpen ? undefined : openSearch} className="flex-none">
-                  <Search className="w-4 h-4 text-neutral-400" />
-                </button>
+              <div className="flex items-center gap-2 rounded-full border border-neutral-600 bg-neutral-800 px-4 py-2 transition-colors focus-within:border-neutral-400">
+                <Search className="w-4 h-4 flex-none text-neutral-400" />
                 <input
-                  ref={inputRef}
                   type="text"
                   placeholder="Buscar juegos…"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
-                  onBlur={handleSearchBlur}
-                  className={`bg-transparent text-sm text-white placeholder:text-neutral-500 outline-none transition-all duration-200 ${
-                    searchOpen ? "w-44" : "w-0 opacity-0 pointer-events-none"
-                  }`}
+                  className="w-56 sm:w-64 lg:w-72 bg-transparent text-sm text-white placeholder:text-neutral-500 outline-none"
                 />
-                {searchOpen && (
+                {searchValue && (
                   <button
-                    onMouseDown={(e) => { e.preventDefault(); closeSearch(); }}
+                    type="button"
+                    aria-label="Limpiar búsqueda"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      clearSearch();
+                    }}
                     className="flex-none text-neutral-500 hover:text-neutral-300 transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -208,8 +189,8 @@ export function Home() {
                 )}
               </div>
 
-              {searchOpen && activeSearchQuery && (
-                <div className="absolute right-0 top-full mt-2 w-80 bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl overflow-hidden z-50">
+              {activeSearchQuery && (
+                <div className="absolute right-0 top-full mt-2 w-full min-w-72 bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl overflow-hidden z-50">
                   {isSearchLoading ? (
                     <div className="px-4 py-6 text-center text-neutral-500 text-sm">
                       Buscando...
@@ -251,14 +232,6 @@ export function Home() {
                 </div>
               )}
             </div>
-
-            <button className="relative p-2 rounded-full hover:bg-white/10 transition-colors">
-              <Bell className="w-4 h-4 text-neutral-400" />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-fuchsia-400 rounded-full" />
-            </button>
-            <button className="flex items-center justify-center w-8 h-8 rounded-full bg-fuchsia-500/20 text-fuchsia-400 hover:bg-fuchsia-500/30 transition-colors">
-              <User className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
