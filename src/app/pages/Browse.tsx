@@ -4,6 +4,7 @@ import { ArrowLeft, Dices } from "lucide-react";
 import type { Game } from "../data/games";
 import { loadGames } from "../data/catalog";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { SiteHeader } from "../components/SiteHeader";
 import { t } from "../data/translations";
 
 export function Browse() {
@@ -39,21 +40,24 @@ export function Browse() {
         background: "radial-gradient(ellipse 130% 38% at 50% -5%, rgba(217, 70, 239, 0.08) 0%, transparent 58%), rgb(10, 10, 10)",
       }}
     >
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-white/5 px-8 h-14 flex items-center gap-4">
-        <button
-          onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate("/"))}
-          className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm">Volver</span>
-        </button>
-        <span className="text-neutral-700">|</span>
-        <span className="text-white text-sm">{t(decoded)}</span>
-        <span className="text-neutral-600 text-sm">
-          {isLoading ? "· Cargando" : `· ${games.length} juego${games.length !== 1 ? "s" : ""}`}
-        </span>
-      </div>
+      <SiteHeader
+        contextBar={
+          <div className="flex h-12 items-center gap-4 border-t border-white/5 px-4 sm:px-8">
+            <button
+              onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate("/"))}
+              className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm">Volver</span>
+            </button>
+            <span className="text-neutral-700">|</span>
+            <span className="text-white text-sm">{t(decoded)}</span>
+            <span className="text-neutral-600 text-sm">
+              {isLoading ? "· Cargando" : `· ${games.length} juego${games.length !== 1 ? "s" : ""}`}
+            </span>
+          </div>
+        }
+      />
 
       <div className="max-w-5xl mx-auto px-8 py-10">
         {isLoading ? (

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const gameRowSource = () => readFileSync(new URL("../components/GameRow.tsx", import.meta.url), "utf8");
-const homeSource = () => readFileSync(new URL("../pages/Home.tsx", import.meta.url), "utf8");
+const siteHeaderSource = () => readFileSync(new URL("../components/SiteHeader.tsx", import.meta.url), "utf8");
 
 test("landing row cover images round the actual image for non-square artwork", () => {
   const source = gameRowSource();
@@ -17,7 +17,7 @@ test("landing row cover images round the actual image for non-square artwork", (
 });
 
 test("landing search thumbnails round the actual image for non-square artwork", () => {
-  const source = homeSource();
+  const source = siteHeaderSource();
 
   assert.match(source, /className="flex-none w-9 h-9 rounded-\[4px\] overflow-hidden flex items-center justify-center"/);
   assert.match(

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router";
 import { ArrowLeft, Users, Clock, ChevronLeft, ChevronRight, Youtube, ShoppingCart, ExternalLink, X } from "lucide-react";
 import { ExpansionBadge } from "../components/ExpansionBadge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { SiteHeader } from "../components/SiteHeader";
 import type { StoreEntry, Game, GameDetail as GameDetailData } from "../data/games";
 import { loadGameDetail, loadGames } from "../data/catalog";
 import { EXPANSION_BADGE_CORNER_CLASS } from "../utils/expansionDisplay.js";
@@ -237,29 +238,63 @@ export function GameDetail() {
 
   if (isLoading && !detail) {
     return (
-      <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
-        <div className="flex flex-col items-center justify-center gap-3 text-center text-neutral-500 text-sm">
-          <span>Cargando juego...</span>
-          <img
-            src={BGG_FOOTER_LOGO_URL}
-            alt="Powered by BGG"
-            className="h-10 w-auto opacity-80"
-            decoding="async"
-          />
-        </div>
+      <div className="min-h-screen bg-neutral-950 text-white">
+        <SiteHeader
+          contextBar={
+            <div className="flex h-12 items-center gap-4 border-t border-white/5 px-4 sm:px-8">
+              <button
+                onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate("/"))}
+                className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="text-sm">Volver</span>
+              </button>
+              <span className="text-neutral-700">|</span>
+              <span className="text-sm text-neutral-400">Cargando juego...</span>
+            </div>
+          }
+        />
+        <main className="flex min-h-[60vh] items-center justify-center">
+          <div className="flex flex-col items-center justify-center gap-3 text-center text-neutral-500 text-sm">
+            <span>Cargando juego...</span>
+            <img
+              src={BGG_FOOTER_LOGO_URL}
+              alt="Powered by BGG"
+              className="h-10 w-auto opacity-80"
+              decoding="async"
+            />
+          </div>
+        </main>
       </div>
     );
   }
 
   if (!detail) {
     return (
-      <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-neutral-400 mb-4">Juego no encontrado.</p>
-          <button onClick={() => navigate("/")} className="text-fuchsia-400 hover:text-fuchsia-300 text-sm">
-            ← Volver al catálogo
-          </button>
-        </div>
+      <div className="min-h-screen bg-neutral-950 text-white">
+        <SiteHeader
+          contextBar={
+            <div className="flex h-12 items-center gap-4 border-t border-white/5 px-4 sm:px-8">
+              <button
+                onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate("/"))}
+                className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="text-sm">Volver</span>
+              </button>
+              <span className="text-neutral-700">|</span>
+              <span className="text-sm text-neutral-400">Juego no encontrado</span>
+            </div>
+          }
+        />
+        <main className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-center">
+            <p className="text-neutral-400 mb-4">Juego no encontrado.</p>
+            <button onClick={() => navigate("/")} className="text-fuchsia-400 hover:text-fuchsia-300 text-sm">
+              Volver al catalogo
+            </button>
+          </div>
+        </main>
       </div>
     );
   }
@@ -311,18 +346,21 @@ export function GameDetail() {
         </div>
       )}
 
-      {/* Back header */}
-      <div className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-white/5 px-4 md:px-8 h-14 flex items-center gap-4">
-        <button
-          onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate("/"))}
-          className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm">Volver</span>
-        </button>
-        <span className="text-neutral-700">|</span>
-        <span className="text-neutral-400 text-sm truncate">{detail.name}</span>
-      </div>
+      <SiteHeader
+        contextBar={
+          <div className="flex h-12 items-center gap-4 border-t border-white/5 px-4 sm:px-8">
+            <button
+              onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate("/"))}
+              className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm">Volver</span>
+            </button>
+            <span className="text-neutral-700">|</span>
+            <span className="min-w-0 truncate text-sm text-neutral-400">{detail.name}</span>
+          </div>
+        }
+      />
 
       {/* ── Blurred backdrop hero ─────────────────────────────────────── */}
       <div className="relative w-full overflow-hidden">

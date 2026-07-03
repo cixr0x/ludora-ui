@@ -11,6 +11,7 @@ import {
 } from "../data/catalog";
 import { ExpansionBadge } from "../components/ExpansionBadge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { SiteHeader } from "../components/SiteHeader";
 import { t } from "../data/translations";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
 import { EXPANSION_BADGE_CORNER_CLASS } from "../utils/expansionDisplay.js";
@@ -407,31 +408,34 @@ export function Search() {
         background: "radial-gradient(ellipse 130% 38% at 50% -5%, rgba(217, 70, 239, 0.08) 0%, transparent 58%), rgb(10, 10, 10)",
       }}
     >
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-white/5 px-8 h-14 flex items-center gap-4">
-        <button
-          onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate("/"))}
-          className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm">Volver</span>
-        </button>
-        <span className="text-neutral-700">|</span>
-        <SlidersHorizontal className="w-4 h-4 text-fuchsia-400" />
-        <span className="text-white text-sm">Encuentra tu próximo juego</span>
-        <span className="text-neutral-600 text-sm">
-          {isResultsLoading ? "· Cargando" : `· ${results.length} resultado${results.length !== 1 ? "s" : ""}`}
-        </span>
-        {activeFilterCount > 0 && (
-          <button
-            onClick={clearAll}
-            className="ml-auto text-xs text-neutral-500 hover:text-fuchsia-300 transition-colors flex items-center gap-1"
-          >
-            <X className="w-3 h-3" />
-            Borrar todo ({activeFilterCount})
-          </button>
-        )}
-      </div>
+      <SiteHeader
+        contextBar={
+          <div className="flex h-12 items-center gap-4 border-t border-white/5 px-4 sm:px-8">
+            <button
+              onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate("/"))}
+              className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm">Volver</span>
+            </button>
+            <span className="text-neutral-700">|</span>
+            <SlidersHorizontal className="w-4 h-4 text-fuchsia-400" />
+            <span className="text-white text-sm">Encuentra tu próximo juego</span>
+            <span className="text-neutral-600 text-sm">
+              {isResultsLoading ? "· Cargando" : `· ${results.length} resultado${results.length !== 1 ? "s" : ""}`}
+            </span>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearAll}
+                className="ml-auto text-xs text-neutral-500 hover:text-fuchsia-300 transition-colors flex items-center gap-1"
+              >
+                <X className="w-3 h-3" />
+                Borrar todo ({activeFilterCount})
+              </button>
+            )}
+          </div>
+        }
+      />
 
       <div className="max-w-6xl mx-auto px-8 py-8 grid gap-8 lg:grid-cols-[320px_1fr]">
         {/* Filters sidebar */}

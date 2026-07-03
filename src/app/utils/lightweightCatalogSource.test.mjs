@@ -20,10 +20,10 @@ test("front page row titles prefer explicit display titles", () => {
 });
 
 test("landing page uses lightweight filter options for the category strip", () => {
-  const homeSource = source("../pages/Home.tsx");
+  const headerSource = source("../components/SiteHeader.tsx");
 
-  assert.match(homeSource, /loadCatalogFilterOptions/);
-  assert.doesNotMatch(homeSource, /loadCatalogGameDetails\(\{\s*limit:\s*CATEGORY_STRIP_CATALOG_LIMIT/);
+  assert.match(headerSource, /loadCatalogFilterOptions/);
+  assert.doesNotMatch(headerSource, /loadCatalogGameDetails\(\{\s*limit:\s*CATEGORY_STRIP_CATALOG_LIMIT/);
 });
 
 test("search page uses lightweight endpoints for grid results and filters", () => {
