@@ -147,9 +147,12 @@ export function Home() {
         <div className="flex items-center justify-between gap-4 px-4 sm:px-8 h-16">
           {/* Brand */}
           <div className="flex items-center">
-            <span className="ludora-wordmark">
+            <Link
+              to="/"
+              className="ludora-wordmark text-2xl rounded-sm transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300"
+            >
               Ludora
-            </span>
+            </Link>
           </div>
 
           {/* Nav links */}

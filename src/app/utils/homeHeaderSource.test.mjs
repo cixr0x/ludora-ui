@@ -13,3 +13,10 @@ test("home header keeps search expanded and removes notification and user icons"
   assert.match(source, /placeholder="Buscar juegos/);
   assert.match(source, /w-56 sm:w-64 lg:w-72/);
 });
+
+test("home header wordmark is a larger link to the home page", () => {
+  const source = homeSource();
+
+  assert.match(source, /<Link[\s\S]*to="\/"[\s\S]*className="ludora-wordmark text-2xl[^"]*"[\s\S]*>\s*Ludora\s*<\/Link>/);
+  assert.doesNotMatch(source, /<span className="ludora-wordmark">/);
+});
