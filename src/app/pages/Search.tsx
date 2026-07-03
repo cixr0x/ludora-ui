@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, Sparkles } from "lucide-react";
+import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, Sparkles, ChevronDown } from "lucide-react";
 import type { GameDetail, GameTaxonomyEntry } from "../data/games";
 import {
   loadCatalogFilterOptions,
@@ -262,6 +262,8 @@ export function Search() {
   const [activeMechanics, setActiveMechanics] = useState<Set<number>>(() =>
     parsePositiveIntegerSetParam(searchParams.get("mechanic_ids")),
   );
+  const [categoriesCollapsed, setCategoriesCollapsed] = useState(false);
+  const [mechanicsCollapsed, setMechanicsCollapsed] = useState(false);
   const [players, setPlayers] = useState<number | null>(null);
   const [playtimes, setPlaytimes] = useState<Set<PlaytimeKey>>(new Set());
   const [complexity, setComplexity] = useState<[number, number]>([1, 5]);
@@ -298,6 +300,16 @@ export function Search() {
     () => sortTaxonomyOptionsByActive(mechanicOptions, activeMechanics),
     [activeMechanics, mechanicOptions],
   );
+  const activeCategoryOptions = useMemo(
+    () => allCategories.filter((category) => activeCategories.has(category.id)),
+    [activeCategories, allCategories],
+  );
+  const activeMechanicOptions = useMemo(
+    () => allMechanics.filter((mechanic) => activeMechanics.has(mechanic.id)),
+    [activeMechanics, allMechanics],
+  );
+  const visibleCategories = categoriesCollapsed ? activeCategoryOptions : allCategories;
+  const visibleMechanics = mechanicsCollapsed ? activeMechanicOptions : allMechanics;
 
   const toggle = <T,>(set: Set<T>, value: T, setter: (s: Set<T>) => void) => {
     const next = new Set(set);
@@ -525,14 +537,26 @@ export function Search() {
 
           {/* Categories */}
           <div>
-            <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2">
-              Categorías
-              {activeCategories.size > 0 && (
-                <span className="ml-2 text-fuchsia-400 normal-case tracking-normal">{activeCategories.size} activas</span>
-              )}
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {allCategories.map((category) => (
+            <button
+              type="button"
+              aria-expanded={!categoriesCollapsed}
+              aria-controls="category-filter-options"
+              onClick={() => setCategoriesCollapsed((collapsed) => !collapsed)}
+              className="mb-2 flex w-full items-center justify-between text-left text-xs uppercase tracking-wider text-neutral-500 transition-colors hover:text-neutral-300"
+            >
+              <span>
+                Categorías
+                {activeCategories.size > 0 && (
+                  <span className="ml-2 text-fuchsia-400 normal-case tracking-normal">{activeCategories.size} activas</span>
+                )}
+              </span>
+              <ChevronDown
+                aria-hidden="true"
+                className={`h-3.5 w-3.5 flex-none transition-transform ${categoriesCollapsed ? "-rotate-90" : "rotate-0"}`}
+              />
+            </button>
+            <div id="category-filter-options" className="flex flex-wrap gap-1.5">
+              {visibleCategories.map((category) => (
                 <Toggle
                   key={category.id}
                   label={t(category.name)}
@@ -546,14 +570,26 @@ export function Search() {
 
           {/* Mechanics */}
           <div>
-            <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2">
-              Mecánicas
-              {activeMechanics.size > 0 && (
-                <span className="ml-2 text-fuchsia-400 normal-case tracking-normal">{activeMechanics.size} activas</span>
-              )}
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {allMechanics.map((mechanic) => (
+            <button
+              type="button"
+              aria-expanded={!mechanicsCollapsed}
+              aria-controls="mechanic-filter-options"
+              onClick={() => setMechanicsCollapsed((collapsed) => !collapsed)}
+              className="mb-2 flex w-full items-center justify-between text-left text-xs uppercase tracking-wider text-neutral-500 transition-colors hover:text-neutral-300"
+            >
+              <span>
+                Mecánicas
+                {activeMechanics.size > 0 && (
+                  <span className="ml-2 text-fuchsia-400 normal-case tracking-normal">{activeMechanics.size} activas</span>
+                )}
+              </span>
+              <ChevronDown
+                aria-hidden="true"
+                className={`h-3.5 w-3.5 flex-none transition-transform ${mechanicsCollapsed ? "-rotate-90" : "rotate-0"}`}
+              />
+            </button>
+            <div id="mechanic-filter-options" className="flex flex-wrap gap-1.5">
+              {visibleMechanics.map((mechanic) => (
                 <Toggle
                   key={mechanic.id}
                   label={t(mechanic.name)}
