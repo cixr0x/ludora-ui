@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, Sparkles, ChevronDown } from "lucide-react";
+import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
 import type { GameDetail, GameTaxonomyEntry } from "../data/games";
 import {
   loadCatalogFilterOptions,
@@ -262,8 +262,8 @@ export function Search() {
   const [activeMechanics, setActiveMechanics] = useState<Set<number>>(() =>
     parsePositiveIntegerSetParam(searchParams.get("mechanic_ids")),
   );
-  const [categoriesCollapsed, setCategoriesCollapsed] = useState(false);
-  const [mechanicsCollapsed, setMechanicsCollapsed] = useState(false);
+  const [categoriesCollapsed, setCategoriesCollapsed] = useState(true);
+  const [mechanicsCollapsed, setMechanicsCollapsed] = useState(true);
   const [players, setPlayers] = useState<number | null>(null);
   const [playtimes, setPlaytimes] = useState<Set<PlaytimeKey>>(new Set());
   const [complexity, setComplexity] = useState<[number, number]>([1, 5]);
@@ -540,20 +540,25 @@ export function Search() {
             <button
               type="button"
               aria-expanded={!categoriesCollapsed}
+              aria-label={categoriesCollapsed ? "Expandir categorías" : "Colapsar categorías"}
               aria-controls="category-filter-options"
               onClick={() => setCategoriesCollapsed((collapsed) => !collapsed)}
-              className="mb-2 flex w-full items-center justify-between text-left text-xs uppercase tracking-wider text-neutral-500 transition-colors hover:text-neutral-300"
+              className="mb-2 flex w-full items-center justify-between rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-2 text-left text-xs uppercase tracking-wider text-neutral-400 transition-colors hover:border-neutral-700 hover:bg-neutral-900 hover:text-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/50"
             >
-              <span>
+              <span className="min-w-0">
                 Categorías
                 {activeCategories.size > 0 && (
                   <span className="ml-2 text-fuchsia-400 normal-case tracking-normal">{activeCategories.size} activas</span>
                 )}
               </span>
-              <ChevronDown
-                aria-hidden="true"
-                className={`h-3.5 w-3.5 flex-none transition-transform ${categoriesCollapsed ? "-rotate-90" : "rotate-0"}`}
-              />
+              <span className="ml-3 inline-flex flex-none items-center gap-1.5 rounded-md border border-neutral-700 bg-neutral-950 px-2 py-1 text-[11px] font-medium normal-case tracking-normal text-neutral-300">
+                {categoriesCollapsed ? "Expandir" : "Colapsar"}
+                {categoriesCollapsed ? (
+                  <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+                )}
+              </span>
             </button>
             <div id="category-filter-options" className="flex flex-wrap gap-1.5">
               {visibleCategories.map((category) => (
@@ -573,20 +578,25 @@ export function Search() {
             <button
               type="button"
               aria-expanded={!mechanicsCollapsed}
+              aria-label={mechanicsCollapsed ? "Expandir mecánicas" : "Colapsar mecánicas"}
               aria-controls="mechanic-filter-options"
               onClick={() => setMechanicsCollapsed((collapsed) => !collapsed)}
-              className="mb-2 flex w-full items-center justify-between text-left text-xs uppercase tracking-wider text-neutral-500 transition-colors hover:text-neutral-300"
+              className="mb-2 flex w-full items-center justify-between rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-2 text-left text-xs uppercase tracking-wider text-neutral-400 transition-colors hover:border-neutral-700 hover:bg-neutral-900 hover:text-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/50"
             >
-              <span>
+              <span className="min-w-0">
                 Mecánicas
                 {activeMechanics.size > 0 && (
                   <span className="ml-2 text-fuchsia-400 normal-case tracking-normal">{activeMechanics.size} activas</span>
                 )}
               </span>
-              <ChevronDown
-                aria-hidden="true"
-                className={`h-3.5 w-3.5 flex-none transition-transform ${mechanicsCollapsed ? "-rotate-90" : "rotate-0"}`}
-              />
+              <span className="ml-3 inline-flex flex-none items-center gap-1.5 rounded-md border border-neutral-700 bg-neutral-950 px-2 py-1 text-[11px] font-medium normal-case tracking-normal text-neutral-300">
+                {mechanicsCollapsed ? "Expandir" : "Colapsar"}
+                {mechanicsCollapsed ? (
+                  <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+                )}
+              </span>
             </button>
             <div id="mechanic-filter-options" className="flex flex-wrap gap-1.5">
               {visibleMechanics.map((mechanic) => (

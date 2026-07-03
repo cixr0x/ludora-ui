@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router";
 
-const GA_MEASUREMENT_ID = "G-5F9KFSSE0M";
+const GA_MEASUREMENT_ID = "G-QGR5CKL5S4";
 const GA_SCRIPT_ID = "google-analytics-gtag";
 
 declare global {
