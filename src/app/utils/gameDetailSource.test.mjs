@@ -66,3 +66,17 @@ test("game detail reports store offer clicks while preserving external links", (
   assert.match(source, /rel="noopener noreferrer"/);
   assert.match(source, /onClick=\{\(\) => reportStoreItemClick\(store\.id\)\}/);
 });
+
+test("game detail loads related games separately from primary detail rendering", () => {
+  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /import \{ loadGameDetail,\s*loadRelatedGames \} from "\.\.\/data\/catalog";/);
+  assert.match(source, /const \[relatedGames, setRelatedGames\] = useState<Game\[\]>\(\[\]\);/);
+  assert.match(source, /loadGameDetail\(itemId\)\.then\(\(nextDetail\) => \{/);
+  assert.match(source, /setDetail\(nextDetail\);[\s\S]*setIsLoading\(false\);/);
+  assert.match(source, /loadRelatedGames\(itemId\)/);
+  assert.doesNotMatch(source, /loadGames/);
+  assert.doesNotMatch(source, /const gamesPromise = loadGames\(\);/);
+  assert.doesNotMatch(source, /Promise\.all\(\[gamesPromise,\s*parentPromise\]\)/);
+  assert.doesNotMatch(source, /const relatedGames = allGames/);
+});

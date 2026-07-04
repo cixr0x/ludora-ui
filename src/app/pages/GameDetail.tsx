@@ -5,7 +5,7 @@ import { ExpansionBadge } from "../components/ExpansionBadge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { SiteHeader } from "../components/SiteHeader";
 import type { StoreEntry, Game, GameDetail as GameDetailData } from "../data/games";
-import { loadGameDetail, loadGames } from "../data/catalog";
+import { loadGameDetail, loadRelatedGames } from "../data/catalog";
 import { EXPANSION_BADGE_CORNER_CLASS } from "../utils/expansionDisplay.js";
 import { hasStoreOfferLinks } from "../utils/storeLinks.js";
 import { reportStoreItemClick } from "../utils/storeClickTracking.js";
@@ -181,7 +181,7 @@ export function GameDetail() {
   const itemId = Number(id);
   const [detail, setDetail] = useState<GameDetailData | undefined>();
   const [parentGame, setParentGame] = useState<Game | undefined>();
-  const [allGames, setAllGames] = useState<Game[]>([]);
+  const [relatedGames, setRelatedGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(() => Number.isInteger(itemId) && itemId > 0);
   const [isImageOverlayOpen, setIsImageOverlayOpen] = useState(false);
   const storesSectionRef = useRef<HTMLDivElement>(null);
@@ -189,6 +189,8 @@ export function GameDetail() {
   useEffect(() => {
     if (!Number.isInteger(itemId) || itemId <= 0) {
       setDetail(undefined);
+      setParentGame(undefined);
+      setRelatedGames([]);
       setIsLoading(false);
       setIsImageOverlayOpen(false);
       return;
@@ -200,18 +202,36 @@ export function GameDetail() {
     setIsLoading(true);
     setIsImageOverlayOpen(false);
 
-    const gamesPromise = loadGames();
-    loadGameDetail(itemId).then(async (nextDetail) => {
-      const parentPromise =
-        nextDetail?.isExpansion && nextDetail.parentItemId ? loadGameDetail(nextDetail.parentItemId).catch(() => undefined) : undefined;
-      const [nextGames, nextParent] = await Promise.all([gamesPromise, parentPromise]);
+    loadGameDetail(itemId).then((nextDetail) => {
       if (!isActive) return;
       setDetail(nextDetail);
-      setParentGame(nextParent);
-      setAllGames(nextGames);
       setIsLoading(false);
+
+      if (nextDetail?.isExpansion && nextDetail.parentItemId) {
+        loadGameDetail(nextDetail.parentItemId).then((nextParent) => {
+          if (isActive) setParentGame(nextParent);
+        });
+      }
     }).finally(() => {
       if (isActive) setIsLoading(false);
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [itemId]);
+
+  useEffect(() => {
+    if (!Number.isInteger(itemId) || itemId <= 0) {
+      setRelatedGames([]);
+      return;
+    }
+
+    let isActive = true;
+    setRelatedGames([]);
+
+    loadRelatedGames(itemId).then((nextRelatedGames) => {
+      if (isActive) setRelatedGames(nextRelatedGames);
     });
 
     return () => {
@@ -301,9 +321,6 @@ export function GameDetail() {
     );
   }
 
-  const relatedGames = allGames
-    .filter((g) => g.id !== detail.id && g.genres.some((genre) => detail.genres.includes(genre)))
-    .slice(0, 18);
   const hasLinkedStoreOffers = hasStoreOfferLinks(detail.stores);
   const scrollToStores = () => {
     storesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });

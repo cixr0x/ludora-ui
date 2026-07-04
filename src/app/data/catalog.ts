@@ -4,6 +4,7 @@ import {
   fetchItem,
   fetchItems,
   fetchItemSummaries,
+  fetchRelatedItems,
   fetchSearchResults,
   fetchSemanticItems,
   type ApiFrontPageRow,
@@ -56,10 +57,15 @@ type ApiCatalogGameBase = Pick<
   | "canonical_name_es"
   | "image_url"
   | "image_url_es"
-  | "item_type"
-  | "parent_item_id"
-  | "is_expansion"
-> & {
+> &
+  Partial<
+    Pick<
+      ApiItem,
+      | "item_type"
+      | "parent_item_id"
+      | "is_expansion"
+    >
+  > & {
   categories?: ApiTaxonomyEntry[];
   families?: ApiTaxonomyEntry[];
   mechanics?: ApiTaxonomyEntry[];
@@ -104,6 +110,15 @@ export async function loadCatalogGameSummaries(query?: Parameters<typeof fetchIt
 export async function loadCatalogSearchResults(query?: Parameters<typeof fetchSearchResults>[0]): Promise<CatalogSearchResult[]> {
   try {
     const items: ApiSearchResultItem[] = await fetchSearchResults(query ?? { limit: 200 });
+    return items.map((item) => mapApiItemToGame(item));
+  } catch {
+    return [];
+  }
+}
+
+export async function loadRelatedGames(id: number, limit = 18): Promise<Game[]> {
+  try {
+    const items = await fetchRelatedItems(id, limit);
     return items.map((item) => mapApiItemToGame(item));
   } catch {
     return [];

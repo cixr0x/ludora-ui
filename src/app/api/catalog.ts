@@ -109,6 +109,15 @@ export type ApiFrontPageItem = Pick<
   | "image_url_es"
 >;
 
+export type ApiRelatedItem = Pick<
+  ApiItem,
+  | "id"
+  | "canonical_name"
+  | "canonical_name_es"
+  | "image_url"
+  | "image_url_es"
+>;
+
 export interface ApiCatalogFilterOptions {
   categories: ApiTaxonomyEntry[];
   mechanics: ApiTaxonomyEntry[];
@@ -164,6 +173,14 @@ export async function fetchSearchResults(query?: ApiItemsQuery): Promise<ApiSear
   const suffix = itemSearchSuffix(query);
 
   return fetchData<ApiSearchResultItem[]>(`/api/items/search-results${suffix}`);
+}
+
+export async function fetchRelatedItems(id: number, limit?: number): Promise<ApiRelatedItem[]> {
+  const params = new URLSearchParams();
+  if (limit) params.set("limit", String(limit));
+  const suffix = params.size ? `?${params.toString()}` : "";
+
+  return fetchData<ApiRelatedItem[]>(`/api/items/${id}/related${suffix}`);
 }
 
 export async function fetchCatalogFilterOptions(): Promise<ApiCatalogFilterOptions> {
