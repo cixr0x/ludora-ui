@@ -349,10 +349,6 @@ export function Search() {
 
   const handleTextQueryChange = (value: string) => {
     setQuery(value);
-    if (semanticGames) {
-      setSemanticQuery("");
-      setSemanticGames(null);
-    }
   };
 
   const handleLudoscopioSearch = useCallback(async (value: string) => {

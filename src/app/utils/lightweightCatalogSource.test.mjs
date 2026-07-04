@@ -41,6 +41,21 @@ test("search page uses minimal search results for grid results and lightweight f
   assert.doesNotMatch(searchSource, /loadCatalogGameDetails/);
 });
 
+test("search page keeps semantic results when text query changes and filters them locally", () => {
+  const searchSource = source("../pages/Search.tsx");
+  const handleTextQueryChange = searchSource.match(
+    /const handleTextQueryChange = \(value: string\) => \{[\s\S]*?\n  \};/,
+  )?.[0];
+
+  assert.ok(handleTextQueryChange, "handleTextQueryChange should be present");
+  assert.match(handleTextQueryChange, /setQuery\(value\)/);
+  assert.doesNotMatch(handleTextQueryChange, /setSemanticGames\(\s*null\s*\)/);
+  assert.match(
+    searchSource,
+    /semanticGames\s*\?\s*filterSemanticSearchResults\(\s*semanticGames,\s*searchRequest\s*\)\s*:\s*games/,
+  );
+});
+
 test("site header autocomplete uses minimal search results", () => {
   const headerSource = source("../components/SiteHeader.tsx");
 
