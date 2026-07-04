@@ -88,6 +88,18 @@ export type ApiItemSummary = Pick<
   | "mechanics"
 >;
 
+export type ApiSearchResultItem = Pick<
+  ApiItem,
+  | "id"
+  | "canonical_name"
+  | "canonical_name_es"
+  | "image_url"
+  | "image_url_es"
+  | "item_type"
+  | "parent_item_id"
+  | "is_expansion"
+>;
+
 export interface ApiCatalogFilterOptions {
   categories: ApiTaxonomyEntry[];
   mechanics: ApiTaxonomyEntry[];
@@ -137,6 +149,12 @@ export async function fetchItemSummaries(query?: ApiItemsQuery): Promise<ApiItem
   const suffix = itemSearchSuffix(query);
 
   return fetchData<ApiItemSummary[]>(`/api/items/summary${suffix}`);
+}
+
+export async function fetchSearchResults(query?: ApiItemsQuery): Promise<ApiSearchResultItem[]> {
+  const suffix = itemSearchSuffix(query);
+
+  return fetchData<ApiSearchResultItem[]>(`/api/items/search-results${suffix}`);
 }
 
 export async function fetchCatalogFilterOptions(): Promise<ApiCatalogFilterOptions> {

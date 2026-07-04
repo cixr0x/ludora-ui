@@ -4,11 +4,14 @@ import test from "node:test";
 
 const source = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("catalog api exposes lightweight summary and filter-option endpoints", () => {
+test("catalog api exposes minimal search results plus summary and filter-option endpoints", () => {
   const apiSource = source("../api/catalog.ts");
+  const catalogSource = source("../data/catalog.ts");
 
+  assert.match(apiSource, /\/api\/items\/search-results/);
   assert.match(apiSource, /\/api\/items\/summary/);
   assert.match(apiSource, /\/api\/items\/filter-options/);
+  assert.match(catalogSource, /loadCatalogSearchResults/);
 });
 
 test("front page row titles prefer explicit display titles", () => {

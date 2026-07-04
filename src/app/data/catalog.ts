@@ -4,11 +4,13 @@ import {
   fetchItem,
   fetchItems,
   fetchItemSummaries,
+  fetchSearchResults,
   fetchSemanticItems,
   type ApiFrontPageRow,
   type ApiItem,
   type ApiItemSummary,
   type ApiOffer,
+  type ApiSearchResultItem,
   type ApiTaxonomyEntry,
 } from "../api/catalog";
 import { isExpansionItem, positiveInteger } from "../utils/expansionDisplay.js";
@@ -39,6 +41,8 @@ export interface CatalogGameSummary extends Game {
   playTime: string;
   complexity: number;
 }
+
+export type CatalogSearchResult = Game;
 
 export interface CatalogFilterOptions {
   categories: GameTaxonomyEntry[];
@@ -92,6 +96,15 @@ export async function loadCatalogGameSummaries(query?: Parameters<typeof fetchIt
   try {
     const items = await fetchItemSummaries(query ?? { limit: 200 });
     return items.map((item) => mapApiItemToSummary(item));
+  } catch {
+    return [];
+  }
+}
+
+export async function loadCatalogSearchResults(query?: Parameters<typeof fetchSearchResults>[0]): Promise<CatalogSearchResult[]> {
+  try {
+    const items: ApiSearchResultItem[] = await fetchSearchResults(query ?? { limit: 200 });
+    return items.map((item) => mapApiItemToGame(item));
   } catch {
     return [];
   }
