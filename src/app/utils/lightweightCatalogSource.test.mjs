@@ -25,6 +25,13 @@ test("front page row titles prefer explicit display titles", () => {
   assert.match(catalogSource, /row\.title_display/);
 });
 
+test("front page products use only minimal display fields", () => {
+  const apiSource = source("../api/catalog.ts");
+
+  assert.match(apiSource, /export\s+type\s+ApiFrontPageItem\s*=\s*Pick<[\s\S]*"id"[\s\S]*"canonical_name"[\s\S]*"canonical_name_es"[\s\S]*"image_url"[\s\S]*"image_url_es"[\s\S]*>;/);
+  assert.match(apiSource, /products:\s*ApiFrontPageItem\[\]/);
+});
+
 test("landing page uses lightweight filter options for the category strip", () => {
   const headerSource = source("../components/SiteHeader.tsx");
 

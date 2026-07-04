@@ -100,6 +100,15 @@ export type ApiSearchResultItem = Pick<
   | "is_expansion"
 >;
 
+export type ApiFrontPageItem = Pick<
+  ApiItem,
+  | "id"
+  | "canonical_name"
+  | "canonical_name_es"
+  | "image_url"
+  | "image_url_es"
+>;
+
 export interface ApiCatalogFilterOptions {
   categories: ApiTaxonomyEntry[];
   mechanics: ApiTaxonomyEntry[];
@@ -114,7 +123,7 @@ export interface ApiFrontPageRow {
   title: string;
   title_display?: string | null;
   order: number | string;
-  products: ApiItem[];
+  products: ApiFrontPageItem[];
 }
 
 interface ApiEnvelope<T> {
