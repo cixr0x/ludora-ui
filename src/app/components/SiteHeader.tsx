@@ -2,7 +2,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
-import { loadCatalogFilterOptions, loadCatalogGameSummaries } from "../data/catalog";
+import { loadCatalogFilterOptions, loadCatalogSearchResults } from "../data/catalog";
 import type { Game } from "../data/games";
 import { t } from "../data/translations";
 import { buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
@@ -83,7 +83,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
     setIsSearchLoading(true);
 
     const timeoutId = window.setTimeout(() => {
-      loadCatalogGameSummaries({ query: activeSearchQuery, limit: HOME_SEARCH_LIMIT })
+      loadCatalogSearchResults({ query: activeSearchQuery, limit: HOME_SEARCH_LIMIT })
         .then((results) => {
           if (isActive) setSearchResults(results);
         })

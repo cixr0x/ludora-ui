@@ -32,10 +32,18 @@ test("landing page uses lightweight filter options for the category strip", () =
   assert.doesNotMatch(headerSource, /loadCatalogGameDetails\(\{\s*limit:\s*CATEGORY_STRIP_CATALOG_LIMIT/);
 });
 
-test("search page uses lightweight endpoints for grid results and filters", () => {
+test("search page uses minimal search results for grid results and lightweight filter options", () => {
   const searchSource = source("../pages/Search.tsx");
 
   assert.match(searchSource, /loadCatalogFilterOptions/);
-  assert.match(searchSource, /loadCatalogGameSummaries/);
+  assert.match(searchSource, /loadCatalogSearchResults/);
+  assert.doesNotMatch(searchSource, /loadCatalogGameSummaries/);
   assert.doesNotMatch(searchSource, /loadCatalogGameDetails/);
+});
+
+test("site header autocomplete uses minimal search results", () => {
+  const headerSource = source("../components/SiteHeader.tsx");
+
+  assert.match(headerSource, /loadCatalogSearchResults/);
+  assert.doesNotMatch(headerSource, /loadCatalogGameSummaries\(\{\s*query:\s*activeSearchQuery/);
 });

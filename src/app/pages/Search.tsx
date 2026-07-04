@@ -4,10 +4,10 @@ import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, Sparkles,
 import type { GameDetail, GameTaxonomyEntry } from "../data/games";
 import {
   loadCatalogFilterOptions,
-  loadCatalogGameSummaries,
+  loadCatalogSearchResults,
   loadSemanticCatalogGameDetails,
   type CatalogFilterOptions,
-  type CatalogGameSummary,
+  type CatalogSearchResult,
 } from "../data/catalog";
 import { ExpansionBadge } from "../components/ExpansionBadge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
@@ -79,7 +79,7 @@ interface CatalogSearchRequest {
   query: string;
 }
 
-type SearchCatalogGame = GameDetail | CatalogGameSummary;
+type SearchCatalogGame = GameDetail | CatalogSearchResult;
 
 function useCatalogSearchGames(
   request: CatalogSearchRequest,
@@ -145,7 +145,7 @@ function useCatalogSearchGames(
     setIsLoading(true);
 
     const timeout = window.setTimeout(() => {
-      loadCatalogGameSummaries({
+      loadCatalogSearchResults({
         categoryIds: request.categoryIds,
         complexity: request.complexity,
         limit: SEARCH_PAGE_SIZE,
@@ -179,7 +179,7 @@ function useCatalogSearchGames(
     const sequence = loadSequenceRef.current;
     setIsLoadingMore(true);
 
-    loadCatalogGameSummaries({
+    loadCatalogSearchResults({
       categoryIds: request.categoryIds,
       complexity: request.complexity,
       limit: SEARCH_PAGE_SIZE,
@@ -248,16 +248,22 @@ function sameNumberSet(left: Set<number>, right: Set<number>): boolean {
   return true;
 }
 
-function taxonomyEntriesFromDetail(detail: SearchCatalogGame, key: "categoryEntries" | "mechanicEntries", names: string[]) {
+function taxonomyEntriesFromDetail(
+  detail: Pick<GameDetail, "categoryEntries" | "mechanicEntries">,
+  key: "categoryEntries" | "mechanicEntries",
+  names: string[],
+): GameTaxonomyEntry[] {
   const entries = detail[key];
   if (entries?.length) return entries;
   return names.map((name, index) => ({ id: -(index + 1), name }));
 }
 
 function mapDetailToEnriched(detail: SearchCatalogGame): EnrichedGame {
-  const [min, max] = parseRange(detail.players);
-  const categories = taxonomyEntriesFromDetail(detail, "categoryEntries", detail.categories);
-  const mechanics = taxonomyEntriesFromDetail(detail, "mechanicEntries", detail.mechanics);
+  const [min, max] = "players" in detail ? parseRange(detail.players) : [0, 0];
+  const categories =
+    "categoryEntries" in detail ? taxonomyEntriesFromDetail(detail, "categoryEntries", detail.categories) : [];
+  const mechanics =
+    "mechanicEntries" in detail ? taxonomyEntriesFromDetail(detail, "mechanicEntries", detail.mechanics) : [];
 
   return {
     id: detail.id,
@@ -272,8 +278,8 @@ function mapDetailToEnriched(detail: SearchCatalogGame): EnrichedGame {
     mechanicNames: mechanics.map((entry) => entry.name),
     minPlayers: min,
     maxPlayers: max,
-    playtime: playtimeBucket(detail.playTime),
-    complexity: detail.complexity,
+    playtime: "playTime" in detail ? playtimeBucket(detail.playTime) : "short",
+    complexity: "complexity" in detail ? detail.complexity : 0,
   };
 }
 
