@@ -56,3 +56,13 @@ test("game detail highlights the enabled buy-now button while keeping disabled s
   assert.match(source, /shadow-\[0_0_18px_rgba\(217,70,239,0\.25\)\]/);
   assert.match(source, /bg-neutral-900 border border-neutral-800 text-neutral-600 text-sm py-2 rounded-lg cursor-not-allowed/);
 });
+
+test("game detail reports store offer clicks while preserving external links", () => {
+  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /import \{ reportStoreItemClick \} from "\.\.\/utils\/storeClickTracking\.js";/);
+  assert.match(source, /href=\{store\.url\}/);
+  assert.match(source, /target="_blank"/);
+  assert.match(source, /rel="noopener noreferrer"/);
+  assert.match(source, /onClick=\{\(\) => reportStoreItemClick\(store\.id\)\}/);
+});

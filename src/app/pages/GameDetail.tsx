@@ -8,6 +8,7 @@ import type { StoreEntry, Game, GameDetail as GameDetailData } from "../data/gam
 import { loadGameDetail, loadGames } from "../data/catalog";
 import { EXPANSION_BADGE_CORNER_CLASS } from "../utils/expansionDisplay.js";
 import { hasStoreOfferLinks } from "../utils/storeLinks.js";
+import { reportStoreItemClick } from "../utils/storeClickTracking.js";
 import { Link } from "react-router";
 import { t } from "../data/translations";
 import { BGG_FOOTER_LOGO_URL } from "../utils/siteFooter.js";
@@ -114,6 +115,7 @@ function StoreCard({ store }: { store: StoreEntry }) {
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Ver oferta de ${store.gameTitle} en ${store.name}`}
+      onClick={() => reportStoreItemClick(store.id)}
       className={`${cardClassName} hover:border-fuchsia-500/40 hover:bg-neutral-800/60`}
     >
       {content}
