@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
-import type { GameDetail, GameTaxonomyEntry } from "../data/games";
+import type { Game, GameDetail, GameTaxonomyEntry } from "../data/games";
 import {
   loadCatalogFilterOptions,
   loadCatalogSearchResults,
@@ -22,6 +22,7 @@ import {
   shouldShowFilterRemoveIcon,
   sortTaxonomyOptionsByActive,
 } from "../utils/catalogSearch.js";
+import { filterSemanticSearchResults, parseRangeText } from "../utils/searchResultFiltering.js";
 
 type PlaytimeKey = "short" | "medium" | "long";
 
@@ -34,39 +35,15 @@ const PLAYTIME_OPTIONS: { key: PlaytimeKey; label: string; range: [number, numbe
 const PLAYER_OPTIONS = [1, 2, 3, 4, 5, 6];
 const SEARCH_PAGE_SIZE = 60;
 
-function parseRange(text: string): [number, number] {
-  const nums = text.match(/\d+/g)?.map(Number) ?? [];
-  if (nums.length === 0) return [0, 0];
-  if (nums.length === 1) return [nums[0], nums[0]];
-  return [nums[0], nums[1]];
-}
-
-function avgPlaytime(text: string): number {
-  const [a, b] = parseRange(text);
-  return (a + b) / 2;
-}
-
-function playtimeBucket(text: string): PlaytimeKey {
-  const avg = avgPlaytime(text);
-  if (avg < 45) return "short";
-  if (avg <= 90) return "medium";
-  return "long";
-}
-
-interface EnrichedGame {
-  id: number;
-  name: string;
-  altTitle?: string;
-  image: string;
-  isExpansion?: boolean;
-  genres: string[];
+interface FilterableSemanticResult extends Game {
   categories: GameTaxonomyEntry[];
   mechanics: GameTaxonomyEntry[];
   categoryNames: string[];
   mechanicNames: string[];
   minPlayers: number;
   maxPlayers: number;
-  playtime: PlaytimeKey;
+  minMinutes: number;
+  maxMinutes: number;
   complexity: number;
 }
 
@@ -79,20 +56,18 @@ interface CatalogSearchRequest {
   query: string;
 }
 
-type SearchCatalogGame = GameDetail | CatalogSearchResult;
-
 function useCatalogSearchGames(
   request: CatalogSearchRequest,
-  semanticGames: EnrichedGame[] | null,
+  semanticGames: FilterableSemanticResult[] | null,
 ): {
   filterOptions: CatalogFilterOptions;
-  games: EnrichedGame[];
+  games: CatalogSearchResult[];
   hasMore: boolean;
   isLoading: boolean;
   isLoadingMore: boolean;
   loadMore: () => void;
 } {
-  const [games, setGames] = useState<EnrichedGame[]>([]);
+  const [games, setGames] = useState<CatalogSearchResult[]>([]);
   const [filterOptions, setFilterOptions] = useState<CatalogFilterOptions>({ categories: [], mechanics: [] });
   const hasFilterOptionsRef = useRef(false);
   const isLoadingFilterOptionsRef = useRef(false);
@@ -155,12 +130,11 @@ function useCatalogSearchGames(
         playtimeRanges: request.playtimeRanges,
         query: request.query,
       })
-        .then((details) => {
+        .then((results) => {
           if (!isActive || loadSequenceRef.current !== sequence) return;
-          const mappedGames = details.map(mapDetailToEnriched);
-          setGames(mappedGames);
-          setNextOffset(mappedGames.length);
-          setHasMore(hasMoreCatalogResults(mappedGames.length, SEARCH_PAGE_SIZE));
+          setGames(results);
+          setNextOffset(results.length);
+          setHasMore(hasMoreCatalogResults(results.length, SEARCH_PAGE_SIZE));
         })
         .finally(() => {
           if (isActive && loadSequenceRef.current === sequence) setIsLoading(false);
@@ -189,12 +163,11 @@ function useCatalogSearchGames(
       playtimeRanges: request.playtimeRanges,
       query: request.query,
     })
-      .then((details) => {
+      .then((results) => {
         if (loadSequenceRef.current !== sequence) return;
-        const mappedGames = details.map(mapDetailToEnriched);
-        setGames((currentGames) => appendUniqueCatalogResults(currentGames, mappedGames));
-        setNextOffset((currentOffset) => currentOffset + mappedGames.length);
-        setHasMore(hasMoreCatalogResults(mappedGames.length, SEARCH_PAGE_SIZE));
+        setGames((currentGames) => appendUniqueCatalogResults(currentGames, results));
+        setNextOffset((currentOffset) => currentOffset + results.length);
+        setHasMore(hasMoreCatalogResults(results.length, SEARCH_PAGE_SIZE));
       })
       .finally(() => {
         if (loadSequenceRef.current === sequence) setIsLoadingMore(false);
@@ -202,44 +175,6 @@ function useCatalogSearchGames(
   }, [hasMore, isLoading, isLoadingMore, nextOffset, request, semanticGames]);
 
   return { filterOptions, games, hasMore, isLoading, isLoadingMore, loadMore };
-}
-
-function localSearchResults(sourceGames: EnrichedGame[], request: CatalogSearchRequest): EnrichedGame[] {
-  const q = request.query.trim().toLowerCase();
-
-  return sourceGames.filter((game) => {
-    if (q.length > 0) {
-      const haystack = [game.name, game.altTitle, ...game.categoryNames, ...game.mechanicNames, ...game.genres]
-        .join(" ")
-        .toLowerCase();
-      if (!haystack.includes(q)) return false;
-    }
-    if (request.categoryIds.length > 0) {
-      const categoryIds = new Set(game.categories.map((entry) => entry.id));
-      for (const id of request.categoryIds) if (!categoryIds.has(id)) return false;
-    }
-    if (request.mechanicIds.length > 0) {
-      const mechanicIds = new Set(game.mechanics.map((entry) => entry.id));
-      for (const id of request.mechanicIds) if (!mechanicIds.has(id)) return false;
-    }
-    if (request.players !== null) {
-      if (request.players < game.minPlayers || request.players > game.maxPlayers) return false;
-    }
-    if (request.playtimeRanges.length > 0) {
-      const option = PLAYTIME_OPTIONS.find((candidate) => candidate.key === game.playtime);
-      const average = option ? (option.range[0] + option.range[1]) / 2 : 0;
-      if (!request.playtimeRanges.some(([minRange, maxRange]) => average >= minRange && average <= maxRange)) {
-        return false;
-      }
-    }
-    if (
-      (request.complexity[0] !== 1 || request.complexity[1] !== 5) &&
-      (game.complexity < request.complexity[0] || game.complexity > request.complexity[1])
-    ) {
-      return false;
-    }
-    return true;
-  });
 }
 
 function sameNumberSet(left: Set<number>, right: Set<number>): boolean {
@@ -258,12 +193,11 @@ function taxonomyEntriesFromDetail(
   return names.map((name, index) => ({ id: -(index + 1), name }));
 }
 
-function mapDetailToEnriched(detail: SearchCatalogGame): EnrichedGame {
-  const [min, max] = "players" in detail ? parseRange(detail.players) : [0, 0];
-  const categories =
-    "categoryEntries" in detail ? taxonomyEntriesFromDetail(detail, "categoryEntries", detail.categories) : [];
-  const mechanics =
-    "mechanicEntries" in detail ? taxonomyEntriesFromDetail(detail, "mechanicEntries", detail.mechanics) : [];
+function mapDetailToFilterableSemanticResult(detail: GameDetail): FilterableSemanticResult {
+  const [minPlayers, maxPlayers] = parseRangeText(detail.players);
+  const [minMinutes, maxMinutes] = parseRangeText(detail.playTime);
+  const categories = taxonomyEntriesFromDetail(detail, "categoryEntries", detail.categories);
+  const mechanics = taxonomyEntriesFromDetail(detail, "mechanicEntries", detail.mechanics);
 
   return {
     id: detail.id,
@@ -276,10 +210,11 @@ function mapDetailToEnriched(detail: SearchCatalogGame): EnrichedGame {
     mechanics,
     categoryNames: categories.map((entry) => entry.name),
     mechanicNames: mechanics.map((entry) => entry.name),
-    minPlayers: min,
-    maxPlayers: max,
-    playtime: "playTime" in detail ? playtimeBucket(detail.playTime) : "short",
-    complexity: "complexity" in detail ? detail.complexity : 0,
+    minPlayers,
+    maxPlayers,
+    minMinutes,
+    maxMinutes,
+    complexity: detail.complexity,
   };
 }
 
@@ -328,7 +263,7 @@ export function Search() {
   const [playtimes, setPlaytimes] = useState<Set<PlaytimeKey>>(new Set());
   const [complexity, setComplexity] = useState<[number, number]>([1, 5]);
   const [semanticQuery, setSemanticQuery] = useState("");
-  const [semanticGames, setSemanticGames] = useState<EnrichedGame[] | null>(null);
+  const [semanticGames, setSemanticGames] = useState<FilterableSemanticResult[] | null>(null);
   const [isSemanticLoading, setIsSemanticLoading] = useState(false);
   const selectedPlaytimeRanges = useMemo(
     () =>
@@ -382,7 +317,7 @@ export function Search() {
   };
 
   const results = useMemo(
-    () => (semanticGames ? localSearchResults(semanticGames, searchRequest) : games),
+    () => (semanticGames ? filterSemanticSearchResults(semanticGames, searchRequest) : games),
     [games, searchRequest, semanticGames],
   );
 
@@ -427,7 +362,7 @@ export function Search() {
     setIsSemanticLoading(true);
     try {
       const details = await loadSemanticCatalogGameDetails(prompt, 40);
-      setSemanticGames(details.map(mapDetailToEnriched));
+      setSemanticGames(details.map(mapDetailToFilterableSemanticResult));
       setSemanticQuery(prompt);
       setQuery("");
       setActiveCategories(new Set());
