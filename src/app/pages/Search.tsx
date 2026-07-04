@@ -42,8 +42,8 @@ interface FilterableSemanticResult extends Game {
   mechanicNames: string[];
   minPlayers: number;
   maxPlayers: number;
-  minMinutes: number;
-  maxMinutes: number;
+  minMinutes: number | null;
+  maxMinutes: number | null;
   complexity: number;
 }
 
@@ -195,7 +195,7 @@ function taxonomyEntriesFromDetail(
 
 function mapDetailToFilterableSemanticResult(detail: GameDetail): FilterableSemanticResult {
   const [minPlayers, maxPlayers] = parseRangeText(detail.players);
-  const [minMinutes, maxMinutes] = parseRangeText(detail.playTime);
+  const playtimeRange = parseRangeText(detail.playTime, null);
   const categories = taxonomyEntriesFromDetail(detail, "categoryEntries", detail.categories);
   const mechanics = taxonomyEntriesFromDetail(detail, "mechanicEntries", detail.mechanics);
 
@@ -212,8 +212,8 @@ function mapDetailToFilterableSemanticResult(detail: GameDetail): FilterableSema
     mechanicNames: mechanics.map((entry) => entry.name),
     minPlayers,
     maxPlayers,
-    minMinutes,
-    maxMinutes,
+    minMinutes: playtimeRange?.[0] ?? null,
+    maxMinutes: playtimeRange?.[1] ?? null,
     complexity: detail.complexity,
   };
 }

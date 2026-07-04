@@ -55,10 +55,30 @@ test("playtime range filtering uses overlap with selected buckets", () => {
   );
 });
 
+test("playtime range filtering excludes games without a valid positive playtime range", () => {
+  const missingPlaytime = game({ id: 4 });
+  delete missingPlaytime.minMinutes;
+  delete missingPlaytime.maxMinutes;
+
+  const sourceGames = [
+    game({ id: 1, minMinutes: 30, maxMinutes: 60 }),
+    game({ id: 2, minMinutes: null, maxMinutes: null }),
+    game({ id: 3, minMinutes: undefined, maxMinutes: undefined }),
+    missingPlaytime,
+    game({ id: 5, minMinutes: 0, maxMinutes: 0 }),
+  ];
+
+  assert.deepEqual(
+    filterSemanticSearchResults(sourceGames, { ...baseRequest, playtimeRanges: [[0, 44]] }).map((result) => result.id),
+    [1],
+  );
+});
+
 test("parseRangeText extracts display ranges and falls back to zeroes", () => {
   assert.deepEqual(parseRangeText("30-60 mins"), [30, 60]);
   assert.deepEqual(parseRangeText("1 jugador"), [1, 1]);
   assert.deepEqual(parseRangeText("Sin registrar"), [0, 0]);
+  assert.equal(parseRangeText("Sin registrar", null), null);
 });
 
 test("filterSemanticSearchResults respects category and mechanic ids", () => {

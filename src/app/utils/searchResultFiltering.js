@@ -1,6 +1,6 @@
-export function parseRangeText(text) {
+export function parseRangeText(text, emptyFallback = [0, 0]) {
   const numbers = String(text ?? "").match(/\d+/g)?.map(Number) ?? [];
-  if (numbers.length === 0) return [0, 0];
+  if (numbers.length === 0) return emptyFallback;
   if (numbers.length === 1) return [numbers[0], numbers[0]];
   return [numbers[0], numbers[1]];
 }
@@ -46,7 +46,19 @@ export function filterSemanticSearchResults(sourceGames, request) {
     }
 
     if (playtimeRanges.length > 0) {
-      const gameRange = [game.minMinutes, game.maxMinutes];
+      const minMinutes = game.minMinutes;
+      const maxMinutes = game.maxMinutes;
+      if (
+        !Number.isFinite(minMinutes) ||
+        !Number.isFinite(maxMinutes) ||
+        minMinutes <= 0 ||
+        maxMinutes <= 0 ||
+        minMinutes > maxMinutes
+      ) {
+        return false;
+      }
+
+      const gameRange = [minMinutes, maxMinutes];
       if (!playtimeRanges.some((range) => rangesOverlap(gameRange, range))) return false;
     }
 
