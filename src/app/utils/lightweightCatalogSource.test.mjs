@@ -11,7 +11,10 @@ test("catalog api exposes minimal search results plus summary and filter-option 
   assert.match(apiSource, /\/api\/items\/search-results/);
   assert.match(apiSource, /\/api\/items\/summary/);
   assert.match(apiSource, /\/api\/items\/filter-options/);
+  assert.match(apiSource, /export\s+async\s+function\s+fetchSearchResults\b/);
+  assert.match(catalogSource, /import\s*\{[\s\S]*\bfetchSearchResults\b[\s\S]*\}\s+from\s+"..\/api\/catalog"/);
   assert.match(catalogSource, /loadCatalogSearchResults/);
+  assert.match(catalogSource, /fetchSearchResults\(\s*query\s*\?\?\s*\{\s*limit:\s*200\s*\}\s*\)/);
 });
 
 test("front page row titles prefer explicit display titles", () => {
