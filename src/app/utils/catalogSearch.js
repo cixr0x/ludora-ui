@@ -29,6 +29,21 @@ export function buildCatalogSearchParams(filters) {
   return params;
 }
 
+export function appendUniqueCatalogResults(currentResults, nextResults) {
+  const seenIds = new Set((currentResults ?? []).map((result) => result.id));
+  const uniqueNextResults = (nextResults ?? []).filter((result) => {
+    if (seenIds.has(result.id)) return false;
+    seenIds.add(result.id);
+    return true;
+  });
+
+  return [...(currentResults ?? []), ...uniqueNextResults];
+}
+
+export function hasMoreCatalogResults(receivedCount, pageSize) {
+  return Number.isInteger(receivedCount) && Number.isInteger(pageSize) && pageSize > 0 && receivedCount === pageSize;
+}
+
 export function buildExploreTaxonomyPath(categoryType, categoryId) {
   const id = Number(categoryId);
   if (!Number.isInteger(id) || id <= 0) return "/search";

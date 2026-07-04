@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  appendUniqueCatalogResults,
   buildCatalogSearchParams,
   buildExploreTaxonomyPath,
+  hasMoreCatalogResults,
   parsePositiveIntegerSetParam,
   shouldShowFilterRemoveIcon,
   sortTaxonomyOptionsByActive,
@@ -42,6 +44,31 @@ test("buildCatalogSearchParams omits inactive filters", () => {
   });
 
   assert.equal(params.toString(), "limit=80");
+});
+
+test("appendUniqueCatalogResults adds only unseen result ids in page order", () => {
+  const current = [
+    { id: 10, name: "Azul" },
+    { id: 20, name: "Calico" },
+  ];
+  const nextPage = [
+    { id: 20, name: "Calico duplicate" },
+    { id: 30, name: "Cascadia" },
+    { id: 40, name: "Catan" },
+  ];
+
+  assert.deepEqual(appendUniqueCatalogResults(current, nextPage), [
+    { id: 10, name: "Azul" },
+    { id: 20, name: "Calico" },
+    { id: 30, name: "Cascadia" },
+    { id: 40, name: "Catan" },
+  ]);
+});
+
+test("hasMoreCatalogResults keeps loading while pages are full", () => {
+  assert.equal(hasMoreCatalogResults(60, 60), true);
+  assert.equal(hasMoreCatalogResults(59, 60), false);
+  assert.equal(hasMoreCatalogResults(0, 60), false);
 });
 
 test("buildExploreTaxonomyPath links taxonomy ids to explore filters", () => {

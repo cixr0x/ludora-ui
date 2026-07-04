@@ -16,6 +16,8 @@ import { t } from "../data/translations";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
 import { EXPANSION_BADGE_CORNER_CLASS } from "../utils/expansionDisplay.js";
 import {
+  appendUniqueCatalogResults,
+  hasMoreCatalogResults,
   parsePositiveIntegerSetParam,
   shouldShowFilterRemoveIcon,
   sortTaxonomyOptionsByActive,
@@ -30,7 +32,7 @@ const PLAYTIME_OPTIONS: { key: PlaytimeKey; label: string; range: [number, numbe
 ];
 
 const PLAYER_OPTIONS = [1, 2, 3, 4, 5, 6];
-const SEARCH_LIMIT = 200;
+const SEARCH_PAGE_SIZE = 60;
 
 function parseRange(text: string): [number, number] {
   const nums = text.match(/\d+/g)?.map(Number) ?? [];
@@ -82,12 +84,23 @@ type SearchCatalogGame = GameDetail | CatalogGameSummary;
 function useCatalogSearchGames(
   request: CatalogSearchRequest,
   semanticGames: EnrichedGame[] | null,
-): { filterOptions: CatalogFilterOptions; games: EnrichedGame[]; isLoading: boolean } {
+): {
+  filterOptions: CatalogFilterOptions;
+  games: EnrichedGame[];
+  hasMore: boolean;
+  isLoading: boolean;
+  isLoadingMore: boolean;
+  loadMore: () => void;
+} {
   const [games, setGames] = useState<EnrichedGame[]>([]);
   const [filterOptions, setFilterOptions] = useState<CatalogFilterOptions>({ categories: [], mechanics: [] });
   const hasFilterOptionsRef = useRef(false);
   const isLoadingFilterOptionsRef = useRef(false);
+  const loadSequenceRef = useRef(0);
+  const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState(0);
 
   useEffect(() => {
     if (hasFilterOptionsRef.current || isLoadingFilterOptionsRef.current) {
@@ -114,31 +127,43 @@ function useCatalogSearchGames(
 
   useEffect(() => {
     if (semanticGames) {
+      loadSequenceRef.current += 1;
       setIsLoading(false);
+      setIsLoadingMore(false);
+      setHasMore(false);
       return;
     }
 
     let isActive = true;
+    const sequence = loadSequenceRef.current + 1;
     const delay = request.query.trim() ? 250 : 0;
+    loadSequenceRef.current = sequence;
+    setGames([]);
+    setNextOffset(0);
+    setHasMore(true);
+    setIsLoadingMore(false);
     setIsLoading(true);
 
     const timeout = window.setTimeout(() => {
       loadCatalogGameSummaries({
         categoryIds: request.categoryIds,
         complexity: request.complexity,
-        limit: SEARCH_LIMIT,
+        limit: SEARCH_PAGE_SIZE,
         mechanicIds: request.mechanicIds,
+        offset: 0,
         players: request.players,
         playtimeRanges: request.playtimeRanges,
         query: request.query,
       })
         .then((details) => {
-          if (!isActive) return;
+          if (!isActive || loadSequenceRef.current !== sequence) return;
           const mappedGames = details.map(mapDetailToEnriched);
           setGames(mappedGames);
+          setNextOffset(mappedGames.length);
+          setHasMore(hasMoreCatalogResults(mappedGames.length, SEARCH_PAGE_SIZE));
         })
         .finally(() => {
-          if (isActive) setIsLoading(false);
+          if (isActive && loadSequenceRef.current === sequence) setIsLoading(false);
         });
     }, delay);
 
@@ -148,7 +173,35 @@ function useCatalogSearchGames(
     };
   }, [request, semanticGames]);
 
-  return { filterOptions, games, isLoading };
+  const loadMore = useCallback(() => {
+    if (semanticGames || isLoading || isLoadingMore || !hasMore) return;
+
+    const sequence = loadSequenceRef.current;
+    setIsLoadingMore(true);
+
+    loadCatalogGameSummaries({
+      categoryIds: request.categoryIds,
+      complexity: request.complexity,
+      limit: SEARCH_PAGE_SIZE,
+      mechanicIds: request.mechanicIds,
+      offset: nextOffset,
+      players: request.players,
+      playtimeRanges: request.playtimeRanges,
+      query: request.query,
+    })
+      .then((details) => {
+        if (loadSequenceRef.current !== sequence) return;
+        const mappedGames = details.map(mapDetailToEnriched);
+        setGames((currentGames) => appendUniqueCatalogResults(currentGames, mappedGames));
+        setNextOffset((currentOffset) => currentOffset + mappedGames.length);
+        setHasMore(hasMoreCatalogResults(mappedGames.length, SEARCH_PAGE_SIZE));
+      })
+      .finally(() => {
+        if (loadSequenceRef.current === sequence) setIsLoadingMore(false);
+      });
+  }, [hasMore, isLoading, isLoadingMore, nextOffset, request, semanticGames]);
+
+  return { filterOptions, games, hasMore, isLoading, isLoadingMore, loadMore };
 }
 
 function localSearchResults(sourceGames: EnrichedGame[], request: CatalogSearchRequest): EnrichedGame[] {
@@ -289,7 +342,11 @@ export function Search() {
     }),
     [activeCategories, activeMechanics, complexity, players, query, selectedPlaytimeRanges],
   );
-  const { filterOptions, games, isLoading } = useCatalogSearchGames(searchRequest, semanticGames);
+  const { filterOptions, games, hasMore, isLoading, isLoadingMore, loadMore } = useCatalogSearchGames(
+    searchRequest,
+    semanticGames,
+  );
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const categoryOptions = useMemo(() => filterOptions.categories, [filterOptions.categories]);
   const mechanicOptions = useMemo(() => filterOptions.mechanics, [filterOptions.mechanics]);
@@ -332,6 +389,7 @@ export function Search() {
     playtimes.size +
     (complexity[0] !== 1 || complexity[1] !== 5 ? 1 : 0);
   const isResultsLoading = isLoading || isSemanticLoading;
+  const resultCountText = `${results.length}${!semanticGames && hasMore ? "+" : ""} resultado${results.length !== 1 ? "s" : ""}`;
 
   const clearAll = () => {
     setQuery("");
@@ -401,6 +459,23 @@ export function Search() {
     if (requestedPrompt) void handleLudoscopioSearch(requestedPrompt);
   }, [handleLudoscopioSearch, searchParams, setSearchParams]);
 
+  useEffect(() => {
+    if (semanticGames || !hasMore || isResultsLoading) return;
+
+    const target = loadMoreRef.current;
+    if (!target || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) loadMore();
+      },
+      { rootMargin: "480px 0px" },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, isResultsLoading, loadMore, semanticGames]);
+
   return (
     <div
       className="min-h-screen text-white"
@@ -422,7 +497,7 @@ export function Search() {
             <SlidersHorizontal className="w-4 h-4 text-fuchsia-400" />
             <span className="text-white text-sm">Encuentra tu próximo juego</span>
             <span className="text-neutral-600 text-sm">
-              {isResultsLoading ? "· Cargando" : `· ${results.length} resultado${results.length !== 1 ? "s" : ""}`}
+              {isResultsLoading ? "· Cargando" : `· ${resultCountText}`}
             </span>
             {activeFilterCount > 0 && (
               <button
@@ -643,29 +718,46 @@ export function Search() {
               </button>
             </div>
           ) : (
-            <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
-              {results.map((game) => (
-                <Link key={game.id} to={`/game/${game.id}`} className="group flex flex-col">
-                  <div className="relative flex items-center justify-center rounded-md overflow-hidden mb-1.5" style={{ aspectRatio: "1" }}>
-                    <div className="relative inline-flex max-h-full max-w-full">
-                      <ImageWithFallback
-                        src={game.image}
-                        alt={game.name}
-                        className="block max-h-full max-w-full object-contain"
-                      />
-                      {game.isExpansion && <ExpansionBadge className={EXPANSION_BADGE_CORNER_CLASS} />}
+            <>
+              <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
+                {results.map((game) => (
+                  <Link key={game.id} to={`/game/${game.id}`} className="group flex flex-col">
+                    <div className="relative flex items-center justify-center rounded-md overflow-hidden mb-1.5" style={{ aspectRatio: "1" }}>
+                      <div className="relative inline-flex max-h-full max-w-full">
+                        <ImageWithFallback
+                          src={game.image}
+                          alt={game.name}
+                          className="block max-h-full max-w-full object-contain"
+                        />
+                        {game.isExpansion && <ExpansionBadge className={EXPANSION_BADGE_CORNER_CLASS} />}
+                      </div>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
                     </div>
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
-                  </div>
-                  <p className="text-neutral-300 text-sm text-center group-hover:text-white transition-colors truncate px-1 leading-snug">
-                    {game.name}
-                  </p>
-                  {game.altTitle && (
-                    <p className="text-neutral-600 text-xs text-center mt-0.5 truncate px-1">{game.altTitle}</p>
+                    <p className="text-neutral-300 text-sm text-center group-hover:text-white transition-colors truncate px-1 leading-snug">
+                      {game.name}
+                    </p>
+                    {game.altTitle && (
+                      <p className="text-neutral-600 text-xs text-center mt-0.5 truncate px-1">{game.altTitle}</p>
+                    )}
+                  </Link>
+                ))}
+              </div>
+              {!semanticGames && (
+                <div
+                  ref={loadMoreRef}
+                  aria-live="polite"
+                  className="flex min-h-16 items-center justify-center py-8 text-sm text-neutral-500"
+                >
+                  {isLoadingMore ? (
+                    <span>Cargando más juegos...</span>
+                  ) : hasMore ? (
+                    <span className="sr-only">Cargar más resultados</span>
+                  ) : (
+                    <span>No hay más resultados.</span>
                   )}
-                </Link>
-              ))}
-            </div>
+                </div>
+              )}
+            </>
           )}
         </section>
       </div>
