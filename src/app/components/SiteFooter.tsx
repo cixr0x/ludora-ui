@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { BGG_FOOTER_LOGO_URL } from "../utils/siteFooter.js";
 import { ContactFormDialog } from "./ContactFormDialog";
 
@@ -7,7 +8,12 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-6xl flex-col gap-5 px-6 py-8 sm:flex-row sm:items-center sm:justify-between lg:px-8">
         <nav aria-label="Pie de página" className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
           <ContactFormDialog />
-          <span>Aviso de Privacidad</span>
+          <Link to="/privacidad" className="transition-colors hover:text-white">
+            Aviso de Privacidad
+          </Link>
+          <Link to="/terminos" className="transition-colors hover:text-white">
+            Términos de Servicio
+          </Link>
         </nav>
 
         <a
