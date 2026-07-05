@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Search, Sparkles, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Compass, Search, X } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { loadCatalogFilterOptions, loadCatalogSearchResults } from "../data/catalog";
@@ -200,7 +200,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
             to="/search"
             className="flex-none inline-flex h-9 items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-4 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 disabled:pointer-events-none disabled:opacity-60"
           >
-            <Sparkles className="h-4 w-4" />
+            <Compass className="h-4 w-4" />
             Explorar
           </Link>
         </div>
