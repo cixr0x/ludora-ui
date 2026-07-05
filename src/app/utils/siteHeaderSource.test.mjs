@@ -20,7 +20,8 @@ test("site header owns the shared logo search and category strip", () => {
 test("site header puts explore beside search and removes the desktop nav section", () => {
   const headerSource = source("../components/SiteHeader.tsx");
 
-  assert.match(headerSource, /<div className="flex items-center gap-3">[\s\S]*to="\/search"[\s\S]*>\s*Explorar\s*<\/Link>[\s\S]*<div className="relative">/);
+  assert.match(headerSource, /import \{ ChevronLeft, ChevronRight, Search, Sparkles, X \} from "lucide-react";/);
+  assert.match(headerSource, /<div className="flex items-center gap-3">[\s\S]*<div className="relative">[\s\S]*<\/div>\s*<Link[\s\S]*to="\/search"[\s\S]*className="flex-none inline-flex h-9 items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-4 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 disabled:pointer-events-none disabled:opacity-60"[\s\S]*>\s*<Sparkles className="h-4 w-4" \/>\s*Explorar\s*<\/Link>/);
   assert.doesNotMatch(headerSource, /<nav className="hidden md:flex/);
   assert.doesNotMatch(headerSource, /Novedades|Mejor Valorados|Colecciones/);
 });

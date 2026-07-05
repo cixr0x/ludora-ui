@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Sparkles, X } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { loadCatalogFilterOptions, loadCatalogSearchResults } from "../data/catalog";
@@ -128,12 +128,6 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
-            to="/search"
-            className="flex-none inline-flex h-9 items-center rounded-full border border-neutral-700 bg-neutral-900 px-3 text-sm text-neutral-200 transition-colors hover:border-fuchsia-400/50 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300"
-          >
-            Explorar
-          </Link>
           <div className="relative">
             <div className="flex items-center gap-2 rounded-full border border-neutral-600 bg-neutral-800 px-4 py-2 transition-colors focus-within:border-neutral-400">
               <Search className="w-4 h-4 flex-none text-neutral-400" />
@@ -202,6 +196,13 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
               </div>
             )}
           </div>
+          <Link
+            to="/search"
+            className="flex-none inline-flex h-9 items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-4 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 disabled:pointer-events-none disabled:opacity-60"
+          >
+            <Sparkles className="h-4 w-4" />
+            Explorar
+          </Link>
         </div>
       </div>
 
