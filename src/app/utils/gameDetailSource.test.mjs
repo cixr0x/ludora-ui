@@ -80,3 +80,14 @@ test("game detail loads related games separately from primary detail rendering",
   assert.doesNotMatch(source, /Promise\.all\(\[gamesPromise,\s*parentPromise\]\)/);
   assert.doesNotMatch(source, /const relatedGames = allGames/);
 });
+
+test("game detail links category and mechanic chips to filtered explore results", () => {
+  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /import \{ buildExploreTaxonomyPath \} from "\.\.\/utils\/catalogSearch\.js";/);
+  assert.match(source, /to=\{buildExploreTaxonomyPath\(taxonomyType,\s*item\.id\)\}/);
+  assert.match(source, /taxonomyType="category"/);
+  assert.match(source, /taxonomyType="mechanic"/);
+  assert.match(source, /entries=\{detail\.categoryEntries\}/);
+  assert.match(source, /entries=\{detail\.mechanicEntries\}/);
+});

@@ -4,7 +4,7 @@ import { ArrowLeft, Users, Clock, ChevronLeft, ChevronRight, Youtube, ShoppingCa
 import { ExpansionBadge } from "../components/ExpansionBadge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { SiteHeader } from "../components/SiteHeader";
-import type { StoreEntry, Game, GameDetail as GameDetailData } from "../data/games";
+import type { StoreEntry, Game, GameDetail as GameDetailData, GameTaxonomyEntry } from "../data/games";
 import { loadGameDetail, loadRelatedGames } from "../data/catalog";
 import { EXPANSION_BADGE_CORNER_CLASS } from "../utils/expansionDisplay.js";
 import { hasStoreOfferLinks } from "../utils/storeLinks.js";
@@ -12,6 +12,7 @@ import { reportStoreItemClick } from "../utils/storeClickTracking.js";
 import { Link } from "react-router";
 import { t } from "../data/translations";
 import { BGG_FOOTER_LOGO_URL } from "../utils/siteFooter.js";
+import { buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
 
 function ComplexityBar({ value }: { value: number }) {
   if (value <= 0) {
@@ -28,21 +29,48 @@ function ComplexityBar({ value }: { value: number }) {
   );
 }
 
-function TagPills({ items, color }: { items: string[]; color: "fuchsia" | "neutral" }) {
+type TaxonomyType = "category" | "mechanic";
+
+function taxonomyEntriesForDisplay(entries: GameTaxonomyEntry[] | undefined, fallbackNames: string[]): GameTaxonomyEntry[] {
+  if (entries?.length) return entries;
+  return fallbackNames.map((name, index) => ({ id: -(index + 1), name }));
+}
+
+function TagPills({
+  color,
+  entries,
+  fallbackNames,
+  taxonomyType,
+}: {
+  color: "fuchsia" | "neutral";
+  entries?: GameTaxonomyEntry[];
+  fallbackNames: string[];
+  taxonomyType: TaxonomyType;
+}) {
+  const items = taxonomyEntriesForDisplay(entries, fallbackNames);
+  const pillClassName = `text-xs px-2.5 py-1 rounded-full border transition-colors ${
+    color === "fuchsia"
+      ? "border-fuchsia-500/40 text-fuchsia-300 bg-fuchsia-500/10 hover:border-fuchsia-300/70 hover:bg-fuchsia-500/20"
+      : "border-neutral-700 text-neutral-400 bg-neutral-800/60 hover:border-neutral-500 hover:text-neutral-200"
+  }`;
+
   return (
     <div className="flex flex-wrap gap-1.5">
-      {items.map((item) => (
-        <span
-          key={item}
-          className={`text-xs px-2.5 py-1 rounded-full border ${
-            color === "fuchsia"
-              ? "border-fuchsia-500/40 text-fuchsia-300 bg-fuchsia-500/10"
-              : "border-neutral-700 text-neutral-400 bg-neutral-800/60"
-          }`}
-        >
-          {item}
-        </span>
-      ))}
+      {items.map((item) =>
+        item.id > 0 ? (
+          <Link
+            key={`${taxonomyType}-${item.id}`}
+            to={buildExploreTaxonomyPath(taxonomyType, item.id)}
+            className={`${pillClassName} focus:outline-none focus:ring-2 focus:ring-fuchsia-400/70`}
+          >
+            {t(item.name)}
+          </Link>
+        ) : (
+          <span key={`${taxonomyType}-${item.name}`} className={pillClassName}>
+            {t(item.name)}
+          </span>
+        ),
+      )}
     </div>
   );
 }
@@ -470,13 +498,23 @@ export function GameDetail() {
             {/* Categories */}
             <div>
               <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1.5">Categorías</p>
-              <TagPills items={detail.categories.map(t)} color="fuchsia" />
+              <TagPills
+                entries={detail.categoryEntries}
+                fallbackNames={detail.categories}
+                color="fuchsia"
+                taxonomyType="category"
+              />
             </div>
 
             {/* Mechanics */}
             <div>
               <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1.5">Mecánicas</p>
-              <TagPills items={detail.mechanics.map(t)} color="neutral" />
+              <TagPills
+                entries={detail.mechanicEntries}
+                fallbackNames={detail.mechanics}
+                color="neutral"
+                taxonomyType="mechanic"
+              />
             </div>
 
             {/* Stats row */}
