@@ -47,7 +47,14 @@ test("ludoscopio session cache stores and restores prompt plus semantic results"
 
 test("ludoscopio session cache ignores malformed payloads", () => {
   const storage = memoryStorage();
-  storage.setItem("ludora:ludoscopio:session:v1", JSON.stringify({ prompt: "", results: [{ id: "bad" }] }));
+  storage.setItem("ludora:ludoscopio:session:v2", JSON.stringify({ prompt: "", results: [{ id: "bad" }] }));
+
+  assert.equal(readLudoscopioSessionCache(storage), null);
+});
+
+test("ludoscopio session cache ignores previous cache versions", () => {
+  const storage = memoryStorage();
+  storage.setItem("ludora:ludoscopio:session:v1", JSON.stringify({ prompt: "azul", results: [validResult] }));
 
   assert.equal(readLudoscopioSessionCache(storage), null);
 });

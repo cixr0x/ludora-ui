@@ -1,4 +1,4 @@
-const LUDOSCOPIO_SESSION_CACHE_KEY = "ludora:ludoscopio:session:v1";
+const LUDOSCOPIO_SESSION_CACHE_KEY = "ludora:ludoscopio:session:v2";
 
 export function readLudoscopioSessionCache(storage = browserSessionStorage()) {
   try {
