@@ -449,7 +449,7 @@ export function Search() {
         }
       />
 
-      <div className="max-w-6xl mx-auto px-8 py-8 grid gap-8 lg:grid-cols-[320px_1fr]">
+      <div className="w-full px-4 py-8 sm:px-6 lg:px-8 grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)]">
         {/* Filters sidebar */}
         <aside className="space-y-6">
           {/* Search box */}
@@ -629,7 +629,7 @@ export function Search() {
         </aside>
 
         {/* Results */}
-        <section>
+        <section className="min-w-0">
           {semanticQuery && (
             <div className="mb-5 rounded-lg border border-fuchsia-500/20 bg-neutral-950 px-4 py-3">
               <div className="flex items-start gap-3">
