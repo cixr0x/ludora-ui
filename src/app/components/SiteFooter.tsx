@@ -1,11 +1,12 @@
 import { BGG_FOOTER_LOGO_URL } from "../utils/siteFooter.js";
+import { ContactFormDialog } from "./ContactFormDialog";
 
 export function SiteFooter() {
   return (
     <footer className="bg-neutral-950 text-neutral-400">
       <div className="mx-auto flex max-w-6xl flex-col gap-5 px-6 py-8 sm:flex-row sm:items-center sm:justify-between lg:px-8">
         <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
-          <span>Contact</span>
+          <ContactFormDialog />
           <span>Aviso de Privacidad</span>
         </nav>
 

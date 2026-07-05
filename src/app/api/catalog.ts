@@ -135,6 +135,12 @@ export interface ApiFrontPageRow {
   products: ApiFrontPageItem[];
 }
 
+export interface ContactFormSubmission {
+  email: string;
+  message: string;
+  name: string;
+}
+
 interface ApiEnvelope<T> {
   data: T;
 }
@@ -185,6 +191,20 @@ export async function fetchRelatedItems(id: number, limit?: number): Promise<Api
 
 export async function fetchCatalogFilterOptions(): Promise<ApiCatalogFilterOptions> {
   return fetchData<ApiCatalogFilterOptions>("/api/items/filter-options");
+}
+
+export async function submitContactForm(submission: ContactFormSubmission): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/contact`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(submission),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Ludora API request failed with ${response.status}`);
+  }
 }
 
 function itemSearchSuffix(query?: ApiItemsQuery): string {

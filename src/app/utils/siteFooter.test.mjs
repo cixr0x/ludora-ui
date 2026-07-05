@@ -21,6 +21,8 @@ test("Root renders the shared site footer below routed pages", () => {
 test("SiteFooter renders contact, privacy, and powered by BGG attribution", () => {
   const footerSource = source("../components/SiteFooter.tsx");
 
+  assert.match(footerSource, /ContactFormDialog/);
+  assert.match(footerSource, /<ContactFormDialog\s*\/>/);
   assert.match(footerSource, /Contact/);
   assert.match(footerSource, /Aviso de Privacidad/);
   assert.match(footerSource, /Powered by BoardGameGeek/);
@@ -37,4 +39,36 @@ test("SiteFooter uses the uploaded S3 BGG logo asset", () => {
     /https:\/\/ludora\.s3\.us-east-2\.amazonaws\.com\/boardgame\/powered_by_BGG_01_SM\.png/,
   );
   assert.doesNotMatch(footerConfigSource, /cf\.geekdo-static\.com/);
+});
+
+test("ContactFormDialog renders a footer-triggered contact form window", () => {
+  const dialogSource = source("../components/ContactFormDialog.tsx");
+
+  assert.match(dialogSource, /Dialog/);
+  assert.match(dialogSource, /DialogTitle/);
+  assert.match(dialogSource, /Contact/);
+  assert.match(dialogSource, /name="name"/);
+  assert.match(dialogSource, /name="email"/);
+  assert.match(dialogSource, /name="message"/);
+  assert.match(dialogSource, /bg-neutral-100/);
+  assert.match(dialogSource, /text-neutral-950/);
+  assert.match(dialogSource, /submitContactForm/);
+  assert.match(dialogSource, /type="submit"/);
+});
+
+test("Dialog overlay and content forward refs for Radix composition", () => {
+  const dialogPrimitiveSource = source("../components/ui/dialog.tsx");
+
+  assert.match(dialogPrimitiveSource, /const DialogOverlay = React\.forwardRef/);
+  assert.match(dialogPrimitiveSource, /const DialogContent = React\.forwardRef/);
+});
+
+test("catalog api exposes contact form submission", () => {
+  const apiSource = source("../api/catalog.ts");
+
+  assert.match(apiSource, /export\s+interface\s+ContactFormSubmission/);
+  assert.match(apiSource, /export\s+async\s+function\s+submitContactForm/);
+  assert.match(apiSource, /\/api\/contact/);
+  assert.match(apiSource, /method:\s*"POST"/);
+  assert.match(apiSource, /JSON\.stringify\(submission\)/);
 });
