@@ -23,5 +23,7 @@ test("public root installs production-only GA4 route tracking", () => {
   assert.match(analyticsSource, /send_page_view:\s*false/);
   assert.match(analyticsSource, /useLocation/);
   assert.match(analyticsSource, /page_path:\s*`\$\{pathname\}\$\{search\}`/);
+  assert.match(analyticsSource, /function\s+gtag\(\)\s*{[\s\S]*dataLayer\?\.push\(arguments\)/);
+  assert.doesNotMatch(analyticsSource, /dataLayer\?\.push\(args\)/);
   assert.match(rootSource, /<GoogleAnalytics \/>/);
 });

@@ -6,7 +6,7 @@ const GA_SCRIPT_ID = "google-analytics-gtag";
 
 declare global {
   interface Window {
-    dataLayer?: unknown[][];
+    dataLayer?: Array<IArguments | unknown[]>;
     gtag?: (...args: unknown[]) => void;
   }
 }
@@ -15,9 +15,9 @@ function installGtag() {
   window.dataLayer = window.dataLayer ?? [];
   window.gtag =
     window.gtag ??
-    ((...args: unknown[]) => {
-      window.dataLayer?.push(args);
-    });
+    function gtag() {
+      window.dataLayer?.push(arguments);
+    };
 }
 
 function loadGtagScript() {
