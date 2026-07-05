@@ -117,7 +117,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 bg-neutral-950/85 backdrop-blur-md border-b border-white/5">
-      <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-8">
+      <div className="flex h-16 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-8">
         <div className="flex items-center">
           <Link
             to="/"
@@ -127,16 +127,13 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
           </Link>
         </div>
 
-        <nav className="hidden md:flex items-center gap-7">
-          <Link to="/search" className="text-sm text-neutral-400 hover:text-white transition-colors">Explorar</Link>
-          {["Novedades", "Mejor Valorados", "Colecciones"].map((link) => (
-            <button key={link} className="text-sm text-neutral-400 hover:text-white transition-colors">
-              {link}
-            </button>
-          ))}
-        </nav>
-
-        <div className="flex items-center">
+        <div className="flex items-center gap-3">
+          <Link
+            to="/search"
+            className="flex-none inline-flex h-9 items-center rounded-full border border-neutral-700 bg-neutral-900 px-3 text-sm text-neutral-200 transition-colors hover:border-fuchsia-400/50 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300"
+          >
+            Explorar
+          </Link>
           <div className="relative">
             <div className="flex items-center gap-2 rounded-full border border-neutral-600 bg-neutral-800 px-4 py-2 transition-colors focus-within:border-neutral-400">
               <Search className="w-4 h-4 flex-none text-neutral-400" />
@@ -145,7 +142,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
                 placeholder="Buscar juegos..."
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                className="w-40 sm:w-64 lg:w-72 bg-transparent text-sm text-white placeholder:text-neutral-500 outline-none"
+                className="w-20 sm:w-64 lg:w-72 bg-transparent text-sm text-white placeholder:text-neutral-500 outline-none"
               />
               {searchValue && (
                 <button

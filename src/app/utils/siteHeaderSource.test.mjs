@@ -11,10 +11,18 @@ test("site header owns the shared logo search and category strip", () => {
   assert.match(headerSource, /export function SiteHeader/);
   assert.match(headerSource, /<Link[\s\S]*to="\/"[\s\S]*className="ludora-wordmark text-2xl/);
   assert.match(headerSource, /placeholder="Buscar juegos/);
-  assert.match(headerSource, /w-40 sm:w-64 lg:w-72/);
+  assert.match(headerSource, /w-20 sm:w-64 lg:w-72/);
   assert.match(headerSource, /loadCatalogFilterOptions/);
   assert.match(headerSource, /buildExploreTaxonomyPath\("category", category\.id\)/);
   assert.match(headerSource, /contextBar \?\?/);
+});
+
+test("site header puts explore beside search and removes the desktop nav section", () => {
+  const headerSource = source("../components/SiteHeader.tsx");
+
+  assert.match(headerSource, /<div className="flex items-center gap-3">[\s\S]*to="\/search"[\s\S]*>\s*Explorar\s*<\/Link>[\s\S]*<div className="relative">/);
+  assert.doesNotMatch(headerSource, /<nav className="hidden md:flex/);
+  assert.doesNotMatch(headerSource, /Novedades|Mejor Valorados|Colecciones/);
 });
 
 test("public pages use SiteHeader for consistent top navigation", () => {
