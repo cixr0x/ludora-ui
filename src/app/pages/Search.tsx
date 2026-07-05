@@ -23,6 +23,11 @@ import {
   sortTaxonomyOptionsByActive,
 } from "../utils/catalogSearch.js";
 import { filterSemanticSearchResults, parseRangeText } from "../utils/searchResultFiltering.js";
+import {
+  clearLudoscopioSessionCache,
+  readLudoscopioSessionCache,
+  writeLudoscopioSessionCache,
+} from "../utils/ludoscopioSessionCache.js";
 
 type PlaytimeKey = "short" | "medium" | "long";
 
@@ -262,8 +267,11 @@ export function Search() {
   const [players, setPlayers] = useState<number | null>(null);
   const [playtimes, setPlaytimes] = useState<Set<PlaytimeKey>>(new Set());
   const [complexity, setComplexity] = useState<[number, number]>([1, 5]);
-  const [semanticQuery, setSemanticQuery] = useState("");
-  const [semanticGames, setSemanticGames] = useState<FilterableSemanticResult[] | null>(null);
+  const [cachedLudoscopioSession] = useState(() => readLudoscopioSessionCache());
+  const [semanticQuery, setSemanticQuery] = useState(() => cachedLudoscopioSession?.prompt ?? "");
+  const [semanticGames, setSemanticGames] = useState<FilterableSemanticResult[] | null>(
+    () => cachedLudoscopioSession?.results ?? null,
+  );
   const [isSemanticLoading, setIsSemanticLoading] = useState(false);
   const selectedPlaytimeRanges = useMemo(
     () =>
@@ -341,6 +349,7 @@ export function Search() {
     setComplexity([1, 5]);
     setSemanticQuery("");
     setSemanticGames(null);
+    clearLudoscopioSessionCache();
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("category_ids");
     nextParams.delete("mechanic_ids");
@@ -358,8 +367,10 @@ export function Search() {
     setIsSemanticLoading(true);
     try {
       const details = await loadSemanticCatalogGameDetails(prompt, 40);
-      setSemanticGames(details.map(mapDetailToFilterableSemanticResult));
+      const semanticResults = details.map(mapDetailToFilterableSemanticResult);
+      setSemanticGames(semanticResults);
       setSemanticQuery(prompt);
+      writeLudoscopioSessionCache(prompt, semanticResults);
       setQuery("");
       setActiveCategories(new Set());
       setActiveMechanics(new Set());
