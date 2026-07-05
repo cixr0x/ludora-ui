@@ -46,7 +46,7 @@ export function ContactFormDialog() {
 
     if (!submission.name || !validEmail(submission.email) || !submission.message) {
       setSuccessMessage("");
-      setError("Completa tu nombre, un email valido y el mensaje.");
+      setError("Completa tu nombre, un correo válido y el mensaje.");
       return;
     }
 
@@ -72,18 +72,18 @@ export function ContactFormDialog() {
           type="button"
           className="text-left text-sm text-neutral-400 transition-colors hover:text-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-500"
         >
-          Contact
+          Contacto
         </button>
       </DialogTrigger>
       <DialogContent className="bg-neutral-950 text-neutral-100 sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Contact</DialogTitle>
-          <DialogDescription>Tell us what you need from Ludora.</DialogDescription>
+          <DialogTitle>Contacto</DialogTitle>
+          <DialogDescription>Cuéntanos qué necesitas de Ludora.</DialogDescription>
         </DialogHeader>
 
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <div className="flex flex-col gap-2">
-            <Label htmlFor={nameId}>Name</Label>
+            <Label htmlFor={nameId}>Nombre</Label>
             <Input
               id={nameId}
               name="name"
@@ -97,7 +97,7 @@ export function ContactFormDialog() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor={emailId}>Email</Label>
+            <Label htmlFor={emailId}>Correo electrónico</Label>
             <Input
               id={emailId}
               name="email"
@@ -112,7 +112,7 @@ export function ContactFormDialog() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor={messageId}>Message</Label>
+            <Label htmlFor={messageId}>Mensaje</Label>
             <Textarea
               id={messageId}
               name="message"
@@ -129,7 +129,7 @@ export function ContactFormDialog() {
 
           <DialogFooter>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Sending..." : "Send"}
+              {isSubmitting ? "Enviando..." : "Enviar"}
             </Button>
           </DialogFooter>
         </form>

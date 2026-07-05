@@ -210,7 +210,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
         <div className="flex items-center px-6 pb-3 gap-1 border-b border-white/5">
           <button
             onClick={() => scrollGenre("left")}
-            aria-label="Scroll left"
+            aria-label="Desplazar a la izquierda"
             className="flex-none p-1 text-neutral-500 hover:text-white transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -232,7 +232,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
           </div>
           <button
             onClick={() => scrollGenre("right")}
-            aria-label="Scroll right"
+            aria-label="Desplazar a la derecha"
             className="flex-none p-1 text-neutral-500 hover:text-white transition-colors"
           >
             <ChevronRight className="w-4 h-4" />

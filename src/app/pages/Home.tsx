@@ -59,7 +59,7 @@ export function Home() {
               <span>Cargando catálogo...</span>
               <img
                 src={BGG_FOOTER_LOGO_URL}
-                alt="Powered by BGG"
+                alt="Con tecnología de BGG"
                 className="h-10 w-auto opacity-80"
                 decoding="async"
               />

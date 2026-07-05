@@ -161,7 +161,7 @@ function RelatedRow({ games }: { games: Game[] }) {
     <div className="relative group/row">
       <button
         onClick={() => scroll("left")}
-        aria-label="Scroll left"
+        aria-label="Desplazar a la izquierda"
         className="absolute left-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center bg-gradient-to-r from-neutral-950 to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity"
       >
         <ChevronLeft className="w-6 h-6 text-white drop-shadow-lg" />
@@ -194,7 +194,7 @@ function RelatedRow({ games }: { games: Game[] }) {
       </div>
       <button
         onClick={() => scroll("right")}
-        aria-label="Scroll right"
+        aria-label="Desplazar a la derecha"
         className="absolute right-0 top-0 bottom-0 z-10 w-10 flex items-center justify-center bg-gradient-to-l from-neutral-950 to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity"
       >
         <ChevronRight className="w-6 h-6 text-white drop-shadow-lg" />
@@ -306,10 +306,10 @@ export function GameDetail() {
         />
         <main className="flex min-h-[60vh] items-center justify-center">
           <div className="flex flex-col items-center justify-center gap-3 text-center text-neutral-500 text-sm">
-            <span>Cargando juego...</span>
-            <img
-              src={BGG_FOOTER_LOGO_URL}
-              alt="Powered by BGG"
+              <span>Cargando juego...</span>
+              <img
+                src={BGG_FOOTER_LOGO_URL}
+                alt="Con tecnología de BGG"
               className="h-10 w-auto opacity-80"
               decoding="async"
             />
@@ -566,7 +566,7 @@ export function GameDetail() {
               href={
                 detail.youtubeId
                   ? `https://www.youtube.com/watch?v=${detail.youtubeId}`
-                  : `https://www.youtube.com/results?search_query=${encodeURIComponent(detail.name + " board game tutorial")}`
+                  : `https://www.youtube.com/results?search_query=${encodeURIComponent(detail.name + " tutorial juego de mesa")}`
               }
               target="_blank"
               rel="noopener noreferrer"

@@ -65,7 +65,7 @@ export function ImageWithFallback(props: ImageWithFallbackProps) {
     <div
       className={`inline-block text-center align-middle ${className ?? ''}`}
       style={style}
-      aria-label="Image failed to load"
+      aria-label="No se pudo cargar la imagen"
       data-original-url={src}
     />
   ) : (

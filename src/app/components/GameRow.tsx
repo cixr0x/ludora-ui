@@ -112,7 +112,7 @@ function RowCoverImage({ game, imageId, onSettled }: RowCoverImageProps) {
     return (
       <div
         className="w-full h-full object-contain"
-        aria-label="Image failed to load"
+        aria-label="No se pudo cargar la imagen"
         data-original-url={game.image}
         data-row-cover-settled="error"
       />
@@ -434,7 +434,7 @@ export function GameRow({ title, games }: GameRowProps) {
         {isRowReady && canScrollLeft && (
           <button
             onClick={() => scroll("left")}
-            aria-label="Scroll left"
+            aria-label="Desplazar a la izquierda"
             className="absolute left-0 top-0 bottom-1 z-20 w-14 flex items-center justify-center bg-gradient-to-r from-neutral-950/95 to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity duration-200"
           >
             <ChevronLeft className="w-9 h-9 text-white drop-shadow-lg" strokeWidth={2.5} />
@@ -495,7 +495,7 @@ export function GameRow({ title, games }: GameRowProps) {
         {isRowReady && canScrollRight && (
           <button
             onClick={() => scroll("right")}
-            aria-label="Scroll right"
+            aria-label="Desplazar a la derecha"
             className="absolute right-0 top-0 bottom-1 z-20 w-14 flex items-center justify-center bg-gradient-to-l from-neutral-950/95 to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity duration-200"
           >
             <ChevronRight className="w-9 h-9 text-white drop-shadow-lg" strokeWidth={2.5} />

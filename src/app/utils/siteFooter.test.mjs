@@ -18,14 +18,14 @@ test("Root renders the shared site footer below routed pages", () => {
   assert.match(rootSource, /<SiteFooter \/>/);
 });
 
-test("SiteFooter renders contact, privacy, and powered by BGG attribution", () => {
+test("SiteFooter renders contact, privacy, and BGG attribution in Spanish", () => {
   const footerSource = source("../components/SiteFooter.tsx");
 
   assert.match(footerSource, /ContactFormDialog/);
   assert.match(footerSource, /<ContactFormDialog\s*\/>/);
-  assert.match(footerSource, /Contact/);
+  assert.match(footerSource, /ContactFormDialog/);
   assert.match(footerSource, /Aviso de Privacidad/);
-  assert.match(footerSource, /Powered by BoardGameGeek/);
+  assert.match(footerSource, /Con tecnolog(?:i|\u00ed)a de BoardGameGeek/u);
   assert.match(footerSource, /h-10 w-auto/);
   assert.match(footerSource, /loading="lazy"/);
   assert.match(footerSource, /decoding="async"/);
@@ -46,7 +46,12 @@ test("ContactFormDialog renders a footer-triggered contact form window", () => {
 
   assert.match(dialogSource, /Dialog/);
   assert.match(dialogSource, /DialogTitle/);
-  assert.match(dialogSource, /Contact/);
+  assert.match(dialogSource, /Contacto/);
+  assert.match(dialogSource, /Nombre/);
+  assert.match(dialogSource, /Correo electr(?:o|\u00f3)nico/u);
+  assert.match(dialogSource, /Mensaje/);
+  assert.match(dialogSource, /Enviando/);
+  assert.match(dialogSource, /Enviar/);
   assert.match(dialogSource, /name="name"/);
   assert.match(dialogSource, /name="email"/);
   assert.match(dialogSource, /name="message"/);
