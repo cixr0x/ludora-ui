@@ -45,6 +45,19 @@ test("ludoscopio session cache stores and restores prompt plus semantic results"
   });
 });
 
+test("ludoscopio session cache normalizes string ids returned by the API", () => {
+  const storage = memoryStorage();
+  storage.setItem(
+    "ludora:ludoscopio:session:v2",
+    JSON.stringify({ prompt: "party games", results: [{ ...validResult, id: "7" }] }),
+  );
+
+  assert.deepEqual(readLudoscopioSessionCache(storage), {
+    prompt: "party games",
+    results: [validResult],
+  });
+});
+
 test("ludoscopio session cache ignores malformed payloads", () => {
   const storage = memoryStorage();
   storage.setItem("ludora:ludoscopio:session:v2", JSON.stringify({ prompt: "", results: [{ id: "bad" }] }));

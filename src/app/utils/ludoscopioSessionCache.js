@@ -5,23 +5,20 @@ export function readLudoscopioSessionCache(storage = browserSessionStorage()) {
     const raw = storage?.getItem(LUDOSCOPIO_SESSION_CACHE_KEY);
     if (!raw) return null;
 
-    const parsed = JSON.parse(raw);
-    if (!isValidSessionCache(parsed)) return null;
-
-    return parsed;
+    return normalizeSessionCache(JSON.parse(raw));
   } catch {
     return null;
   }
 }
 
 export function writeLudoscopioSessionCache(prompt, results, storage = browserSessionStorage()) {
-  const normalizedPrompt = typeof prompt === "string" ? prompt.trim() : "";
-  if (!normalizedPrompt || !Array.isArray(results) || !storage) return;
+  const normalized = normalizeSessionCache({ prompt, results });
+  if (!normalized || !storage) return;
 
   try {
     storage.setItem(
       LUDOSCOPIO_SESSION_CACHE_KEY,
-      JSON.stringify({ prompt: normalizedPrompt, results }),
+      JSON.stringify(normalized),
     );
   } catch {
   }
@@ -42,14 +39,22 @@ function browserSessionStorage() {
   }
 }
 
-function isValidSessionCache(value) {
-  return (
-    value &&
-    typeof value.prompt === "string" &&
-    value.prompt.trim().length > 0 &&
-    Array.isArray(value.results) &&
-    value.results.every(isValidSemanticResult)
-  );
+function normalizeSessionCache(value) {
+  const prompt = typeof value?.prompt === "string" ? value.prompt.trim() : "";
+  if (!prompt || !Array.isArray(value.results)) return null;
+
+  const results = value.results.map(normalizeSemanticResult);
+  if (results.some((result) => !result)) return null;
+
+  return { prompt, results };
+}
+
+function normalizeSemanticResult(value) {
+  const id = positiveInteger(value?.id);
+  if (!id) return null;
+
+  const result = { ...value, id };
+  return isValidSemanticResult(result) ? result : null;
 }
 
 function isValidSemanticResult(value) {
@@ -72,4 +77,9 @@ function isValidSemanticResult(value) {
 
 function nullableNumber(value) {
   return value === null || typeof value === "number";
+}
+
+function positiveInteger(value) {
+  const normalized = typeof value === "string" && value.trim() ? Number(value) : value;
+  return Number.isInteger(normalized) && normalized > 0 ? normalized : null;
 }
