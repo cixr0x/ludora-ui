@@ -73,9 +73,12 @@ test("game detail distinguishes out-of-stock and no-longer-available store offer
 
   assert.match(source, /storeAvailabilityLabel/);
   assert.match(source, /availabilityStatus === "unavailable"/);
+  assert.match(source, /availabilityStatus !== "unavailable" && <p[^>]*>\{store\.price\}<\/p>/);
   assert.match(source, />Disponibilidad en Tiendas<\/h/);
   assert.match(source, /La versión, edición o idioma disponible puede variar según la tienda\./);
   assert.match(catalogSource, /storeAvailabilityState\(offer\.availability, offer\.store_active\)/);
+  assert.match(catalogSource, /storeAvailabilityRank\(left\.availabilityStatus\) - storeAvailabilityRank\(right\.availabilityStatus\)/);
+  assert.doesNotMatch(catalogSource, /\.slice\(0, 8\)/);
 });
 
 test("game detail loads related games separately from primary detail rendering", () => {

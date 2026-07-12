@@ -141,7 +141,7 @@ function StoreCard({ store }: { store: StoreEntry }) {
           </span>
         )}
         <div className="flex items-center gap-2">
-          <p className="text-fuchsia-400 text-sm">{store.price}</p>
+          {availabilityStatus !== "unavailable" && <p className="text-fuchsia-400 text-sm">{store.price}</p>}
           {store.url && <ExternalLink className="w-3.5 h-3.5 text-neutral-500 group-hover:text-fuchsia-300 transition-colors" />}
         </div>
       </div>

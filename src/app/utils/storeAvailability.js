@@ -27,3 +27,9 @@ export function storeAvailabilityLabel(status) {
   if (status === "out_of_stock") return "Agotado";
   return "";
 }
+
+export function storeAvailabilityRank(status) {
+  if (status === "unavailable") return 2;
+  if (status === "out_of_stock") return 1;
+  return 0;
+}

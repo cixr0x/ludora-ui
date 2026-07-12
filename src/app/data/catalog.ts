@@ -16,7 +16,7 @@ import {
 } from "../api/catalog";
 import { isExpansionItem, positiveInteger } from "../utils/expansionDisplay.js";
 import { storeOfferUrl } from "../utils/storeLinks.js";
-import { storeAvailabilityState } from "../utils/storeAvailability.js";
+import { storeAvailabilityRank, storeAvailabilityState } from "../utils/storeAvailability.js";
 import { tiktokTutorialFromUrl, youtubeIdFromUrl } from "../utils/tutorialLinks.js";
 import {
   type Game,
@@ -249,7 +249,12 @@ function mapApiItemToDetail(item: ApiItem): GameDetail {
     tiktokId: tiktokTutorial?.id,
     tiktokUser: tiktokTutorial?.user,
     youtubeId,
-    stores: (item.offers ?? []).map((offer) => mapOffer(offer, base)).slice(0, 8),
+    stores: (item.offers ?? [])
+      .map((offer) => mapOffer(offer, base))
+      .sort(
+        (left, right) =>
+          storeAvailabilityRank(left.availabilityStatus) - storeAvailabilityRank(right.availabilityStatus),
+      ),
   };
 }
 
