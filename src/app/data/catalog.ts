@@ -15,7 +15,7 @@ import {
   type ApiTaxonomyEntry,
 } from "../api/catalog";
 import { isExpansionItem, positiveInteger } from "../utils/expansionDisplay.js";
-import { storeOfferUrl } from "../utils/storeLinks.js";
+import { storeDisplayName, storeOfferUrl } from "../utils/storeLinks.js";
 import { storeAvailabilityRank, storeAvailabilityState } from "../utils/storeAvailability.js";
 import { tiktokTutorialFromUrl, youtubeIdFromUrl } from "../utils/tutorialLinks.js";
 import {
@@ -300,7 +300,7 @@ function mapOffer(offer: ApiOffer, game: Game): StoreEntry {
 
   return {
     id: offer.id,
-    name: offer.store_name,
+    name: storeDisplayName(offer.store_name, offer.store_platform),
     url: storeOfferUrl(offer),
     country: offer.store_country || "MX",
     image: offer.image_url || game.image,

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import * as storeLinks from "./storeLinks.js";
 
-const { storeOfferUrl } = storeLinks;
+const { storeDisplayName, storeOfferUrl } = storeLinks;
 
 test("storeOfferUrl prefers the product URL over listing and store URLs", () => {
   assert.equal(
@@ -44,4 +44,11 @@ test("hasStoreOfferLinks detects whether any store offer can be opened", () => {
   assert.equal(storeLinks.hasStoreOfferLinks([{ name: "No URL" }, { url: "https://store.example/product" }]), true);
   assert.equal(storeLinks.hasStoreOfferLinks([{ name: "No URL" }, { url: " " }]), false);
   assert.equal(storeLinks.hasStoreOfferLinks([]), false);
+});
+
+test("storeDisplayName identifies Amazon and Amazon brand storefronts", () => {
+  assert.equal(storeDisplayName("Asmodee", "amazon"), "Asmodee en Amazon");
+  assert.equal(storeDisplayName("Devir", "amazon_brand"), "Devir en Amazon");
+  assert.equal(storeDisplayName("Central de Juegos", "shopify"), "Central de Juegos");
+  assert.equal(storeDisplayName("Asmodee en Amazon", "amazon_brand"), "Asmodee en Amazon");
 });

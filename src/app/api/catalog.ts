@@ -12,6 +12,7 @@ export interface ApiOffer {
   id: number;
   store_id: number;
   store_name: string;
+  store_platform?: string;
   store_domain?: string;
   store_website_url?: string;
   store_logo_url?: string;
