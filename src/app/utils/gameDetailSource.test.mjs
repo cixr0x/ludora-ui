@@ -67,6 +67,17 @@ test("game detail reports store offer clicks while preserving external links", (
   assert.match(source, /onClick=\{\(\) => reportStoreItemClick\(store\.id\)\}/);
 });
 
+test("game detail distinguishes out-of-stock and no-longer-available store offers", () => {
+  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
+  const catalogSource = readFileSync(new URL("../data/catalog.ts", import.meta.url), "utf8");
+
+  assert.match(source, /storeAvailabilityLabel/);
+  assert.match(source, /availabilityStatus === "unavailable"/);
+  assert.match(source, />Disponibilidad en Tiendas<\/h/);
+  assert.match(source, /La versión, edición o idioma disponible puede variar según la tienda\./);
+  assert.match(catalogSource, /storeAvailabilityState\(offer\.availability, offer\.store_active\)/);
+});
+
 test("game detail loads related games separately from primary detail rendering", () => {
   const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
 

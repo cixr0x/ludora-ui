@@ -16,6 +16,7 @@ import {
 } from "../api/catalog";
 import { isExpansionItem, positiveInteger } from "../utils/expansionDisplay.js";
 import { storeOfferUrl } from "../utils/storeLinks.js";
+import { storeAvailabilityState } from "../utils/storeAvailability.js";
 import { tiktokTutorialFromUrl, youtubeIdFromUrl } from "../utils/tutorialLinks.js";
 import {
   type Game,
@@ -289,7 +290,8 @@ function descriptionParagraphs(item: ApiItem): string[] {
 function mapOffer(offer: ApiOffer, game: Game): StoreEntry {
   const priceValue = numericValue(offer.price, 0);
   const currency = offer.currency || "MXN";
-  const stockLevel = stockLevelFromAvailability(offer.availability);
+  const availabilityStatus = storeAvailabilityState(offer.availability, offer.store_active);
+  const stockLevel = availabilityStatus === "available" ? stockLevelFromAvailability(offer.availability) : "out";
 
   return {
     id: offer.id,
@@ -303,6 +305,7 @@ function mapOffer(offer: ApiOffer, game: Game): StoreEntry {
     currency,
     inStock: stockLevel !== "out",
     stockLevel,
+    availabilityStatus,
     fulfillment: "shipping",
     storeRating: 0,
     reviewCount: 0,

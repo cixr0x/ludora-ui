@@ -24,6 +24,7 @@ export interface ApiOffer {
   raw_price?: string;
   currency?: string;
   availability?: string;
+  store_active?: boolean;
   listing_status?: string;
   last_seen_at?: string;
 }

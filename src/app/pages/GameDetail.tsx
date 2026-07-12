@@ -9,6 +9,7 @@ import { loadGameDetail, loadRelatedGames } from "../data/catalog";
 import { EXPANSION_BADGE_CORNER_CLASS } from "../utils/expansionDisplay.js";
 import { hasStoreOfferLinks } from "../utils/storeLinks.js";
 import { reportStoreItemClick } from "../utils/storeClickTracking.js";
+import { storeAvailabilityLabel } from "../utils/storeAvailability.js";
 import { Link } from "react-router";
 import { t } from "../data/translations";
 import { BGG_FOOTER_LOGO_URL } from "../utils/siteFooter.js";
@@ -112,6 +113,8 @@ function TikTokEmbed({ tiktokId, tiktokUser, gameName }: { tiktokId: string; tik
 }
 
 function StoreCard({ store }: { store: StoreEntry }) {
+  const availabilityStatus = store.availabilityStatus ?? (store.inStock ? "available" : "out_of_stock");
+  const availabilityLabel = storeAvailabilityLabel(availabilityStatus);
   const content = (
     <>
       <div className="flex-none w-12 h-12 rounded-md overflow-hidden">
@@ -125,9 +128,22 @@ function StoreCard({ store }: { store: StoreEntry }) {
         <p className="text-white text-sm truncate">{store.name}</p>
         <p className="text-neutral-500 text-xs truncate">{store.gameTitle}</p>
       </div>
-      <div className="flex-none flex items-center gap-2">
-        <p className="text-fuchsia-400 text-sm">{store.price}</p>
-        {store.url && <ExternalLink className="w-3.5 h-3.5 text-neutral-500 group-hover:text-fuchsia-300 transition-colors" />}
+      <div className="flex-none flex flex-col items-end gap-1">
+        {availabilityLabel && (
+          <span
+            className={`rounded-full border px-2 py-0.5 text-[11px] ${
+              availabilityStatus === "unavailable"
+                ? "border-red-500/40 bg-red-500/10 text-red-300"
+                : "border-yellow-500/40 bg-yellow-500/10 text-yellow-300"
+            }`}
+          >
+            {availabilityLabel}
+          </span>
+        )}
+        <div className="flex items-center gap-2">
+          <p className="text-fuchsia-400 text-sm">{store.price}</p>
+          {store.url && <ExternalLink className="w-3.5 h-3.5 text-neutral-500 group-hover:text-fuchsia-300 transition-colors" />}
+        </div>
       </div>
     </>
   );
@@ -586,7 +602,10 @@ export function GameDetail() {
 
         {/* ── Stores ───────────────────────────────────────────────────── */}
         <div ref={storesSectionRef} id="store-offers" style={{ scrollMarginTop: 80 }}>
-          <h2 className="text-white mb-4">Disponible en Tiendas</h2>
+          <h2 className="text-white mb-1">Disponibilidad en Tiendas</h2>
+          <p className="mb-4 text-xs text-neutral-500">
+            La versión, edición o idioma disponible puede variar según la tienda.
+          </p>
           <div className="flex flex-col gap-2 max-w-2xl">
             {detail.stores.map((store) => (
               <StoreCard key={store.id} store={store} />

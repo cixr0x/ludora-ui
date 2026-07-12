@@ -28,6 +28,7 @@ export interface StoreEntry {
   currency: string;
   inStock: boolean;
   stockLevel: "high" | "low" | "out";
+  availabilityStatus?: "available" | "out_of_stock" | "unavailable";
   fulfillment: "shipping" | "pickup" | "both";
   storeRating: number;
   reviewCount: number;
