@@ -1,11 +1,11 @@
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Compass, Search, X } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { loadCatalogFilterOptions, loadCatalogSearchResults } from "../data/catalog";
 import type { Game } from "../data/games";
 import { t } from "../data/translations";
-import { buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
+import { buildExploreSearchPath, buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
 import { HOME_SEARCH_DEBOUNCE_MS, HOME_SEARCH_LIMIT, homeSearchQuery } from "../utils/homeSearch.js";
 
 interface CategoryStripItem {
@@ -35,6 +35,15 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
   const handleResultClick = (id: number) => {
     clearSearch();
     navigate(`/game/${id}`);
+  };
+
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const destination = buildExploreSearchPath(searchValue);
+    if (destination === "/search") return;
+
+    clearSearch();
+    navigate(destination);
   };
 
   useEffect(() => {
@@ -129,7 +138,10 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
 
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="flex items-center gap-2 rounded-full border border-neutral-600 bg-neutral-800 px-4 py-2 transition-colors focus-within:border-neutral-400">
+            <form
+              onSubmit={handleSearchSubmit}
+              className="flex items-center gap-2 rounded-full border border-neutral-600 bg-neutral-800 px-4 py-2 transition-colors focus-within:border-neutral-400"
+            >
               <Search className="w-4 h-4 flex-none text-neutral-400" />
               <input
                 type="text"
@@ -151,7 +163,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
-            </div>
+            </form>
 
             {activeSearchQuery && (
               <div className="absolute right-0 top-full mt-2 w-full min-w-72 bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl overflow-hidden z-50">

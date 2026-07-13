@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   appendUniqueCatalogResults,
   buildCatalogSearchParams,
+  buildExploreSearchPath,
   buildExploreTaxonomyPath,
   hasMoreCatalogResults,
   parsePositiveIntegerSetParam,
@@ -75,6 +76,11 @@ test("buildExploreTaxonomyPath links taxonomy ids to explore filters", () => {
   assert.equal(buildExploreTaxonomyPath("category", 42), "/search?category_ids=42");
   assert.equal(buildExploreTaxonomyPath("mechanic", 8), "/search?mechanic_ids=8");
   assert.equal(buildExploreTaxonomyPath("family", 12), "/search");
+});
+
+test("buildExploreSearchPath carries a trimmed text query to Explore", () => {
+  assert.equal(buildExploreSearchPath("  Star Wars: Rebellion  "), "/search?q=Star+Wars%3A+Rebellion");
+  assert.equal(buildExploreSearchPath("   "), "/search");
 });
 
 test("parsePositiveIntegerSetParam reads comma-separated URL filter ids", () => {

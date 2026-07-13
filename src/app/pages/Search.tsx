@@ -255,7 +255,8 @@ function Toggle({
 export function Search() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [query, setQuery] = useState("");
+  const requestedTextQuery = searchParams.get("q")?.trim() ?? "";
+  const [query, setQuery] = useState(requestedTextQuery);
   const [activeCategories, setActiveCategories] = useState<Set<number>>(() =>
     parsePositiveIntegerSetParam(searchParams.get("category_ids")),
   );
@@ -351,6 +352,7 @@ export function Search() {
     setSemanticGames(null);
     clearLudoscopioSessionCache();
     const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("q");
     nextParams.delete("category_ids");
     nextParams.delete("mechanic_ids");
     setSearchParams(nextParams, { replace: true });
@@ -358,6 +360,11 @@ export function Search() {
 
   const handleTextQueryChange = (value: string) => {
     setQuery(value);
+    const nextParams = new URLSearchParams(searchParams);
+    const nextQuery = value.trim();
+    if (nextQuery) nextParams.set("q", nextQuery);
+    else nextParams.delete("q");
+    setSearchParams(nextParams, { replace: true });
   };
 
   const handleLudoscopioSearch = useCallback(async (value: string) => {
@@ -372,6 +379,11 @@ export function Search() {
       setSemanticQuery(prompt);
       writeLudoscopioSessionCache(prompt, semanticResults);
       setQuery("");
+      setSearchParams((currentParams) => {
+        const nextParams = new URLSearchParams(currentParams);
+        nextParams.delete("q");
+        return nextParams;
+      }, { replace: true });
       setActiveCategories(new Set());
       setActiveMechanics(new Set());
       setPlayers(null);
@@ -380,9 +392,13 @@ export function Search() {
     } finally {
       setIsSemanticLoading(false);
     }
-  }, [isSemanticLoading]);
+  }, [isSemanticLoading, setSearchParams]);
 
   const shouldOpenLudoscopio = searchParams.get("ludoscopio") === "open";
+
+  useEffect(() => {
+    setQuery(requestedTextQuery);
+  }, [requestedTextQuery]);
 
   useEffect(() => {
     const nextCategories = parsePositiveIntegerSetParam(searchParams.get("category_ids"));

@@ -27,6 +27,15 @@ test("site header puts explore beside search and removes the desktop nav section
   assert.doesNotMatch(headerSource, /Novedades|Mejor Valorados|Colecciones/);
 });
 
+test("site header submits its text search to the Explore page", () => {
+  const headerSource = source("../components/SiteHeader.tsx");
+
+  assert.match(headerSource, /const handleSearchSubmit = \(event: FormEvent<HTMLFormElement>\)/);
+  assert.match(headerSource, /const destination = buildExploreSearchPath\(searchValue\)/);
+  assert.match(headerSource, /<form\s+onSubmit=\{handleSearchSubmit\}/);
+  assert.match(headerSource, /clearSearch\(\);\s*navigate\(destination\)/);
+});
+
 test("public pages use SiteHeader for consistent top navigation", () => {
   const homeSource = source("../pages/Home.tsx");
   const searchSource = source("../pages/Search.tsx");
@@ -44,6 +53,11 @@ test("public pages use SiteHeader for consistent top navigation", () => {
   }
 
   assert.match(searchSource, /Encuentra tu pr(?:o|\u00f3)ximo juego/u);
+  assert.match(searchSource, /const requestedTextQuery = searchParams\.get\("q"\)\?\.trim\(\) \?\? ""/);
+  assert.match(searchSource, /const \[query, setQuery\] = useState\(requestedTextQuery\)/);
+  assert.match(searchSource, /setQuery\(requestedTextQuery\)/);
+  assert.match(searchSource, /if \(nextQuery\) nextParams\.set\("q", nextQuery\)/);
+  assert.match(searchSource, /else nextParams\.delete\("q"\)/);
   assert.match(browseSource, /juego\$\{games\.length !== 1 \? "s" : ""\}/);
   assert.match(detailSource, /\{detail\.name\}/);
 });

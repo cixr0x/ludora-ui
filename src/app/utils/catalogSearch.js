@@ -56,6 +56,15 @@ export function buildExploreTaxonomyPath(categoryType, categoryId) {
   return `/search?${params.toString()}`;
 }
 
+export function buildExploreSearchPath(value) {
+  const query = String(value ?? "").trim();
+  if (!query) return "/search";
+
+  const params = new URLSearchParams();
+  params.set("q", query);
+  return `/search?${params.toString()}`;
+}
+
 export function parsePositiveIntegerSetParam(value) {
   return new Set(parsePositiveIntegerList(value));
 }
