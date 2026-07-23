@@ -27,3 +27,25 @@ test("search taxonomy filter sections collapse while keeping selected filters vi
   assert.match(source, /mechanicsCollapsed \? \(\s*<ChevronRight[\s\S]*?\) : \(\s*<ChevronDown/);
   assert.match(source, /id="mechanic-filter-options"[\s\S]*?visibleMechanics\.map/);
 });
+
+test("search taxonomy pill changes stay synchronized with the Explore URL", () => {
+  const source = searchSource();
+
+  assert.match(source, /setPositiveIntegerSetParam/);
+  assert.match(
+    source,
+    /setSearchParams\(\s*\(currentParams\) => setPositiveIntegerSetParam\(currentParams, paramName, nextIds\)/,
+  );
+  assert.match(
+    source,
+    /toggleTaxonomy\(activeCategories, category\.id, setActiveCategories, "category_ids"\)/,
+  );
+  assert.match(
+    source,
+    /toggleTaxonomy\(activeMechanics, mechanic\.id, setActiveMechanics, "mechanic_ids"\)/,
+  );
+  assert.match(
+    source,
+    /handleTextQueryChange[\s\S]*?setSearchParams\(\(currentParams\) => \{[\s\S]*?new URLSearchParams\(currentParams\)/,
+  );
+});

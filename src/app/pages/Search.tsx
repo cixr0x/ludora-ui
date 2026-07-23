@@ -19,6 +19,7 @@ import {
   appendUniqueCatalogResults,
   hasMoreCatalogResults,
   parsePositiveIntegerSetParam,
+  setPositiveIntegerSetParam,
   shouldShowFilterRemoveIcon,
   sortTaxonomyOptionsByActive,
 } from "../utils/catalogSearch.js";
@@ -325,6 +326,21 @@ export function Search() {
     setter(next);
   };
 
+  const toggleTaxonomy = (
+    activeIds: Set<number>,
+    value: number,
+    setter: (ids: Set<number>) => void,
+    paramName: "category_ids" | "mechanic_ids",
+  ) => {
+    const nextIds = new Set(activeIds);
+    if (nextIds.has(value)) nextIds.delete(value); else nextIds.add(value);
+    setter(nextIds);
+    setSearchParams(
+      (currentParams) => setPositiveIntegerSetParam(currentParams, paramName, nextIds),
+      { replace: true },
+    );
+  };
+
   const results = useMemo(
     () => (semanticGames ? filterSemanticSearchResults(semanticGames, searchRequest) : games),
     [games, searchRequest, semanticGames],
@@ -360,11 +376,13 @@ export function Search() {
 
   const handleTextQueryChange = (value: string) => {
     setQuery(value);
-    const nextParams = new URLSearchParams(searchParams);
-    const nextQuery = value.trim();
-    if (nextQuery) nextParams.set("q", nextQuery);
-    else nextParams.delete("q");
-    setSearchParams(nextParams, { replace: true });
+    setSearchParams((currentParams) => {
+      const nextParams = new URLSearchParams(currentParams);
+      const nextQuery = value.trim();
+      if (nextQuery) nextParams.set("q", nextQuery);
+      else nextParams.delete("q");
+      return nextParams;
+    }, { replace: true });
   };
 
   const handleLudoscopioSearch = useCallback(async (value: string) => {
@@ -609,7 +627,9 @@ export function Search() {
                   key={category.id}
                   label={t(category.name)}
                   active={activeCategories.has(category.id)}
-                  onClick={() => toggle(activeCategories, category.id, setActiveCategories)}
+                  onClick={() =>
+                    toggleTaxonomy(activeCategories, category.id, setActiveCategories, "category_ids")
+                  }
                   removable
                 />
               ))}
@@ -647,7 +667,9 @@ export function Search() {
                   key={mechanic.id}
                   label={t(mechanic.name)}
                   active={activeMechanics.has(mechanic.id)}
-                  onClick={() => toggle(activeMechanics, mechanic.id, setActiveMechanics)}
+                  onClick={() =>
+                    toggleTaxonomy(activeMechanics, mechanic.id, setActiveMechanics, "mechanic_ids")
+                  }
                   removable
                 />
               ))}

@@ -69,6 +69,16 @@ export function parsePositiveIntegerSetParam(value) {
   return new Set(parsePositiveIntegerList(value));
 }
 
+export function setPositiveIntegerSetParam(searchParams, paramName, values) {
+  const nextParams = new URLSearchParams(searchParams);
+  const ids = uniquePositiveIntegers(values).sort((left, right) => left - right);
+
+  if (ids.length > 0) nextParams.set(paramName, ids.join(","));
+  else nextParams.delete(paramName);
+
+  return nextParams;
+}
+
 export function sortTaxonomyOptionsByActive(options, activeIds) {
   const activeIdSet = activeIds instanceof Set ? activeIds : new Set(activeIds ?? []);
 
@@ -108,7 +118,7 @@ function uniquePositiveIntegers(values) {
 }
 
 function parsePositiveIntegerList(value) {
-  const values = Array.isArray(value) ? value : [value];
+  const values = value instanceof Set ? Array.from(value) : Array.isArray(value) ? value : [value];
 
   return values
     .flatMap((entry) => String(entry ?? "").split(","))

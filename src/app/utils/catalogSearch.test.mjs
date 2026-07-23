@@ -8,6 +8,7 @@ import {
   buildExploreTaxonomyPath,
   hasMoreCatalogResults,
   parsePositiveIntegerSetParam,
+  setPositiveIntegerSetParam,
   shouldShowFilterRemoveIcon,
   sortTaxonomyOptionsByActive,
   taxonomyOptionsFromItems,
@@ -86,6 +87,24 @@ test("buildExploreSearchPath carries a trimmed text query to Explore", () => {
 test("parsePositiveIntegerSetParam reads comma-separated URL filter ids", () => {
   assert.deepEqual(Array.from(parsePositiveIntegerSetParam("5,no,7,5,0,-1")), [5, 7]);
   assert.deepEqual(Array.from(parsePositiveIntegerSetParam(null)), []);
+});
+
+test("setPositiveIntegerSetParam removes a cleared taxonomy filter without disturbing the text query", () => {
+  const currentParams = new URLSearchParams("category_ids=42&mechanic_ids=8&q=azul");
+  const nextParams = setPositiveIntegerSetParam(currentParams, "category_ids", new Set());
+
+  assert.equal(nextParams.toString(), "mechanic_ids=8&q=azul");
+  assert.equal(currentParams.toString(), "category_ids=42&mechanic_ids=8&q=azul");
+});
+
+test("setPositiveIntegerSetParam writes sorted unique taxonomy filter ids", () => {
+  const nextParams = setPositiveIntegerSetParam(
+    new URLSearchParams("q=azul"),
+    "category_ids",
+    new Set([9, 3, 0]),
+  );
+
+  assert.equal(nextParams.toString(), "q=azul&category_ids=3%2C9");
 });
 
 test("sortTaxonomyOptionsByActive groups active filters first", () => {
