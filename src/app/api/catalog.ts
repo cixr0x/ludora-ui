@@ -27,6 +27,7 @@ export interface ApiOffer {
   availability?: string;
   store_active?: boolean;
   listing_status?: string;
+  is_bundle?: boolean;
   last_seen_at?: string;
 }
 

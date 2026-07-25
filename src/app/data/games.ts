@@ -29,6 +29,7 @@ export interface StoreEntry {
   inStock: boolean;
   stockLevel: "high" | "low" | "out";
   availabilityStatus?: "available" | "out_of_stock" | "unavailable";
+  isBundle?: boolean;
   fulfillment: "shipping" | "pickup" | "both";
   storeRating: number;
   reviewCount: number;

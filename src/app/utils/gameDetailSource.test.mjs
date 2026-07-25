@@ -81,6 +81,22 @@ test("game detail distinguishes out-of-stock and no-longer-available store offer
   assert.doesNotMatch(catalogSource, /\.slice\(0, 8\)/);
 });
 
+test("game detail separates bundle offers from single-item offers", () => {
+  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
+  const catalogSource = readFileSync(new URL("../data/catalog.ts", import.meta.url), "utf8");
+  const apiCatalogSource = readFileSync(new URL("../api/catalog.ts", import.meta.url), "utf8");
+  const gamesSource = readFileSync(new URL("../data/games.ts", import.meta.url), "utf8");
+
+  assert.match(apiCatalogSource, /is_bundle\?: boolean/);
+  assert.match(gamesSource, /isBundle\?: boolean/);
+  assert.match(catalogSource, /isBundle:\s*Boolean\(offer\.is_bundle\)/);
+  assert.match(source, /const singleStoreOffers = detail\.stores\.filter\(\(store\) => !store\.isBundle\)/);
+  assert.match(source, /const bundleStoreOffers = detail\.stores\.filter\(\(store\) => store\.isBundle\)/);
+  assert.match(source, />Paquetes<\/h3>/);
+  assert.match(source, /singleStoreOffers\.map/);
+  assert.match(source, /bundleStoreOffers\.map/);
+});
+
 test("game detail loads related games separately from primary detail rendering", () => {
   const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
 

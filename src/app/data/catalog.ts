@@ -311,6 +311,7 @@ function mapOffer(offer: ApiOffer, game: Game): StoreEntry {
     inStock: stockLevel !== "out",
     stockLevel,
     availabilityStatus,
+    isBundle: Boolean(offer.is_bundle),
     fulfillment: "shipping",
     storeRating: 0,
     reviewCount: 0,

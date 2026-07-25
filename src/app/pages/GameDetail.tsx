@@ -366,6 +366,8 @@ export function GameDetail() {
   }
 
   const hasLinkedStoreOffers = hasStoreOfferLinks(detail.stores);
+  const singleStoreOffers = detail.stores.filter((store) => !store.isBundle);
+  const bundleStoreOffers = detail.stores.filter((store) => store.isBundle);
   const scrollToStores = () => {
     storesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -607,9 +609,21 @@ export function GameDetail() {
             La versión, edición o idioma disponible puede variar según la tienda.
           </p>
           <div className="flex flex-col gap-2 max-w-2xl">
-            {detail.stores.map((store) => (
+            {singleStoreOffers.map((store) => (
               <StoreCard key={store.id} store={store} />
             ))}
+            {bundleStoreOffers.length > 0 && (
+              <>
+                <div className="flex items-center gap-3 pb-1 pt-4">
+                  <div className="h-px flex-1 bg-neutral-800" />
+                  <h3 className="text-sm font-semibold text-neutral-300">Paquetes</h3>
+                  <div className="h-px flex-1 bg-neutral-800" />
+                </div>
+                {bundleStoreOffers.map((store) => (
+                  <StoreCard key={store.id} store={store} />
+                ))}
+              </>
+            )}
           </div>
         </div>
 
