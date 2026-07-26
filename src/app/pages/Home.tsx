@@ -44,8 +44,8 @@ export function Home() {
       <SiteHeader />
 
       {/* Main content */}
-      <main className="pt-8 pb-16">
-        <div className="px-14 mb-7">
+      <main className="pt-4 pb-10 md:pt-8 md:pb-16">
+        <div className="px-3 mb-4 md:px-14 md:mb-7">
           <LudoscopioCallout
             buttonClassName="xl:mt-0 xl:flex-none"
             className="xl:flex xl:items-center xl:justify-between xl:gap-5"
@@ -54,7 +54,7 @@ export function Home() {
           />
         </div>
         {isLoading ? (
-          <div className="flex min-h-[60vh] items-center justify-center px-14 py-16 text-center text-neutral-500 text-sm">
+          <div className="flex min-h-[60vh] items-center justify-center px-3 py-10 text-center text-neutral-500 text-sm md:px-14 md:py-16">
             <span className="flex flex-col items-center justify-center gap-3">
               <span>Cargando catálogo...</span>
               <img
@@ -70,7 +70,7 @@ export function Home() {
             <GameRow key={row.title} title={row.title} games={row.games} />
           ))
         ) : (
-          <div className="px-14 py-16 text-neutral-500 text-sm">No pudimos cargar el catálogo.</div>
+          <div className="px-3 py-10 text-neutral-500 text-sm md:px-14 md:py-16">No pudimos cargar el catálogo.</div>
         )}
       </main>
     </div>

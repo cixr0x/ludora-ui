@@ -5,8 +5,8 @@ import { ContactFormDialog } from "./ContactFormDialog";
 export function SiteFooter() {
   return (
     <footer className="bg-neutral-950 text-neutral-400">
-      <div className="mx-auto flex max-w-6xl flex-col gap-5 px-6 py-8 sm:flex-row sm:items-center sm:justify-between lg:px-8">
-        <nav aria-label="Pie de página" className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6 md:flex-row md:items-center md:justify-between md:gap-5 md:px-6 md:py-8 lg:px-8">
+        <nav aria-label="Pie de página" className="flex flex-wrap items-center gap-x-4 gap-y-2.5 text-sm md:gap-x-6 md:gap-y-3">
           <ContactFormDialog />
           <Link to="/privacidad" className="transition-colors hover:text-white">
             Aviso de Privacidad
@@ -26,7 +26,7 @@ export function SiteFooter() {
           <img
             src={BGG_FOOTER_LOGO_URL}
             alt="Con tecnología de BoardGameGeek"
-            className="h-10 w-auto"
+            className="h-8 w-auto md:h-10"
             loading="lazy"
             decoding="async"
           />

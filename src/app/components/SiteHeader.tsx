@@ -126,7 +126,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 bg-neutral-950/85 backdrop-blur-md border-b border-white/5">
-      <div className="flex h-16 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-8">
+      <div className="flex h-14 items-center justify-between gap-2 px-3 md:h-16 md:gap-4 md:px-8">
         <div className="flex items-center">
           <Link
             to="/"
@@ -219,7 +219,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
       </div>
 
       {contextBar ?? (
-        <div className="flex items-center px-6 pb-3 gap-1 border-b border-white/5">
+        <div className="flex items-center gap-0.5 border-b border-white/5 px-2 pb-2 md:gap-1 md:px-6 md:pb-3">
           <button
             onClick={() => scrollGenre("left")}
             aria-label="Desplazar a la izquierda"
@@ -229,7 +229,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
           </button>
           <div
             ref={genreScrollRef}
-            className="flex items-center gap-7 overflow-x-auto min-w-0 flex-1"
+            className="flex min-w-0 flex-1 items-center gap-4 overflow-x-auto md:gap-7"
             style={{ scrollbarWidth: "none" }}
           >
             {categoryStripItems.map((item) => (

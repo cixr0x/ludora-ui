@@ -11,6 +11,7 @@ import {
   getVisibleRowImageIds,
 } from "../utils/imageBatch.js";
 import { containedImageSize } from "../utils/imageSizing.js";
+import { useIsMobile } from "./ui/use-mobile";
 
 export type { Game };
 
@@ -19,9 +20,12 @@ interface GameRowProps {
   games: Game[];
 }
 
-const CARD_SIZE = 168;
-const CARD_GAP = 16;
-const ROW_BODY_MIN_HEIGHT = CARD_SIZE + 42;
+const DESKTOP_CARD_SIZE = 168;
+const DESKTOP_CARD_GAP = 16;
+const MOBILE_CARD_SIZE = 132;
+const MOBILE_CARD_GAP = 10;
+const DESKTOP_ROW_BODY_EXTRA_HEIGHT = 42;
+const MOBILE_ROW_BODY_EXTRA_HEIGHT = 36;
 const HORIZONTAL_PRELOAD_PX = 720;
 const ROW_VERTICAL_PRELOAD_PX = 520;
 const ROW_PRELOAD_ROOT_MARGIN = `0px 0px ${ROW_VERTICAL_PRELOAD_PX}px 0px`;
@@ -35,6 +39,7 @@ interface RowItem {
 }
 
 interface RowCoverImageProps {
+  cardSize: number;
   game: Game;
   imageId: string;
   onSettled: (id: string) => void;
@@ -49,7 +54,7 @@ function areIdListsEqual(left: string[], right: string[]) {
   return left.length === right.length && left.every((id, index) => id === right[index]);
 }
 
-function RowCoverImage({ game, imageId, onSettled }: RowCoverImageProps) {
+function RowCoverImage({ cardSize, game, imageId, onSettled }: RowCoverImageProps) {
   const imageRef = useRef<HTMLImageElement>(null);
   const [didError, setDidError] = useState(false);
   const [imageSize, setImageSize] = useState<ContainedImageSize | undefined>();
@@ -73,11 +78,11 @@ function RowCoverImage({ game, imageId, onSettled }: RowCoverImageProps) {
     const image = imageRef.current;
     if (!image) return;
 
-    const nextSize = containedImageSize(image.naturalWidth, image.naturalHeight, CARD_SIZE);
+    const nextSize = containedImageSize(image.naturalWidth, image.naturalHeight, cardSize);
     setImageSize((previous) =>
       previous?.width === nextSize?.width && previous?.height === nextSize?.height ? previous : nextSize,
     );
-  }, []);
+  }, [cardSize]);
 
   const handleLoad = useCallback(() => {
     updateImageSize();
@@ -135,37 +140,45 @@ function RowCoverImage({ game, imageId, onSettled }: RowCoverImageProps) {
   );
 }
 
-function RowCoverPlaceholder({ game, overlay = false }: { game: Game; overlay?: boolean }) {
+function RowCoverPlaceholder({
+  cardSize,
+  game,
+  overlay = false,
+}: {
+  cardSize: number;
+  game: Game;
+  overlay?: boolean;
+}) {
   return (
     <div
       className={`game-cover-placeholder rounded-[4px] animate-pulse ${overlay ? "absolute inset-0" : "mb-1.5"}`}
-      style={overlay ? undefined : { width: CARD_SIZE, height: CARD_SIZE }}
+      style={overlay ? undefined : { width: cardSize, height: cardSize }}
       data-original-url={game.image}
       data-row-image-placeholder="true"
     />
   );
 }
 
-function RowPendingImageCard({ game }: { game: Game }) {
+function RowPendingImageCard({ cardSize, game }: { cardSize: number; game: Game }) {
   return (
     <div
       className="flex-none"
-      style={{ width: CARD_SIZE }}
+      style={{ width: cardSize }}
       aria-label={game.name}
       data-row-image-placeholder-card="true"
     >
-      <RowCoverPlaceholder game={game} />
+      <RowCoverPlaceholder cardSize={cardSize} game={game} />
       <p className="text-gray-300 text-sm text-center truncate px-1 leading-snug">{game.name}</p>
       {game.altTitle && <p className="text-neutral-500 text-xs text-center mt-0.5 truncate px-1">{game.altTitle}</p>}
     </div>
   );
 }
 
-function RowCardSpacer({ game }: { game: Game }) {
+function RowCardSpacer({ cardSize, game }: { cardSize: number; game: Game }) {
   return (
     <div
       className="flex-none"
-      style={{ width: CARD_SIZE }}
+      style={{ width: cardSize }}
       aria-label={game.name}
       data-row-image-spacer="true"
     />
@@ -173,11 +186,13 @@ function RowCardSpacer({ game }: { game: Game }) {
 }
 
 function RowLoadedImageCard({
+  cardSize,
   game,
   imageId,
   onSettled,
   showPlaceholder,
 }: {
+  cardSize: number;
   game: Game;
   imageId: string;
   onSettled: (id: string) => void;
@@ -187,14 +202,14 @@ function RowLoadedImageCard({
     <Link
       to={`/game/${game.id}`}
       className="flex-none group/card"
-      style={{ width: CARD_SIZE }}
+      style={{ width: cardSize }}
     >
       <div
         className="relative flex items-center justify-center rounded-[4px] overflow-hidden mb-1.5"
-        style={{ width: CARD_SIZE, height: CARD_SIZE }}
+        style={{ width: cardSize, height: cardSize }}
       >
-        <RowCoverImage game={game} imageId={imageId} onSettled={onSettled} />
-        {showPlaceholder && <RowCoverPlaceholder game={game} overlay />}
+        <RowCoverImage cardSize={cardSize} game={game} imageId={imageId} onSettled={onSettled} />
+        {showPlaceholder && <RowCoverPlaceholder cardSize={cardSize} game={game} overlay />}
         <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/20 transition-colors duration-300" />
       </div>
       <p className="text-gray-300 text-sm text-center group-hover/card:text-white transition-colors truncate px-1 leading-snug">
@@ -225,6 +240,11 @@ function setBooleanState(setState: Dispatch<SetStateAction<boolean>>, value: boo
 }
 
 export function GameRow({ title, games }: GameRowProps) {
+  const isMobile = useIsMobile();
+  const cardSize = isMobile ? MOBILE_CARD_SIZE : DESKTOP_CARD_SIZE;
+  const cardGap = isMobile ? MOBILE_CARD_GAP : DESKTOP_CARD_GAP;
+  const rowBodyMinHeight =
+    cardSize + (isMobile ? MOBILE_ROW_BODY_EXTRA_HEIGHT : DESKTOP_ROW_BODY_EXTRA_HEIGHT);
   const rowContainerRef = useRef<HTMLDivElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const mountedImageIdsRef = useRef<Set<string>>(new Set());
@@ -243,16 +263,16 @@ export function GameRow({ title, games }: GameRowProps) {
   const rowItems = useMemo(
     () =>
       games.map((game, index) => {
-        const left = index * (CARD_SIZE + CARD_GAP);
+        const left = index * (cardSize + cardGap);
         return {
           game,
           id: String(game.id),
           left,
-          right: left + CARD_SIZE,
+          right: left + cardSize,
           src: game.image,
         };
       }),
-    [games],
+    [cardGap, cardSize, games],
   );
   const rowImageSignature = rowItems.map((item) => `${item.id}:${item.src}`).join("\n");
   const pendingVisibleImageIds = useMemo(
@@ -426,8 +446,8 @@ export function GameRow({ title, games }: GameRowProps) {
   };
 
   return (
-    <div ref={rowContainerRef} className="mb-5">
-      <h2 className="px-14 mb-1.5 text-white tracking-wide">{title}</h2>
+    <div ref={rowContainerRef} className="mb-3 md:mb-5">
+      <h2 className="px-3 mb-1 text-white tracking-wide md:px-14 md:mb-1.5">{title}</h2>
 
       <div className="relative group/row">
         {/* Left arrow */}
@@ -435,7 +455,7 @@ export function GameRow({ title, games }: GameRowProps) {
           <button
             onClick={() => scroll("left")}
             aria-label="Desplazar a la izquierda"
-            className="absolute left-0 top-0 bottom-1 z-20 w-14 flex items-center justify-center bg-gradient-to-r from-neutral-950/95 to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity duration-200"
+            className="absolute left-0 top-0 bottom-1 z-20 hidden w-14 items-center justify-center bg-gradient-to-r from-neutral-950/95 to-transparent opacity-0 transition-opacity duration-200 group-hover/row:opacity-100 md:flex"
           >
             <ChevronLeft className="w-9 h-9 text-white drop-shadow-lg" strokeWidth={2.5} />
           </button>
@@ -444,7 +464,7 @@ export function GameRow({ title, games }: GameRowProps) {
         {/* Scrollable row */}
         <div
           ref={rowRef}
-          className="overflow-x-auto px-14 pb-1"
+          className="overflow-x-auto px-3 pb-1 md:px-14"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           <div
@@ -452,12 +472,12 @@ export function GameRow({ title, games }: GameRowProps) {
             style={{
               width: isRowReady ? "max-content" : "100%",
               minWidth: "100%",
-              minHeight: ROW_BODY_MIN_HEIGHT,
+              minHeight: rowBodyMinHeight,
             }}
           >
             {isRowReady && (
               <div
-                className={`game-row-content flex gap-4 ${isRowVisible ? "game-row-content--visible" : ""}`}
+                className={`game-row-content flex gap-2.5 md:gap-4 ${isRowVisible ? "game-row-content--visible" : ""}`}
                 data-row-image-status={isRowVisible ? "visible" : "hidden"}
                 data-row-mounted-count={mountedImageIds.size}
                 data-row-buffered-count={bufferedImageIds.length}
@@ -472,6 +492,7 @@ export function GameRow({ title, games }: GameRowProps) {
                   return shouldMountImage ? (
                     <RowLoadedImageCard
                       key={game.id}
+                      cardSize={cardSize}
                       game={game}
                       imageId={id}
                       onSettled={markImageSettled}
@@ -480,10 +501,11 @@ export function GameRow({ title, games }: GameRowProps) {
                   ) : shouldRenderPlaceholder ? (
                     <RowPendingImageCard
                       key={game.id}
+                      cardSize={cardSize}
                       game={game}
                     />
                   ) : (
-                    <RowCardSpacer key={game.id} game={game} />
+                    <RowCardSpacer key={game.id} cardSize={cardSize} game={game} />
                   );
                 })}
               </div>
@@ -496,7 +518,7 @@ export function GameRow({ title, games }: GameRowProps) {
           <button
             onClick={() => scroll("right")}
             aria-label="Desplazar a la derecha"
-            className="absolute right-0 top-0 bottom-1 z-20 w-14 flex items-center justify-center bg-gradient-to-l from-neutral-950/95 to-transparent opacity-0 group-hover/row:opacity-100 transition-opacity duration-200"
+            className="absolute right-0 top-0 bottom-1 z-20 hidden w-14 items-center justify-center bg-gradient-to-l from-neutral-950/95 to-transparent opacity-0 transition-opacity duration-200 group-hover/row:opacity-100 md:flex"
           >
             <ChevronRight className="w-9 h-9 text-white drop-shadow-lg" strokeWidth={2.5} />
           </button>
