@@ -104,16 +104,28 @@ test("game detail collapses overflowing publishers to one expandable line", () =
   assert.match(source, /publisherElement\.scrollWidth > publisherElement\.clientWidth \+ 1/);
   assert.match(source, /overflow-hidden whitespace-nowrap text-white/);
   assert.match(source, /aria-expanded=\{expanded\}/);
-  assert.match(source, /className=\{`\$\{expanded \? "ml-1" : "flex-none"\} text-white underline/);
+  assert.match(source, /className=\{`\$\{expanded \? "ml-1" : "flex-none"\} text-white font-normal underline/);
   assert.match(source, /expanded \? "Ver menos" : "… Ver más"/);
   assert.match(source, /<ExpandablePublisherList publisher=\{detail\.publisher\} \/>/);
 });
 
-test("expansion parent link uses the product detail action-link styling", () => {
+test("expansion parent links list every parent with comma separators and action-link styling", () => {
   const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
 
+  assert.match(source, /detail\.parentGames\.map\(\(parentGame, index\) => \(/);
+  assert.match(source, /\{index > 0 && ", "\}/);
   assert.match(source, /to=\{`\/game\/\$\{parentGame\.id\}`\}/);
-  assert.match(source, /className="text-fuchsia-300 text-sm transition-colors hover:text-fuchsia-200 hover:underline/);
+  assert.match(source, /className="text-fuchsia-300 transition-colors hover:text-fuchsia-200 hover:underline/);
+  assert.doesNotMatch(source, /setParentGame|loadGameDetail\(nextDetail\.parentItemId\)/);
+});
+
+test("catalog detail maps every API parent item to a localized game reference", () => {
+  const apiSource = readFileSync(new URL("../api/catalog.ts", import.meta.url), "utf8");
+  const catalogSource = readFileSync(new URL("../data/catalog.ts", import.meta.url), "utf8");
+
+  assert.match(apiSource, /parent_items\?: ApiItemReference\[\]/);
+  assert.match(catalogSource, /parentGames: itemReferences\(item\.parent_items \?\? \[\]\)/);
+  assert.match(catalogSource, /name: preferredText\(item\.canonical_name_es, item\.canonical_name\)/);
 });
 
 test("game detail loads expansions and related games separately from primary detail rendering", () => {
@@ -133,6 +145,10 @@ test("game detail loads expansions and related games separately from primary det
   assert.match(source, /expansionGames\.length > 0/);
   assert.match(source, />Expansiones<\/h2>/);
   assert.match(source, /<RelatedRow games=\{expansionGames\} \/>/);
+  assert.ok(
+    source.indexOf(">Expansiones</h2>") < source.indexOf(">Disponibilidad en Tiendas</h2>"),
+    "Expansiones should render before Disponibilidad en Tiendas",
+  );
 });
 
 test("game detail links category and mechanic chips to filtered explore results", () => {

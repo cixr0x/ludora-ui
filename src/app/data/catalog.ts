@@ -10,6 +10,7 @@ import {
   fetchSemanticItems,
   type ApiFrontPageRow,
   type ApiItem,
+  type ApiItemReference,
   type ApiItemSummary,
   type ApiOffer,
   type ApiSearchResultItem,
@@ -22,6 +23,7 @@ import { tiktokTutorialFromUrl, youtubeIdFromUrl } from "../utils/tutorialLinks.
 import {
   type Game,
   type GameDetail,
+  type GameReference,
   type GameTaxonomyEntry,
   type StoreEntry,
 } from "./games";
@@ -256,6 +258,7 @@ function mapApiItemToDetail(item: ApiItem): GameDetail {
     complexity: Math.max(0, Math.min(5, Math.round(numericValue(item.complexity, 0)))),
     designer: designers.join(", ") || "Sin registrar",
     publisher: publishers.join(", ") || "Sin registrar",
+    parentGames: itemReferences(item.parent_items ?? []),
     tiktokId: tiktokTutorial?.id,
     tiktokUser: tiktokTutorial?.user,
     youtubeId,
@@ -266,6 +269,17 @@ function mapApiItemToDetail(item: ApiItem): GameDetail {
           storeAvailabilityRank(left.availabilityStatus) - storeAvailabilityRank(right.availabilityStatus),
       ),
   };
+}
+
+function itemReferences(items: ApiItemReference[]): GameReference[] {
+  const references = items
+    .map((item) => ({
+      id: positiveInteger(item.id),
+      name: preferredText(item.canonical_name_es, item.canonical_name),
+    }))
+    .filter((item): item is GameReference => item.id !== undefined && Boolean(item.name));
+
+  return Array.from(new Map(references.map((item) => [item.id, item])).values());
 }
 
 function collectGenres(item: ApiCatalogGameBase, extraGenre?: string): string[] {

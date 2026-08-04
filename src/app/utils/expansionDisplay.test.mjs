@@ -29,10 +29,10 @@ test("EXPANSION_BADGE_CORNER_CLASS pins the badge to the cover corner", () => {
   assert.doesNotMatch(EXPANSION_BADGE_CORNER_CLASS, /\bleft-2\b|\btop-2\b/);
 });
 
-test("GameDetail shows expansion parent details only when a parent game exists", () => {
+test("GameDetail shows expansion parent details only when linked parent games exist", () => {
   const source = gameDetailSource();
 
-  assert.match(source, /\{detail\.isExpansion && parentGame && \(/);
+  assert.match(source, /\{detail\.isExpansion && detail\.parentGames && detail\.parentGames\.length > 0 && \(/);
   assert.doesNotMatch(source, /juego base no listado/);
 });
 

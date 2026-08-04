@@ -68,7 +68,7 @@ function ExpandablePublisherList({ publisher }: { publisher: string }) {
           type="button"
           aria-expanded={expanded}
           onClick={() => setExpanded((current) => !current)}
-          className={`${expanded ? "ml-1" : "flex-none"} text-white underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/60`}
+          className={`${expanded ? "ml-1" : "flex-none"} text-white font-normal underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/60`}
         >
           {expanded ? "Ver menos" : "… Ver más"}
         </button>
@@ -271,7 +271,6 @@ export function GameDetail() {
   const navigate = useNavigate();
   const itemId = Number(id);
   const [detail, setDetail] = useState<GameDetailData | undefined>();
-  const [parentGame, setParentGame] = useState<Game | undefined>();
   const [expansionGames, setExpansionGames] = useState<Game[]>([]);
   const [relatedGames, setRelatedGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(() => Number.isInteger(itemId) && itemId > 0);
@@ -281,7 +280,6 @@ export function GameDetail() {
   useEffect(() => {
     if (!Number.isInteger(itemId) || itemId <= 0) {
       setDetail(undefined);
-      setParentGame(undefined);
       setExpansionGames([]);
       setRelatedGames([]);
       setIsLoading(false);
@@ -291,7 +289,6 @@ export function GameDetail() {
 
     let isActive = true;
     setDetail(undefined);
-    setParentGame(undefined);
     setIsLoading(true);
     setIsImageOverlayOpen(false);
 
@@ -299,12 +296,6 @@ export function GameDetail() {
       if (!isActive) return;
       setDetail(nextDetail);
       setIsLoading(false);
-
-      if (nextDetail?.isExpansion && nextDetail.parentItemId) {
-        loadGameDetail(nextDetail.parentItemId).then((nextParent) => {
-          if (isActive) setParentGame(nextParent);
-        });
-      }
     }).finally(() => {
       if (isActive) setIsLoading(false);
     });
@@ -559,15 +550,22 @@ export function GameDetail() {
               )}
             </div>
 
-            {detail.isExpansion && parentGame && (
+            {detail.isExpansion && detail.parentGames && detail.parentGames.length > 0 && (
               <div>
                 <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Expansión para</p>
-                <Link
-                  to={`/game/${parentGame.id}`}
-                  className="text-fuchsia-300 text-sm transition-colors hover:text-fuchsia-200 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/60"
-                >
-                  {parentGame.name}
-                </Link>
+                <p className="text-sm">
+                  {detail.parentGames.map((parentGame, index) => (
+                    <span key={parentGame.id}>
+                      {index > 0 && ", "}
+                      <Link
+                        to={`/game/${parentGame.id}`}
+                        className="text-fuchsia-300 transition-colors hover:text-fuchsia-200 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/60"
+                      >
+                        {parentGame.name}
+                      </Link>
+                    </span>
+                  ))}
+                </p>
               </div>
             )}
 
@@ -660,6 +658,14 @@ export function GameDetail() {
           )}
         </div>
 
+        {/* ── Expansions ──────────────────────────────────────────────── */}
+        {expansionGames.length > 0 && (
+          <div>
+            <h2 className="text-white mb-4">Expansiones</h2>
+            <RelatedRow games={expansionGames} />
+          </div>
+        )}
+
         {/* ── Stores ───────────────────────────────────────────────────── */}
         <div ref={storesSectionRef} id="store-offers" style={{ scrollMarginTop: 80 }}>
           <h2 className="text-white mb-1">Disponibilidad en Tiendas</h2>
@@ -684,14 +690,6 @@ export function GameDetail() {
             )}
           </div>
         </div>
-
-        {/* ── Expansions ──────────────────────────────────────────────── */}
-        {expansionGames.length > 0 && (
-          <div>
-            <h2 className="text-white mb-4">Expansiones</h2>
-            <RelatedRow games={expansionGames} />
-          </div>
-        )}
 
         {/* ── You might also like ──────────────────────────────────────── */}
         {relatedGames.length > 0 && (

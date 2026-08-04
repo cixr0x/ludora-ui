@@ -40,6 +40,12 @@ export interface ApiTutorial {
   status?: string;
 }
 
+export interface ApiItemReference {
+  id: number;
+  canonical_name: string;
+  canonical_name_es?: string;
+}
+
 export interface ApiItem {
   id: number;
   canonical_name: string;
@@ -64,6 +70,7 @@ export interface ApiItem {
   families?: ApiTaxonomyEntry[];
   designers?: ApiTaxonomyEntry[];
   publishers?: ApiTaxonomyEntry[];
+  parent_items?: ApiItemReference[];
   tutorials?: ApiTutorial[];
   offers?: ApiOffer[];
   semantic_distance?: number | string | null;

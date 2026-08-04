@@ -16,6 +16,11 @@ export interface GameTaxonomyEntry {
   name: string;
 }
 
+export interface GameReference {
+  id: number;
+  name: string;
+}
+
 export interface StoreEntry {
   id: number;
   name: string;
@@ -47,6 +52,7 @@ export interface GameDetail extends Game {
   complexity: number;
   designer: string;
   publisher: string;
+  parentGames?: GameReference[];
   tiktokId?: string;
   tiktokUser?: string;
   youtubeId?: string;
