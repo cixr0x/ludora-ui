@@ -68,7 +68,7 @@ function ExpandablePublisherList({ publisher }: { publisher: string }) {
           type="button"
           aria-expanded={expanded}
           onClick={() => setExpanded((current) => !current)}
-          className={`${expanded ? "ml-1" : "flex-none"} text-fuchsia-300 transition-colors hover:text-fuchsia-200 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/60`}
+          className={`${expanded ? "ml-1" : "flex-none"} text-white underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/60`}
         >
           {expanded ? "Ver menos" : "… Ver más"}
         </button>
@@ -562,7 +562,10 @@ export function GameDetail() {
             {detail.isExpansion && parentGame && (
               <div>
                 <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Expansión para</p>
-                <Link to={`/game/${parentGame.id}`} className="text-white text-sm hover:text-fuchsia-300 transition-colors">
+                <Link
+                  to={`/game/${parentGame.id}`}
+                  className="text-fuchsia-300 text-sm transition-colors hover:text-fuchsia-200 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/60"
+                >
                   {parentGame.name}
                 </Link>
               </div>

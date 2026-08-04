@@ -36,7 +36,7 @@ test("GameDetail shows expansion parent details only when a parent game exists",
   assert.doesNotMatch(source, /juego base no listado/);
 });
 
-test("GameDetail expansion parent details use plain detail text styling", () => {
+test("GameDetail expansion parent label keeps plain detail text styling", () => {
   const source = gameDetailSource();
 
   assert.doesNotMatch(source, /border-amber|bg-amber/);

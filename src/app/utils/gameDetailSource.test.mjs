@@ -104,8 +104,16 @@ test("game detail collapses overflowing publishers to one expandable line", () =
   assert.match(source, /publisherElement\.scrollWidth > publisherElement\.clientWidth \+ 1/);
   assert.match(source, /overflow-hidden whitespace-nowrap text-white/);
   assert.match(source, /aria-expanded=\{expanded\}/);
+  assert.match(source, /className=\{`\$\{expanded \? "ml-1" : "flex-none"\} text-white underline/);
   assert.match(source, /expanded \? "Ver menos" : "… Ver más"/);
   assert.match(source, /<ExpandablePublisherList publisher=\{detail\.publisher\} \/>/);
+});
+
+test("expansion parent link uses the product detail action-link styling", () => {
+  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /to=\{`\/game\/\$\{parentGame\.id\}`\}/);
+  assert.match(source, /className="text-fuchsia-300 text-sm transition-colors hover:text-fuchsia-200 hover:underline/);
 });
 
 test("game detail loads expansions and related games separately from primary detail rendering", () => {
