@@ -2,6 +2,7 @@ import {
   fetchCatalogFilterOptions,
   fetchFrontPage,
   fetchItem,
+  fetchItemExpansions,
   fetchItems,
   fetchItemSummaries,
   fetchRelatedItems,
@@ -120,6 +121,15 @@ export async function loadCatalogSearchResults(query?: Parameters<typeof fetchSe
 export async function loadRelatedGames(id: number, limit = 18): Promise<Game[]> {
   try {
     const items = await fetchRelatedItems(id, limit);
+    return items.map((item) => mapApiItemToGame(item));
+  } catch {
+    return [];
+  }
+}
+
+export async function loadGameExpansions(id: number, limit = 18): Promise<Game[]> {
+  try {
+    const items = await fetchItemExpansions(id, limit);
     return items.map((item) => mapApiItemToGame(item));
   } catch {
     return [];

@@ -192,6 +192,14 @@ export async function fetchRelatedItems(id: number, limit?: number): Promise<Api
   return fetchData<ApiRelatedItem[]>(`/api/items/${id}/related${suffix}`);
 }
 
+export async function fetchItemExpansions(id: number, limit?: number): Promise<ApiRelatedItem[]> {
+  const params = new URLSearchParams();
+  if (limit) params.set("limit", String(limit));
+  const suffix = params.size ? `?${params.toString()}` : "";
+
+  return fetchData<ApiRelatedItem[]>(`/api/items/${id}/expansions${suffix}`);
+}
+
 export async function fetchCatalogFilterOptions(): Promise<ApiCatalogFilterOptions> {
   return fetchData<ApiCatalogFilterOptions>("/api/items/filter-options");
 }

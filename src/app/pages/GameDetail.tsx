@@ -5,7 +5,7 @@ import { ExpansionBadge } from "../components/ExpansionBadge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { SiteHeader } from "../components/SiteHeader";
 import type { StoreEntry, Game, GameDetail as GameDetailData, GameTaxonomyEntry } from "../data/games";
-import { loadGameDetail, loadRelatedGames } from "../data/catalog";
+import { loadGameDetail, loadGameExpansions, loadRelatedGames } from "../data/catalog";
 import { EXPANSION_BADGE_CORNER_CLASS } from "../utils/expansionDisplay.js";
 import { hasStoreOfferLinks } from "../utils/storeLinks.js";
 import { reportStoreItemClick } from "../utils/storeClickTracking.js";
@@ -26,6 +26,53 @@ function ComplexityBar({ value }: { value: number }) {
         <div key={i} className={`h-1.5 w-5 rounded-full ${i < value ? "bg-fuchsia-400" : "bg-neutral-700"}`} />
       ))}
       <span className="text-neutral-400 text-xs ml-1">{value}/5</span>
+    </div>
+  );
+}
+
+function ExpandablePublisherList({ publisher }: { publisher: string }) {
+  const publisherRef = useRef<HTMLSpanElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [hasOverflow, setHasOverflow] = useState(false);
+
+  useEffect(() => {
+    setExpanded(false);
+  }, [publisher]);
+
+  useEffect(() => {
+    const publisherElement = publisherRef.current;
+    if (!publisherElement || expanded) return undefined;
+
+    const updateOverflow = () => {
+      setHasOverflow(publisherElement.scrollWidth > publisherElement.clientWidth + 1);
+    };
+
+    updateOverflow();
+    if (typeof ResizeObserver === "undefined") return undefined;
+
+    const resizeObserver = new ResizeObserver(updateOverflow);
+    resizeObserver.observe(publisherElement);
+    return () => resizeObserver.disconnect();
+  }, [expanded, publisher]);
+
+  return (
+    <div className={expanded ? "text-sm" : "flex min-w-0 items-baseline gap-1 text-sm"}>
+      <span
+        ref={publisherRef}
+        className={expanded ? "text-white" : "min-w-0 flex-1 overflow-hidden whitespace-nowrap text-white"}
+      >
+        {publisher}
+      </span>
+      {hasOverflow && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((current) => !current)}
+          className={`${expanded ? "ml-1" : "flex-none"} text-fuchsia-300 transition-colors hover:text-fuchsia-200 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/60`}
+        >
+          {expanded ? "Ver menos" : "… Ver más"}
+        </button>
+      )}
     </div>
   );
 }
@@ -225,6 +272,7 @@ export function GameDetail() {
   const itemId = Number(id);
   const [detail, setDetail] = useState<GameDetailData | undefined>();
   const [parentGame, setParentGame] = useState<Game | undefined>();
+  const [expansionGames, setExpansionGames] = useState<Game[]>([]);
   const [relatedGames, setRelatedGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(() => Number.isInteger(itemId) && itemId > 0);
   const [isImageOverlayOpen, setIsImageOverlayOpen] = useState(false);
@@ -234,6 +282,7 @@ export function GameDetail() {
     if (!Number.isInteger(itemId) || itemId <= 0) {
       setDetail(undefined);
       setParentGame(undefined);
+      setExpansionGames([]);
       setRelatedGames([]);
       setIsLoading(false);
       setIsImageOverlayOpen(false);
@@ -267,12 +316,18 @@ export function GameDetail() {
 
   useEffect(() => {
     if (!Number.isInteger(itemId) || itemId <= 0) {
+      setExpansionGames([]);
       setRelatedGames([]);
       return;
     }
 
     let isActive = true;
+    setExpansionGames([]);
     setRelatedGames([]);
+
+    loadGameExpansions(itemId).then((nextExpansionGames) => {
+      if (isActive) setExpansionGames(nextExpansionGames);
+    });
 
     loadRelatedGames(itemId).then((nextRelatedGames) => {
       if (isActive) setRelatedGames(nextRelatedGames);
@@ -561,7 +616,7 @@ export function GameDetail() {
               </div>
               <div className="sm:col-span-2">
                 <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">Editorial</p>
-                <p className="text-white text-sm">{detail.publisher}</p>
+                <ExpandablePublisherList publisher={detail.publisher} />
               </div>
             </div>
           </div>
@@ -626,6 +681,14 @@ export function GameDetail() {
             )}
           </div>
         </div>
+
+        {/* ── Expansions ──────────────────────────────────────────────── */}
+        {expansionGames.length > 0 && (
+          <div>
+            <h2 className="text-white mb-4">Expansiones</h2>
+            <RelatedRow games={expansionGames} />
+          </div>
+        )}
 
         {/* ── You might also like ──────────────────────────────────────── */}
         {relatedGames.length > 0 && (

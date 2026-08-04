@@ -97,18 +97,34 @@ test("game detail separates bundle offers from single-item offers", () => {
   assert.match(source, /bundleStoreOffers\.map/);
 });
 
-test("game detail loads related games separately from primary detail rendering", () => {
+test("game detail collapses overflowing publishers to one expandable line", () => {
   const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
 
-  assert.match(source, /import \{ loadGameDetail,\s*loadRelatedGames \} from "\.\.\/data\/catalog";/);
+  assert.match(source, /function ExpandablePublisherList/);
+  assert.match(source, /publisherElement\.scrollWidth > publisherElement\.clientWidth \+ 1/);
+  assert.match(source, /overflow-hidden whitespace-nowrap text-white/);
+  assert.match(source, /aria-expanded=\{expanded\}/);
+  assert.match(source, /expanded \? "Ver menos" : "… Ver más"/);
+  assert.match(source, /<ExpandablePublisherList publisher=\{detail\.publisher\} \/>/);
+});
+
+test("game detail loads expansions and related games separately from primary detail rendering", () => {
+  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /import \{ loadGameDetail,\s*loadGameExpansions,\s*loadRelatedGames \} from "\.\.\/data\/catalog";/);
+  assert.match(source, /const \[expansionGames, setExpansionGames\] = useState<Game\[\]>\(\[\]\);/);
   assert.match(source, /const \[relatedGames, setRelatedGames\] = useState<Game\[\]>\(\[\]\);/);
   assert.match(source, /loadGameDetail\(itemId\)\.then\(\(nextDetail\) => \{/);
   assert.match(source, /setDetail\(nextDetail\);[\s\S]*setIsLoading\(false\);/);
+  assert.match(source, /loadGameExpansions\(itemId\)/);
   assert.match(source, /loadRelatedGames\(itemId\)/);
   assert.doesNotMatch(source, /loadGames/);
   assert.doesNotMatch(source, /const gamesPromise = loadGames\(\);/);
   assert.doesNotMatch(source, /Promise\.all\(\[gamesPromise,\s*parentPromise\]\)/);
   assert.doesNotMatch(source, /const relatedGames = allGames/);
+  assert.match(source, /expansionGames\.length > 0/);
+  assert.match(source, />Expansiones<\/h2>/);
+  assert.match(source, /<RelatedRow games=\{expansionGames\} \/>/);
 });
 
 test("game detail links category and mechanic chips to filtered explore results", () => {

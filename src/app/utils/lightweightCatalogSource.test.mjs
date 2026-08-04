@@ -17,16 +17,21 @@ test("catalog api exposes minimal search results plus summary and filter-option 
   assert.match(catalogSource, /fetchSearchResults\(\s*query\s*\?\?\s*\{\s*limit:\s*200\s*\}\s*\)/);
 });
 
-test("catalog api exposes minimal related items for game detail recommendations", () => {
+test("catalog api exposes minimal related and expansion items for game detail rows", () => {
   const apiSource = source("../api/catalog.ts");
   const catalogSource = source("../data/catalog.ts");
 
   assert.match(apiSource, /export\s+type\s+ApiRelatedItem\s*=\s*Pick<[\s\S]*"id"[\s\S]*"canonical_name"[\s\S]*"canonical_name_es"[\s\S]*"image_url"[\s\S]*"image_url_es"[\s\S]*>;/);
   assert.match(apiSource, /export\s+async\s+function\s+fetchRelatedItems\b/);
   assert.match(apiSource, /\/api\/items\/\$\{id\}\/related\$\{suffix\}/);
+  assert.match(apiSource, /export\s+async\s+function\s+fetchItemExpansions\b/);
+  assert.match(apiSource, /\/api\/items\/\$\{id\}\/expansions\$\{suffix\}/);
   assert.match(catalogSource, /import\s*\{[\s\S]*\bfetchRelatedItems\b[\s\S]*\}\s+from\s+"..\/api\/catalog"/);
+  assert.match(catalogSource, /import\s*\{[\s\S]*\bfetchItemExpansions\b[\s\S]*\}\s+from\s+"..\/api\/catalog"/);
   assert.match(catalogSource, /export\s+async\s+function\s+loadRelatedGames\(id: number, limit = 18\)/);
   assert.match(catalogSource, /fetchRelatedItems\(id,\s*limit\)/);
+  assert.match(catalogSource, /export\s+async\s+function\s+loadGameExpansions\(id: number, limit = 18\)/);
+  assert.match(catalogSource, /fetchItemExpansions\(id,\s*limit\)/);
 });
 
 test("front page row titles prefer explicit display titles", () => {

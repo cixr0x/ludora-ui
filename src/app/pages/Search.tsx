@@ -317,9 +317,6 @@ export function Search() {
     () => allMechanics.filter((mechanic) => activeMechanics.has(mechanic.id)),
     [activeMechanics, allMechanics],
   );
-  const visibleCategories = categoriesCollapsed ? activeCategoryOptions : allCategories;
-  const visibleMechanics = mechanicsCollapsed ? activeMechanicOptions : allMechanics;
-
   const toggle = <T,>(set: Set<T>, value: T, setter: (s: Set<T>) => void) => {
     const next = new Set(set);
     if (next.has(value)) next.delete(value); else next.add(value);
@@ -621,19 +618,21 @@ export function Search() {
                 )}
               </span>
             </button>
-            <div id="category-filter-options" className="flex flex-wrap gap-1.5">
-              {visibleCategories.map((category) => (
-                <Toggle
-                  key={category.id}
-                  label={t(category.name)}
-                  active={activeCategories.has(category.id)}
-                  onClick={() =>
-                    toggleTaxonomy(activeCategories, category.id, setActiveCategories, "category_ids")
-                  }
-                  removable
-                />
-              ))}
-            </div>
+            {!categoriesCollapsed && (
+              <div id="category-filter-options" className="flex flex-wrap gap-1.5">
+                {allCategories.map((category) => (
+                  <Toggle
+                    key={category.id}
+                    label={t(category.name)}
+                    active={activeCategories.has(category.id)}
+                    onClick={() =>
+                      toggleTaxonomy(activeCategories, category.id, setActiveCategories, "category_ids")
+                    }
+                    removable
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Mechanics */}
@@ -661,24 +660,58 @@ export function Search() {
                 )}
               </span>
             </button>
-            <div id="mechanic-filter-options" className="flex flex-wrap gap-1.5">
-              {visibleMechanics.map((mechanic) => (
-                <Toggle
-                  key={mechanic.id}
-                  label={t(mechanic.name)}
-                  active={activeMechanics.has(mechanic.id)}
-                  onClick={() =>
-                    toggleTaxonomy(activeMechanics, mechanic.id, setActiveMechanics, "mechanic_ids")
-                  }
-                  removable
-                />
-              ))}
-            </div>
+            {!mechanicsCollapsed && (
+              <div id="mechanic-filter-options" className="flex flex-wrap gap-1.5">
+                {allMechanics.map((mechanic) => (
+                  <Toggle
+                    key={mechanic.id}
+                    label={t(mechanic.name)}
+                    active={activeMechanics.has(mechanic.id)}
+                    onClick={() =>
+                      toggleTaxonomy(activeMechanics, mechanic.id, setActiveMechanics, "mechanic_ids")
+                    }
+                    removable
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </aside>
 
         {/* Results */}
         <section className="min-w-0">
+          {(activeCategoryOptions.length > 0 || activeMechanicOptions.length > 0) && (
+            <div
+              aria-label="Filtros de categoría y mecánica activos"
+              className="mb-5 rounded-lg border border-neutral-800 bg-neutral-950 px-4 py-3"
+            >
+              <p className="mb-2 text-xs uppercase tracking-wider text-neutral-500">Filtros activos</p>
+              <div className="flex flex-wrap gap-1.5">
+                {activeCategoryOptions.map((category) => (
+                  <Toggle
+                    key={`active-category-${category.id}`}
+                    label={t(category.name)}
+                    active
+                    onClick={() =>
+                      toggleTaxonomy(activeCategories, category.id, setActiveCategories, "category_ids")
+                    }
+                    removable
+                  />
+                ))}
+                {activeMechanicOptions.map((mechanic) => (
+                  <Toggle
+                    key={`active-mechanic-${mechanic.id}`}
+                    label={t(mechanic.name)}
+                    active
+                    onClick={() =>
+                      toggleTaxonomy(activeMechanics, mechanic.id, setActiveMechanics, "mechanic_ids")
+                    }
+                    removable
+                  />
+                ))}
+              </div>
+            </div>
+          )}
           {semanticQuery && (
             <div className="mb-5 rounded-lg border border-fuchsia-500/20 bg-neutral-950 px-4 py-3">
               <div className="flex items-start gap-3">
