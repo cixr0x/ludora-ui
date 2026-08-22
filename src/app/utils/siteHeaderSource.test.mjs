@@ -11,7 +11,7 @@ test("site header owns the shared logo search and category strip", () => {
   assert.match(headerSource, /export function SiteHeader/);
   assert.match(headerSource, /<Link[\s\S]*to="\/"[\s\S]*className="ludora-wordmark text-xl[^"]*sm:text-2xl/);
   assert.match(headerSource, /placeholder="Buscar juegos/);
-  assert.match(headerSource, /w-16[^\"]*sm:w-64 lg:w-72/);
+  assert.match(headerSource, /min-w-0 flex-1[^\"]*md:w-64 md:flex-none lg:w-72/);
   assert.match(headerSource, /loadCatalogFilterOptions/);
   assert.match(headerSource, /buildExploreTaxonomyPath\("category", category\.id\)/);
   assert.match(headerSource, /contextBar \?\?/);
@@ -21,7 +21,7 @@ test("site header puts explore beside search and removes the desktop nav section
   const headerSource = source("../components/SiteHeader.tsx");
 
   assert.match(headerSource, /import \{ ChevronLeft, ChevronRight, Compass, Search, X \} from "lucide-react";/);
-  assert.match(headerSource, /<div className="flex min-w-0 items-center gap-2 sm:gap-3">[\s\S]*<div className="relative">[\s\S]*<\/div>\s*<Link[\s\S]*to="\/search"[\s\S]*aria-label="Explorar catálogo"[\s\S]*>\s*<Compass className="h-4 w-4" \/>\s*<span className="hidden sm:inline">Explorar<\/span>\s*<\/Link>/);
+  assert.match(headerSource, /<div className="flex w-full min-w-0 items-center gap-2 sm:gap-3 md:w-auto">[\s\S]*<div className="relative min-w-0 flex-1 md:flex-none">[\s\S]*<\/div>\s*<Link[\s\S]*to="\/search"[\s\S]*aria-label="Explorar catálogo"[\s\S]*>\s*<Compass className="h-4 w-4" \/>\s*<span className="hidden sm:inline">Explorar<\/span>\s*<\/Link>/);
   assert.doesNotMatch(headerSource, /Sparkles/);
   assert.doesNotMatch(headerSource, /<nav className="hidden md:flex/);
   assert.doesNotMatch(headerSource, /Novedades|Mejor Valorados|Colecciones/);

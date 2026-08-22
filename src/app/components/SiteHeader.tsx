@@ -127,8 +127,8 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 bg-neutral-950/85 backdrop-blur-md border-b border-white/5">
-      <div className="flex h-14 items-center justify-between gap-2 px-3 md:h-16 md:gap-4 md:px-8">
-        <div className="flex flex-none items-center">
+      <div className="flex flex-col gap-2 px-3 py-3 md:h-16 md:flex-row md:items-center md:justify-between md:gap-4 md:px-8 md:py-0">
+        <div className="flex w-full flex-none items-center md:w-auto">
           <Link
             to="/"
             className="ludora-wordmark text-xl inline-flex items-center gap-2 rounded-sm transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300 sm:text-2xl"
@@ -146,11 +146,11 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
           </Link>
         </div>
 
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <div className="relative">
+        <div className="flex w-full min-w-0 items-center gap-2 sm:gap-3 md:w-auto">
+          <div className="relative min-w-0 flex-1 md:flex-none">
             <form
               onSubmit={handleSearchSubmit}
-              className="flex items-center gap-2 rounded-full border border-neutral-600 bg-neutral-800 px-3 py-2 transition-colors focus-within:border-neutral-400 sm:px-4"
+              className="flex w-full items-center gap-2 rounded-full border border-neutral-600 bg-neutral-800 px-3 py-2 transition-colors focus-within:border-neutral-400 sm:px-4 md:w-auto"
             >
               <Search className="w-4 h-4 flex-none text-neutral-400" />
               <input
@@ -158,7 +158,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
                 placeholder="Buscar juegos..."
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                className="w-16 bg-transparent text-sm text-white placeholder:text-neutral-500 outline-none sm:w-64 lg:w-72"
+                className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-neutral-500 outline-none md:w-64 md:flex-none lg:w-72"
               />
               {searchValue && (
                 <button
