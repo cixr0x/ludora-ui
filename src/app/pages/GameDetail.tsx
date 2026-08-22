@@ -317,12 +317,12 @@ export function GameDetail() {
   }, [itemId, prerenderedDetail]);
 
   useEffect(() => {
-    if (!detail) return;
+    if (!detail || detail.id !== itemId) return;
     const canonicalPath = productPath(detail.id, detail.name);
     if (location.pathname === canonicalPath) return;
 
     navigate(`${canonicalPath}${location.search}${location.hash}`, { replace: true });
-  }, [detail, location.hash, location.pathname, location.search, navigate]);
+  }, [detail, itemId, location.hash, location.pathname, location.search, navigate]);
 
   useEffect(() => {
     if (!Number.isInteger(itemId) || itemId <= 0) {

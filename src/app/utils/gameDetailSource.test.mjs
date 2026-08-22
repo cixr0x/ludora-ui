@@ -177,6 +177,19 @@ test("game detail loads expansions and related games separately from primary det
   );
 });
 
+test("game detail does not canonicalize a new card route from stale product data", () => {
+  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /if \(!detail \|\| detail\.id !== itemId\) return;/);
+  assert.match(
+    source,
+    /\[detail, itemId, location\.hash, location\.pathname, location\.search, navigate\]/,
+  );
+  assert.match(source, /to=\{productPath\(game\.id, game\.name\)\}/);
+  assert.match(source, /<RelatedRow games=\{expansionGames\} \/>/);
+  assert.match(source, /<RelatedRow games=\{relatedGames\} \/>/);
+});
+
 test("game detail links category and mechanic chips to filtered explore results", () => {
   const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
 
