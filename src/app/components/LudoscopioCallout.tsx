@@ -1,4 +1,4 @@
-import { Loader2, Search as SearchIcon, Sparkles } from "lucide-react";
+import { Loader2, Search as SearchIcon, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 import {
   Dialog,
@@ -14,6 +14,7 @@ interface LudoscopioCalloutProps {
   className?: string;
   initialOpen?: boolean;
   messageClassName?: string;
+  onDismiss?: () => void;
   onSearch?: (prompt: string) => Promise<void>;
   onTrigger?: () => void;
 }
@@ -23,6 +24,7 @@ export function LudoscopioCallout({
   className = "",
   initialOpen = false,
   messageClassName = "",
+  onDismiss,
   onSearch,
   onTrigger,
 }: LudoscopioCalloutProps) {
@@ -49,9 +51,21 @@ export function LudoscopioCallout({
 
   return (
     <div className={`rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3 ${className}`}>
-      <p className={`text-sm leading-relaxed text-neutral-300 ${messageClassName}`}>
-        ¿No sabes qué jugar? Prueba nuestro Ludoscopio y encuentra juegos de mesa que se ajusten al tipo de experiencia que buscas.
-      </p>
+      <div className={onDismiss ? "flex min-w-0 items-start gap-3" : ""}>
+        <p className={`text-sm leading-relaxed text-neutral-300 ${onDismiss ? "min-w-0 flex-1" : ""} ${messageClassName}`}>
+          ¿No sabes qué jugar? Prueba nuestro Ludoscopio y encuentra juegos de mesa que se ajusten al tipo de experiencia que buscas.
+        </p>
+        {onDismiss && (
+          <button
+            type="button"
+            aria-label="Cerrar sugerencia de Ludoscopio"
+            onClick={onDismiss}
+            className="flex h-7 w-7 flex-none items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-fuchsia-500/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
       {onTrigger ? (
         <button
           type="button"
