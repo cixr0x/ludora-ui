@@ -1,11 +1,31 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-test("game detail does not render a BoardGameGeek logo link", () => {
+test("game detail shows the supplied BoardGameGeek logo beside ratings only for linked items", () => {
   const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
+  const apiCatalogSource = readFileSync(new URL("../api/catalog.ts", import.meta.url), "utf8");
+  const catalogSource = readFileSync(new URL("../data/catalog.ts", import.meta.url), "utf8");
+  const gamesSource = readFileSync(new URL("../data/games.ts", import.meta.url), "utf8");
+  const logo = readFileSync(new URL("../../../public/bgg-primary-logo-reverse.svg", import.meta.url));
 
-  assert.doesNotMatch(source, /BoardGameGeek|BGG_LOGO_URL|bggUrl/);
+  assert.match(apiCatalogSource, /bgg_id\?: number \| string \| null/);
+  assert.match(
+    catalogSource,
+    /export function mapApiItemToDetail[\s\S]*bggId:\s*positiveInteger\(item\.bgg_id\)/,
+  );
+  assert.match(gamesSource, /bggId\?: number/);
+  assert.match(source, /const BGG_PRIMARY_LOGO_URL = "\/bgg-primary-logo-reverse\.svg"/);
+  assert.match(source, /\{detail\.bggId && \(/);
+  assert.match(source, /src=\{BGG_PRIMARY_LOGO_URL\}/);
+  assert.match(source, /alt="BoardGameGeek"/);
+  assert.match(source, /className="h-7 w-auto flex-none"/);
+  assert.doesNotMatch(source, /href=\{detail\.bgg/);
+  assert.equal(
+    createHash("sha256").update(logo).digest("hex"),
+    "d174224232914ce4d088f04b6248f2697af6e091177be0cf374e6b64933ed54a",
+  );
 });
 
 test("catalog detail mapping extracts TikTok tutorial metadata", () => {

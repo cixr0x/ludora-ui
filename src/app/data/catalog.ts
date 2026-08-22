@@ -248,6 +248,7 @@ export function mapApiItemToDetail(item: ApiItem): GameDetail {
 
   return {
     ...base,
+    bggId: positiveInteger(item.bgg_id),
     rating: numericValue(item.rating, 0),
     categories,
     categoryEntries,

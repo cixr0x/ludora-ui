@@ -48,6 +48,7 @@ export interface ApiItemReference {
 
 export interface ApiItem {
   id: number | string;
+  bgg_id?: number | string | null;
   canonical_path?: string;
   canonical_name: string;
   canonical_name_es?: string;

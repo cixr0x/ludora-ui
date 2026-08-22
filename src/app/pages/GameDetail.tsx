@@ -18,6 +18,8 @@ import { usePrerenderedProduct } from "../PrerenderData";
 import { ProductMetadata } from "../components/ProductMetadata";
 import { productPath } from "../utils/productRoutes.js";
 
+const BGG_PRIMARY_LOGO_URL = "/bgg-primary-logo-reverse.svg";
+
 function ComplexityBar({ value }: { value: number }) {
   if (value <= 0) {
     return <span className="text-neutral-500 text-xs">Sin registrar</span>;
@@ -552,7 +554,15 @@ export function GameDetail() {
             <div>
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 md:gap-4 mb-1">
                 <h1 className="text-white leading-tight">{detail.name}</h1>
-                <span className="flex-none mt-1" style={{ fontSize: "1.35rem" }}>
+                <span className="mt-1 inline-flex flex-none items-center gap-2" style={{ fontSize: "1.35rem" }}>
+                  {detail.bggId && (
+                    <img
+                      src={BGG_PRIMARY_LOGO_URL}
+                      alt="BoardGameGeek"
+                      className="h-7 w-auto flex-none"
+                      decoding="async"
+                    />
+                  )}
                   {detail.rating > 0 ? (
                     <>
                       <span className="text-fuchsia-400 font-bold">{detail.rating.toFixed(1)}</span>
