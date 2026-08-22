@@ -1,9 +1,10 @@
 import { productPath } from "./productRoutes.js";
+import { DEFAULT_SITE_URL, siteRootUrl } from "./siteSeo.js";
 
-export const DEFAULT_SITE_URL = "https://ludora.bobbycrimson.com";
+export { DEFAULT_SITE_URL } from "./siteSeo.js";
 
 export function productSeoMetadata(detail, siteUrl = DEFAULT_SITE_URL) {
-  const canonicalUrl = new URL(productPath(detail.id, detail.name), normalizedSiteUrl(siteUrl)).href;
+  const canonicalUrl = new URL(productPath(detail.id, detail.name), siteRootUrl(siteUrl)).href;
   const description = `${detail.name}: información para ${detail.players} jugadores, duración ${detail.playTime}, complejidad, descripción y disponibilidad en tiendas de México.`;
   const structuredData = {
     "@context": "https://schema.org",
@@ -43,7 +44,7 @@ export function productSeoMetadata(detail, siteUrl = DEFAULT_SITE_URL) {
             "@type": "ListItem",
             position: 1,
             name: "Ludo Radar",
-            item: normalizedSiteUrl(siteUrl),
+            item: siteRootUrl(siteUrl),
           },
           {
             "@type": "ListItem",
@@ -63,8 +64,4 @@ export function productSeoMetadata(detail, siteUrl = DEFAULT_SITE_URL) {
     structuredData,
     title: `${detail.name}: información y precios en México | Ludo Radar`,
   };
-}
-
-function normalizedSiteUrl(value) {
-  return `${String(value || DEFAULT_SITE_URL).replace(/\/+$/, "")}/`;
 }

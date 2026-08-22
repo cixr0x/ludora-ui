@@ -1,9 +1,14 @@
 import { useEffect } from "react";
 
 import type { GameDetail } from "../data/games";
-import { DEFAULT_SITE_URL, productSeoMetadata } from "../utils/productSeo.js";
+import { productSeoMetadata } from "../utils/productSeo.js";
+import {
+  DEFAULT_SITE_URL,
+  HOME_DESCRIPTION,
+  HOME_TITLE,
+  siteRootUrl,
+} from "../utils/siteSeo.js";
 
-const DEFAULT_DESCRIPTION = "Explora y descubre juegos de mesa en el catálogo de Ludo Radar.";
 const STRUCTURED_DATA_ID = "product-structured-data";
 const SITE_URL = (import.meta.env.VITE_LUDORA_SITE_URL as string | undefined) ?? DEFAULT_SITE_URL;
 
@@ -31,16 +36,17 @@ export function ProductMetadata({ detail }: { detail: GameDetail }) {
 }
 
 function resetProductMetadata() {
-  document.title = "Ludo Radar";
-  setMeta("name", "description", DEFAULT_DESCRIPTION);
-  setMeta("property", "og:title", "Ludo Radar");
-  setMeta("property", "og:description", DEFAULT_DESCRIPTION);
+  const homeUrl = siteRootUrl(SITE_URL);
+  document.title = HOME_TITLE;
+  setMeta("name", "description", HOME_DESCRIPTION);
+  setMeta("property", "og:title", HOME_TITLE);
+  setMeta("property", "og:description", HOME_DESCRIPTION);
   setMeta("property", "og:type", "website");
+  setMeta("property", "og:url", homeUrl);
   setMeta("name", "twitter:card", "summary");
-  setMeta("name", "twitter:title", "Ludo Radar");
-  setMeta("name", "twitter:description", DEFAULT_DESCRIPTION);
-  removeHeadElement('link[rel="canonical"]');
-  removeHeadElement('meta[property="og:url"]');
+  setMeta("name", "twitter:title", HOME_TITLE);
+  setMeta("name", "twitter:description", HOME_DESCRIPTION);
+  setCanonical(homeUrl);
   removeHeadElement('meta[property="og:image"]');
   removeHeadElement('meta[name="twitter:image"]');
   document.getElementById(STRUCTURED_DATA_ID)?.remove();

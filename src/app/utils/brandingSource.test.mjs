@@ -19,10 +19,16 @@ test("customer-facing surfaces consistently use the Ludo Radar product name", ()
   }
 
   const indexSource = customerFacingSources[0][1];
-  assert.match(indexSource, /<title>Ludo Radar<\/title>/);
+  assert.match(
+    indexSource,
+    /<title>Juegos de mesa en México: Descubre y compara precios \| Ludo Radar<\/title>/,
+  );
   assert.match(indexSource, /<meta name="application-name" content="Ludo Radar" \/>/);
   assert.match(indexSource, /<meta property="og:site_name" content="Ludo Radar" \/>/);
-  assert.match(indexSource, /<meta name="twitter:title" content="Ludo Radar" \/>/);
+  assert.match(
+    indexSource,
+    /<meta name="twitter:title" content="Juegos de mesa en México: Descubre y compara precios \| Ludo Radar" \/>/,
+  );
   assert.match(customerFacingSources[1][1], />\s*Ludo Radar\s*<\/Link>/);
   assert.match(customerFacingSources[2][1], /necesitas de Ludo Radar/);
   assert.match(customerFacingSources[3][1], /Ludo Radar no solicita datos personales/);

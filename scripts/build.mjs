@@ -4,12 +4,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "vite";
 
+import { DEFAULT_SITE_URL } from "../src/app/utils/siteSeo.js";
+
 const projectRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const distDir = resolve(projectRoot, "dist");
 const serverOutDir = resolve(distDir, ".prerender");
 const serverEntry = resolve(serverOutDir, "entry-server.mjs");
 const apiOrigin = (process.env.LUDORA_PRERENDER_API_ORIGIN ?? "http://127.0.0.1:4000").replace(/\/+$/, "");
-const siteUrl = process.env.LUDORA_SITE_URL ?? "https://ludora.bobbycrimson.com";
+const siteUrl = process.env.LUDORA_SITE_URL ?? DEFAULT_SITE_URL;
 const pageSize = 200;
 const pageConcurrency = 2;
 

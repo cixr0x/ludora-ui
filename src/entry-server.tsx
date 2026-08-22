@@ -5,8 +5,9 @@ import App from "./app/App";
 import type { ApiItem } from "./app/api/catalog";
 import { mapApiItemToDetail } from "./app/data/catalog";
 import { routeDefinitions } from "./app/routes";
-import { DEFAULT_SITE_URL, productSeoMetadata } from "./app/utils/productSeo.js";
+import { productSeoMetadata } from "./app/utils/productSeo.js";
 import { productPath } from "./app/utils/productRoutes.js";
+import { DEFAULT_SITE_URL } from "./app/utils/siteSeo.js";
 
 export function renderProductDocument({
   item,
@@ -41,13 +42,13 @@ export function renderProductDocument({
   document = replaceMeta(document, "property", "og:title", metadata.title);
   document = replaceMeta(document, "property", "og:description", metadata.description);
   document = replaceMeta(document, "property", "og:type", "product");
+  document = replaceMeta(document, "property", "og:url", metadata.canonicalUrl);
   document = replaceMeta(document, "name", "twitter:card", metadata.imageUrl ? "summary_large_image" : "summary");
   document = replaceMeta(document, "name", "twitter:title", metadata.title);
   document = replaceMeta(document, "name", "twitter:description", metadata.description);
+  document = replaceCanonical(document, metadata.canonicalUrl);
 
   const productHead = [
-    `<link rel="canonical" href="${escapeHtmlAttribute(metadata.canonicalUrl)}" />`,
-    `<meta property="og:url" content="${escapeHtmlAttribute(metadata.canonicalUrl)}" />`,
     metadata.imageUrl
       ? `<meta property="og:image" content="${escapeHtmlAttribute(metadata.imageUrl)}" />`
       : "",
@@ -75,6 +76,13 @@ function replaceMeta(
 ): string {
   const pattern = new RegExp(`<meta\\s+${attribute}="${escapeRegExp(key)}"\\s+content="[^"]*"\\s*\\/>`);
   const replacement = `<meta ${attribute}="${key}" content="${escapeHtmlAttribute(content)}" />`;
+  if (pattern.test(document)) return document.replace(pattern, replacement);
+  return document.replace("</head>", `      ${replacement}\n    </head>`);
+}
+
+function replaceCanonical(document: string, href: string): string {
+  const pattern = /<link\s+rel="canonical"\s+href="[^"]*"\s*\/>/;
+  const replacement = `<link rel="canonical" href="${escapeHtmlAttribute(href)}" />`;
   if (pattern.test(document)) return document.replace(pattern, replacement);
   return document.replace("</head>", `      ${replacement}\n    </head>`);
 }

@@ -59,7 +59,7 @@ test("public UI copy is Spanish in metadata, shared controls, and contact form",
     assert.doesNotMatch(sources, pattern, `English UI copy remains: ${pattern}`);
   }
 
-  assert.match(projectSource("index.html"), /<html lang="es">/);
+  assert.match(projectSource("index.html"), /<html lang="es-MX">/);
   assert.match(source("../components/ContactFormDialog.tsx"), />Contacto</);
   assert.match(source("../components/ContactFormDialog.tsx"), />Nombre</);
   assert.match(source("../components/ContactFormDialog.tsx"), />Mensaje</);
