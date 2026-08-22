@@ -51,30 +51,30 @@ export function LudoscopioCallout({
 
   return (
     <div className={`rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3 ${className}`}>
-      <div className={onDismiss ? "flex min-w-0 items-start gap-3" : ""}>
-        <p className={`text-sm leading-relaxed text-neutral-300 ${onDismiss ? "min-w-0 flex-1" : ""} ${messageClassName}`}>
-          ¿No sabes qué jugar? Prueba nuestro Ludoscopio y encuentra juegos de mesa que se ajusten al tipo de experiencia que buscas.
-        </p>
-        {onDismiss && (
+      <p className={`text-sm leading-relaxed text-neutral-300 ${messageClassName}`}>
+        ¿No sabes qué jugar? Prueba nuestro Ludoscopio y encuentra juegos de mesa que se ajusten al tipo de experiencia que buscas.
+      </p>
+      {onTrigger ? (
+        <div className="mt-3 flex items-center gap-2 xl:mt-0 xl:flex-none">
           <button
             type="button"
-            aria-label="Cerrar sugerencia de Ludoscopio"
-            onClick={onDismiss}
-            className="flex h-7 w-7 flex-none items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-fuchsia-500/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-300"
+            onClick={onTrigger}
+            className={`inline-flex h-9 items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-4 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 disabled:pointer-events-none disabled:opacity-60 ${buttonClassName}`}
           >
-            <X className="h-4 w-4" />
+            <Sparkles className="h-4 w-4" />
+            Ludoscopio
           </button>
-        )}
-      </div>
-      {onTrigger ? (
-        <button
-          type="button"
-          onClick={onTrigger}
-          className={`mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-4 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 disabled:pointer-events-none disabled:opacity-60 ${buttonClassName}`}
-        >
-          <Sparkles className="h-4 w-4" />
-          Ludoscopio
-        </button>
+          {onDismiss && (
+            <button
+              type="button"
+              aria-label="Cerrar sugerencia de Ludoscopio"
+              onClick={onDismiss}
+              className="flex h-9 w-9 flex-none items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-fuchsia-500/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-300"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       ) : (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>

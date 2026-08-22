@@ -60,7 +60,6 @@ export function Home() {
         {isLudoscopioCalloutVisible && (
           <div className="px-3 mb-4 md:px-14 md:mb-7">
             <LudoscopioCallout
-              buttonClassName="xl:mt-0 xl:flex-none"
               className="xl:flex xl:items-center xl:justify-between xl:gap-5"
               messageClassName="xl:whitespace-nowrap"
               onDismiss={handleLudoscopioDismiss}

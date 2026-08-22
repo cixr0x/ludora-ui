@@ -12,6 +12,15 @@ test("home restores its original content spacing at the desktop breakpoint", () 
   assert.match(homeSource, /px-3 py-10[\s\S]*md:px-14 md:py-16/);
 });
 
+test("home places the Ludoscopio dismiss control after its primary action", () => {
+  const calloutSource = source("../components/LudoscopioCallout.tsx");
+
+  assert.match(
+    calloutSource,
+    /onClick=\{onTrigger\}[\s\S]*?Ludoscopio[\s\S]*?\{onDismiss && \([\s\S]*?aria-label="Cerrar sugerencia de Ludoscopio"/,
+  );
+});
+
 test("home rows keep responsive rendering and lazy-loading geometry synchronized", () => {
   const rowSource = source("../components/GameRow.tsx");
 
