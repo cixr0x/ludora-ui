@@ -17,11 +17,12 @@ test("site header owns the shared logo search and category strip", () => {
   assert.match(headerSource, /contextBar \?\?/);
 });
 
-test("site header puts explore beside search and removes the desktop nav section", () => {
+test("site header keeps the full explore button beside search at every width", () => {
   const headerSource = source("../components/SiteHeader.tsx");
 
   assert.match(headerSource, /import \{ ChevronLeft, ChevronRight, Compass, Search, X \} from "lucide-react";/);
-  assert.match(headerSource, /<div className="flex w-full min-w-0 items-center gap-2 sm:gap-3 md:w-auto">[\s\S]*<div className="relative min-w-0 flex-1 md:flex-none">[\s\S]*<\/div>\s*<Link[\s\S]*to="\/search"[\s\S]*aria-label="Explorar catálogo"[\s\S]*>\s*<Compass className="h-4 w-4" \/>\s*<span className="hidden sm:inline">Explorar<\/span>\s*<\/Link>/);
+  assert.match(headerSource, /<div className="flex w-full min-w-0 items-center gap-2 sm:gap-3 md:w-auto">[\s\S]*<div className="relative min-w-0 flex-1 md:flex-none">[\s\S]*<\/div>\s*<Link[\s\S]*to="\/search"[\s\S]*aria-label="Explorar catálogo"[\s\S]*>\s*<Compass className="h-4 w-4" \/>\s*<span>Explorar<\/span>\s*<\/Link>/);
+  assert.doesNotMatch(headerSource, /<span className="hidden sm:inline">Explorar<\/span>/);
   assert.doesNotMatch(headerSource, /Sparkles/);
   assert.doesNotMatch(headerSource, /<nav className="hidden md:flex/);
   assert.doesNotMatch(headerSource, /Novedades|Mejor Valorados|Colecciones/);

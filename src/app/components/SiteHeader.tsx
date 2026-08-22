@@ -224,7 +224,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
             className="flex-none inline-flex h-9 items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-3 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 sm:px-4 disabled:pointer-events-none disabled:opacity-60"
           >
             <Compass className="h-4 w-4" />
-            <span className="hidden sm:inline">Explorar</span>
+            <span>Explorar</span>
           </Link>
         </div>
       </div>
