@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-test("game detail shows the supplied BoardGameGeek logo beside ratings only for linked items", () => {
+test("game detail links the supplied BoardGameGeek logo to the linked item beside its rating", () => {
   const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
   const apiCatalogSource = readFileSync(new URL("../api/catalog.ts", import.meta.url), "utf8");
   const catalogSource = readFileSync(new URL("../data/catalog.ts", import.meta.url), "utf8");
@@ -21,7 +21,13 @@ test("game detail shows the supplied BoardGameGeek logo beside ratings only for 
   assert.match(source, /src=\{BGG_PRIMARY_LOGO_URL\}/);
   assert.match(source, /alt="BoardGameGeek"/);
   assert.match(source, /className="h-7 w-auto flex-none"/);
-  assert.doesNotMatch(source, /href=\{detail\.bgg/);
+  assert.match(
+    source,
+    /href=\{`https:\/\/boardgamegeek\.com\/boardgame\/\$\{detail\.bggId\}`\}/,
+  );
+  assert.match(source, /target="_blank"/);
+  assert.match(source, /rel="noopener noreferrer"/);
+  assert.match(source, /aria-label=\{`Ver \$\{detail\.name\} en BoardGameGeek`\}/);
   assert.equal(
     createHash("sha256").update(logo).digest("hex"),
     "d174224232914ce4d088f04b6248f2697af6e091177be0cf374e6b64933ed54a",

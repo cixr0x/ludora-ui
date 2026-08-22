@@ -556,12 +556,20 @@ export function GameDetail() {
                 <h1 className="text-white leading-tight">{detail.name}</h1>
                 <span className="mt-1 inline-flex flex-none items-center gap-2" style={{ fontSize: "1.35rem" }}>
                   {detail.bggId && (
-                    <img
-                      src={BGG_PRIMARY_LOGO_URL}
-                      alt="BoardGameGeek"
-                      className="h-7 w-auto flex-none"
-                      decoding="async"
-                    />
+                    <a
+                      href={`https://boardgamegeek.com/boardgame/${detail.bggId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Ver ${detail.name} en BoardGameGeek`}
+                      className="inline-flex flex-none items-center transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/60"
+                    >
+                      <img
+                        src={BGG_PRIMARY_LOGO_URL}
+                        alt="BoardGameGeek"
+                        className="h-7 w-auto flex-none"
+                        decoding="async"
+                      />
+                    </a>
                   )}
                   {detail.rating > 0 ? (
                     <>
