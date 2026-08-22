@@ -389,7 +389,7 @@ export function GameDetail() {
               <img
                 src={BGG_FOOTER_LOGO_URL}
                 alt="Con tecnología de BGG"
-                className="h-20 w-auto opacity-80"
+                className="h-[3.25rem] w-auto opacity-80"
                 decoding="async"
               />
           </div>

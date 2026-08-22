@@ -12,7 +12,7 @@ test("home loading state centers the loading message above a larger powered by B
   assert.match(homeSource, /alt="Con tecnolog(?:i|\u00ed)a de BGG"/u);
   assert.match(homeSource, /items-center justify-center/);
   assert.match(homeSource, /flex-col items-center justify-center/);
-  assert.match(homeSource, /className="h-20 w-auto opacity-80"/);
+  assert.match(homeSource, /className="h-\[3\.25rem\] w-auto opacity-80"/);
 });
 
 test("game detail loading state centers the loading message above a larger powered by BGG logo", () => {
@@ -23,5 +23,5 @@ test("game detail loading state centers the loading message above a larger power
   assert.match(detailSource, /alt="Con tecnolog(?:i|\u00ed)a de BGG"/u);
   assert.match(detailSource, /items-center justify-center/);
   assert.match(detailSource, /flex-col items-center justify-center/);
-  assert.match(detailSource, /className="h-20 w-auto opacity-80"/);
+  assert.match(detailSource, /className="h-\[3\.25rem\] w-auto opacity-80"/);
 });
