@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useLocation, useParams, useNavigate } from "react-router";
 import { ArrowLeft, Users, Clock, ChevronLeft, ChevronRight, Youtube, ShoppingCart, ExternalLink, X } from "lucide-react";
 import { ExpansionBadge } from "../components/ExpansionBadge";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
@@ -14,6 +14,9 @@ import { Link } from "react-router";
 import { t } from "../data/translations";
 import { BGG_FOOTER_LOGO_URL } from "../utils/siteFooter.js";
 import { buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
+import { usePrerenderedProduct } from "../PrerenderData";
+import { ProductMetadata } from "../components/ProductMetadata";
+import { productPath } from "../utils/productRoutes.js";
 
 function ComplexityBar({ value }: { value: number }) {
   if (value <= 0) {
@@ -237,7 +240,7 @@ function RelatedRow({ games }: { games: Game[] }) {
         {games.map((game) => (
           <Link
             key={game.id}
-            to={`/game/${game.id}`}
+            to={productPath(game.id, game.name)}
             className="flex-none group/card"
             style={{ width: 120 }}
           >
@@ -269,11 +272,15 @@ function RelatedRow({ games }: { games: Game[] }) {
 export function GameDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const itemId = Number(id);
-  const [detail, setDetail] = useState<GameDetailData | undefined>();
+  const prerenderedDetail = usePrerenderedProduct(itemId);
+  const [detail, setDetail] = useState<GameDetailData | undefined>(() => prerenderedDetail);
   const [expansionGames, setExpansionGames] = useState<Game[]>([]);
   const [relatedGames, setRelatedGames] = useState<Game[]>([]);
-  const [isLoading, setIsLoading] = useState(() => Number.isInteger(itemId) && itemId > 0);
+  const [isLoading, setIsLoading] = useState(
+    () => Number.isInteger(itemId) && itemId > 0 && !prerenderedDetail,
+  );
   const [isImageOverlayOpen, setIsImageOverlayOpen] = useState(false);
   const storesSectionRef = useRef<HTMLDivElement>(null);
 
@@ -288,8 +295,10 @@ export function GameDetail() {
     }
 
     let isActive = true;
-    setDetail(undefined);
-    setIsLoading(true);
+    if (!prerenderedDetail) {
+      setDetail(undefined);
+      setIsLoading(true);
+    }
     setIsImageOverlayOpen(false);
 
     loadGameDetail(itemId).then((nextDetail) => {
@@ -303,7 +312,15 @@ export function GameDetail() {
     return () => {
       isActive = false;
     };
-  }, [itemId]);
+  }, [itemId, prerenderedDetail]);
+
+  useEffect(() => {
+    if (!detail) return;
+    const canonicalPath = productPath(detail.id, detail.name);
+    if (location.pathname === canonicalPath) return;
+
+    navigate(`${canonicalPath}${location.search}${location.hash}`, { replace: true });
+  }, [detail, location.hash, location.pathname, location.search, navigate]);
 
   useEffect(() => {
     if (!Number.isInteger(itemId) || itemId <= 0) {
@@ -425,6 +442,7 @@ export function GameDetail() {
         background: "radial-gradient(ellipse 120% 35% at 50% 0%, rgba(217, 70, 239, 0.06) 0%, transparent 55%), rgb(10, 10, 10)",
       }}
     >
+      <ProductMetadata detail={detail} />
       {isImageOverlayOpen && (
         <div
           role="dialog"
@@ -558,7 +576,7 @@ export function GameDetail() {
                     <span key={parentGame.id}>
                       {index > 0 && ", "}
                       <Link
-                        to={`/game/${parentGame.id}`}
+                        to={productPath(parentGame.id, parentGame.name)}
                         className="text-fuchsia-300 transition-colors hover:text-fuchsia-200 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500/60"
                       >
                         {parentGame.name}

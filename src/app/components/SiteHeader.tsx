@@ -7,6 +7,7 @@ import type { Game } from "../data/games";
 import { t } from "../data/translations";
 import { buildExploreSearchPath, buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
 import { HOME_SEARCH_DEBOUNCE_MS, HOME_SEARCH_LIMIT, homeSearchQuery } from "../utils/homeSearch.js";
+import { productPath } from "../utils/productRoutes.js";
 
 interface CategoryStripItem {
   key: string;
@@ -32,9 +33,9 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
     setSearchValue("");
   }, []);
 
-  const handleResultClick = (id: number) => {
+  const handleResultClick = (id: number, name: string) => {
     clearSearch();
-    navigate(`/game/${id}`);
+    navigate(productPath(id, name));
   };
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -185,7 +186,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
                     {searchResults.map((game) => (
                       <button
                         key={game.id}
-                        onMouseDown={() => handleResultClick(game.id)}
+                        onMouseDown={() => handleResultClick(game.id, game.name)}
                         className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-neutral-800 transition-colors text-left"
                       >
                         <div className="flex-none w-9 h-9 rounded-[4px] overflow-hidden flex items-center justify-center">

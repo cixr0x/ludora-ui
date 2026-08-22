@@ -114,7 +114,7 @@ test("expansion parent links list every parent with comma separators and action-
 
   assert.match(source, /detail\.parentGames\.map\(\(parentGame, index\) => \(/);
   assert.match(source, /\{index > 0 && ", "\}/);
-  assert.match(source, /to=\{`\/game\/\$\{parentGame\.id\}`\}/);
+  assert.match(source, /to=\{productPath\(parentGame\.id, parentGame\.name\)\}/);
   assert.match(source, /className="text-fuchsia-300 transition-colors hover:text-fuchsia-200 hover:underline/);
   assert.doesNotMatch(source, /setParentGame|loadGameDetail\(nextDetail\.parentItemId\)/);
 });

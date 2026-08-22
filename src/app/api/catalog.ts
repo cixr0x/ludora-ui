@@ -41,13 +41,14 @@ export interface ApiTutorial {
 }
 
 export interface ApiItemReference {
-  id: number;
+  id: number | string;
   canonical_name: string;
   canonical_name_es?: string;
 }
 
 export interface ApiItem {
-  id: number;
+  id: number | string;
+  canonical_path?: string;
   canonical_name: string;
   canonical_name_es?: string;
   image_url?: string;

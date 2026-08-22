@@ -1,3 +1,5 @@
+import { productPath } from "./productRoutes.js";
+
 export const EXPANSION_BADGE_CORNER_CLASS = "absolute left-0 top-0 rounded-br-md border-l-0 border-t-0";
 
 export function isExpansionItem(item) {
@@ -9,7 +11,7 @@ export function positiveInteger(value) {
   return Number.isInteger(numeric) && numeric > 0 ? numeric : undefined;
 }
 
-export function parentGamePath(parentItemId) {
+export function parentGamePath(parentItemId, parentName) {
   const id = positiveInteger(parentItemId);
-  return id ? `/game/${id}` : undefined;
+  return id ? productPath(id, parentName) : undefined;
 }

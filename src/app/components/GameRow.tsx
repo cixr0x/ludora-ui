@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { Link } from "react-router";
+import { productPath } from "../utils/productRoutes.js";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Game } from "../data/games";
 import {
@@ -200,7 +201,7 @@ function RowLoadedImageCard({
 }) {
   return (
     <Link
-      to={`/game/${game.id}`}
+      to={productPath(game.id, game.name)}
       className="flex-none group/card"
       style={{ width: cardSize }}
     >

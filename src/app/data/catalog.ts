@@ -198,12 +198,13 @@ function frontPageRowTitle(row: ApiFrontPageRow, rowGenre: string): string {
 }
 
 function mapApiItemToGame(item: ApiCatalogGameBase, extraGenre?: string): Game {
+  const id = positiveInteger(item.id) ?? 0;
   const name = preferredText(item.canonical_name_es, item.canonical_name, "Juego sin nombre");
   const altTitle = item.canonical_name_es ? item.canonical_name : undefined;
   const genres = collectGenres(item, extraGenre);
 
   return {
-    id: item.id,
+    id,
     name,
     image: preferredText(item.image_url_es, item.image_url),
     altTitle: altTitle && altTitle !== name ? altTitle : undefined,
@@ -233,7 +234,7 @@ function mapApiItemToSummary(item: ApiItemSummary): CatalogGameSummary {
   };
 }
 
-function mapApiItemToDetail(item: ApiItem): GameDetail {
+export function mapApiItemToDetail(item: ApiItem): GameDetail {
   const base = mapApiItemToGame(item);
   const categoryEntries = taxonomyEntries(item.categories ?? []);
   const mechanicEntries = taxonomyEntries(item.mechanics ?? []);

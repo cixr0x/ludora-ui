@@ -17,8 +17,8 @@ test("isExpansionItem recognizes expansion flags from API payloads", () => {
 });
 
 test("parentGamePath builds links only for positive parent ids", () => {
-  assert.equal(parentGamePath(28720), "/game/28720");
-  assert.equal(parentGamePath("28720"), "/game/28720");
+  assert.equal(parentGamePath(28720, "Café Express"), "/game/28720/cafe-express");
+  assert.equal(parentGamePath("28720", "Coffee Rush"), "/game/28720/coffee-rush");
   assert.equal(parentGamePath(null), undefined);
   assert.equal(parentGamePath(0), undefined);
 });

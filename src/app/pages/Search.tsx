@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
+import { productPath } from "../utils/productRoutes.js";
 import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
 import type { Game, GameDetail, GameTaxonomyEntry } from "../data/games";
 import {
@@ -740,7 +741,7 @@ export function Search() {
             <>
               <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
                 {results.map((game) => (
-                  <Link key={game.id} to={`/game/${game.id}`} className="group flex flex-col">
+                  <Link key={game.id} to={productPath(game.id, game.name)} className="group flex flex-col">
                     <div className="relative flex items-center justify-center rounded-md overflow-hidden mb-1.5" style={{ aspectRatio: "1" }}>
                       <div className="relative inline-flex max-h-full max-w-full">
                         <ImageWithFallback

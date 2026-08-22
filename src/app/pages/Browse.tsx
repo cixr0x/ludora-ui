@@ -6,6 +6,7 @@ import { loadGames } from "../data/catalog";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { SiteHeader } from "../components/SiteHeader";
 import { t } from "../data/translations";
+import { productPath } from "../utils/productRoutes.js";
 
 export function Browse() {
   const { genre } = useParams<{ genre: string }>();
@@ -75,7 +76,7 @@ export function Browse() {
             {games.map((game) => (
               <Link
                 key={game.id}
-                to={`/game/${game.id}`}
+                to={productPath(game.id, game.name)}
                 className="group flex flex-col"
               >
                 <div className="relative rounded-md overflow-hidden mb-1.5" style={{ aspectRatio: "1" }}>
