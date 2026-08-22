@@ -29,7 +29,7 @@ test("customer-facing surfaces consistently use the Ludo Radar product name", ()
     indexSource,
     /<meta name="twitter:title" content="Juegos de mesa en México: Descubre y compara precios \| Ludo Radar" \/>/,
   );
-  assert.match(customerFacingSources[1][1], />\s*Ludo Radar\s*<\/Link>/);
+  assert.match(customerFacingSources[1][1], /<span>Ludo Radar<\/span>/);
   assert.match(customerFacingSources[2][1], /necesitas de Ludo Radar/);
   assert.match(customerFacingSources[3][1], /Ludo Radar no solicita datos personales/);
   assert.match(customerFacingSources[4][1], /Qué es Ludo Radar/);

@@ -131,9 +131,15 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
         <div className="flex flex-none items-center">
           <Link
             to="/"
-            className="ludora-wordmark text-xl rounded-sm transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300 sm:text-2xl"
+            className="ludora-wordmark text-xl inline-flex items-center gap-2 rounded-sm transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300 sm:text-2xl"
           >
-            Ludo Radar
+            <span>Ludo Radar</span>
+            <img
+              src="/ludoradar-icon.webp"
+              alt=""
+              aria-hidden="true"
+              className="h-7 w-7 flex-none object-contain sm:h-8 sm:w-8"
+            />
           </Link>
         </div>
 
