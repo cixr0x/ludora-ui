@@ -133,7 +133,10 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
             to="/"
             className="ludora-wordmark text-xl inline-flex items-center gap-2 rounded-sm transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300 sm:text-2xl"
           >
-            <span>Ludo Radar</span>
+            <span>
+              <span className="ludora-wordmark-accent">L</span>udo{" "}
+              <span className="ludora-wordmark-accent">R</span>adar
+            </span>
             <img
               src="/ludoradar-icon.webp"
               alt=""

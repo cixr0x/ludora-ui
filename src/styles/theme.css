@@ -190,7 +190,7 @@
     white-space: nowrap;
   }
 
-  .ludora-wordmark::first-letter {
+  .ludora-wordmark-accent {
     color: #e879f9;
   }
 }
