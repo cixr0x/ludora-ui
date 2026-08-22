@@ -7,6 +7,7 @@ import type { Game } from "../data/games";
 import { t } from "../data/translations";
 import { buildExploreSearchPath, buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
 import { HOME_SEARCH_DEBOUNCE_MS, HOME_SEARCH_LIMIT, homeSearchQuery } from "../utils/homeSearch.js";
+import { clearLudoscopioSessionCache } from "../utils/ludoscopioSessionCache.js";
 import { productPath } from "../utils/productRoutes.js";
 
 interface CategoryStripItem {
@@ -32,6 +33,11 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
   const clearSearch = useCallback(() => {
     setSearchValue("");
   }, []);
+
+  const handleWordmarkClick = () => {
+    clearSearch();
+    clearLudoscopioSessionCache();
+  };
 
   const handleResultClick = (id: number, name: string) => {
     clearSearch();
@@ -131,6 +137,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
         <div className="flex w-full flex-none items-center md:w-auto">
           <Link
             to="/"
+            onClick={handleWordmarkClick}
             className="ludora-wordmark text-xl inline-flex items-center gap-2 rounded-sm transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300 sm:text-2xl"
           >
             <span>

@@ -17,6 +17,17 @@ test("site header owns the shared logo search and category strip", () => {
   assert.match(headerSource, /contextBar \?\?/);
 });
 
+test("wordmark clears active header and LudoRadar searches before returning home", () => {
+  const headerSource = source("../components/SiteHeader.tsx");
+
+  assert.match(headerSource, /import \{ clearLudoscopioSessionCache \} from "\.\.\/utils\/ludoscopioSessionCache\.js";/);
+  assert.match(
+    headerSource,
+    /const handleWordmarkClick = \(\) => \{\s*clearSearch\(\);\s*clearLudoscopioSessionCache\(\);\s*\};/,
+  );
+  assert.match(headerSource, /<Link\s+to="\/"\s+onClick=\{handleWordmarkClick\}/);
+});
+
 test("site header keeps the full explore button beside search at every width", () => {
   const headerSource = source("../components/SiteHeader.tsx");
 
