@@ -12,13 +12,25 @@ test("home restores its original content spacing at the desktop breakpoint", () 
   assert.match(homeSource, /px-3 py-10[\s\S]*md:px-14 md:py-16/);
 });
 
-test("home places the Ludoscopio dismiss control after its primary action", () => {
+test("home places the LudoRadar dismiss control after its primary action", () => {
   const calloutSource = source("../components/LudoscopioCallout.tsx");
 
   assert.match(
     calloutSource,
-    /onClick=\{onTrigger\}[\s\S]*?Ludoscopio[\s\S]*?\{onDismiss && \([\s\S]*?aria-label="Cerrar sugerencia de Ludoscopio"/,
+    /onClick=\{onTrigger\}[\s\S]*?<SearchIcon[\s\S]*?LudoRadar[\s\S]*?\{onDismiss && \([\s\S]*?aria-label="Cerrar sugerencia de LudoRadar"/,
   );
+});
+
+test("semantic search uses LudoRadar wording and magnifier icons on public surfaces", () => {
+  const calloutSource = source("../components/LudoscopioCallout.tsx");
+  const searchSource = source("../pages/Search.tsx");
+
+  assert.doesNotMatch(calloutSource, /<Sparkles/);
+  assert.match(calloutSource, /Prueba nuestro LudoRadar/);
+  assert.match(calloutSource, /Buscar con LudoRadar/);
+  assert.match(searchSource, /<SearchIcon className="mt-0\.5 h-4 w-4 flex-none text-fuchsia-300" \/>/);
+  assert.match(searchSource, />LudoRadar<\/p>/);
+  assert.match(searchSource, /Consultando LudoRadar\.\.\./);
 });
 
 test("home rows keep responsive rendering and lazy-loading geometry synchronized", () => {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { productPath } from "../utils/productRoutes.js";
-import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, ChevronDown, ChevronRight } from "lucide-react";
 import type { Game, GameDetail, GameTaxonomyEntry } from "../data/games";
 import {
   loadCatalogFilterOptions,
@@ -716,9 +716,9 @@ export function Search() {
           {semanticQuery && (
             <div className="mb-5 rounded-lg border border-fuchsia-500/20 bg-neutral-950 px-4 py-3">
               <div className="flex items-start gap-3">
-                <Sparkles className="mt-0.5 h-4 w-4 flex-none text-fuchsia-300" />
+                <SearchIcon className="mt-0.5 h-4 w-4 flex-none text-fuchsia-300" />
                 <div>
-                  <p className="text-xs uppercase tracking-wider text-neutral-500">Ludoscopio</p>
+                  <p className="text-xs uppercase tracking-wider text-neutral-500">LudoRadar</p>
                   <p className="mt-1 text-sm text-neutral-200">Resultados para “{semanticQuery}”</p>
                 </div>
               </div>
@@ -727,7 +727,7 @@ export function Search() {
           {isResultsLoading ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3 border border-dashed border-neutral-800 rounded-xl">
               <Dices className="w-10 h-10 text-neutral-700" />
-              <p className="text-neutral-500 text-sm">{isSemanticLoading ? "Consultando Ludoscopio..." : "Cargando catálogo..."}</p>
+              <p className="text-neutral-500 text-sm">{isSemanticLoading ? "Consultando LudoRadar..." : "Cargando catálogo..."}</p>
             </div>
           ) : results.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3 border border-dashed border-neutral-800 rounded-xl">
