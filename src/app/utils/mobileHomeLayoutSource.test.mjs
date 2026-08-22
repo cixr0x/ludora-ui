@@ -57,5 +57,5 @@ test("shared home chrome is compact only below the desktop breakpoint", () => {
   assert.match(headerSource, /gap-0\.5[\s\S]*px-2 pb-2[\s\S]*md:px-6 md:pb-3/);
   assert.match(headerSource, /gap-4 overflow-x-auto md:gap-7/);
   assert.match(footerSource, /gap-4 px-4 py-6[\s\S]*md:gap-5 md:px-6 md:py-8/);
-  assert.match(footerSource, /h-8 w-auto md:h-10/);
+  assert.match(footerSource, /h-16 w-auto md:h-20/);
 });

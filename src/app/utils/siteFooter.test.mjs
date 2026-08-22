@@ -27,7 +27,7 @@ test("SiteFooter renders contact, legal links, and BGG attribution in Spanish", 
   assert.match(footerSource, /to="\/privacidad"[\s\S]*Aviso de Privacidad/);
   assert.match(footerSource, /to="\/terminos"[\s\S]*T(?:e|\u00e9)rminos de Servicio/u);
   assert.match(footerSource, /Con tecnolog(?:i|\u00ed)a de BoardGameGeek/u);
-  assert.match(footerSource, /h-8 w-auto md:h-10/);
+  assert.match(footerSource, /h-16 w-auto md:h-20/);
   assert.match(footerSource, /loading="lazy"/);
   assert.match(footerSource, /decoding="async"/);
 });

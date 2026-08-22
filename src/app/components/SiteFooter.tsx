@@ -26,7 +26,7 @@ export function SiteFooter() {
           <img
             src={BGG_FOOTER_LOGO_URL}
             alt="Con tecnología de BoardGameGeek"
-            className="h-8 w-auto md:h-10"
+            className="h-16 w-auto md:h-20"
             loading="lazy"
             decoding="async"
           />
