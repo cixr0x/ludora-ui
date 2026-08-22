@@ -127,20 +127,20 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
   return (
     <header className="sticky top-0 z-50 bg-neutral-950/85 backdrop-blur-md border-b border-white/5">
       <div className="flex h-14 items-center justify-between gap-2 px-3 md:h-16 md:gap-4 md:px-8">
-        <div className="flex items-center">
+        <div className="flex flex-none items-center">
           <Link
             to="/"
-            className="ludora-wordmark text-2xl rounded-sm transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300"
+            className="ludora-wordmark text-xl rounded-sm transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300 sm:text-2xl"
           >
-            Ludora
+            Ludo Radar
           </Link>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <div className="relative">
             <form
               onSubmit={handleSearchSubmit}
-              className="flex items-center gap-2 rounded-full border border-neutral-600 bg-neutral-800 px-4 py-2 transition-colors focus-within:border-neutral-400"
+              className="flex items-center gap-2 rounded-full border border-neutral-600 bg-neutral-800 px-3 py-2 transition-colors focus-within:border-neutral-400 sm:px-4"
             >
               <Search className="w-4 h-4 flex-none text-neutral-400" />
               <input
@@ -148,7 +148,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
                 placeholder="Buscar juegos..."
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                className="w-20 sm:w-64 lg:w-72 bg-transparent text-sm text-white placeholder:text-neutral-500 outline-none"
+                className="w-16 bg-transparent text-sm text-white placeholder:text-neutral-500 outline-none sm:w-64 lg:w-72"
               />
               {searchValue && (
                 <button
@@ -210,10 +210,11 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
           </div>
           <Link
             to="/search"
-            className="flex-none inline-flex h-9 items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-4 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 disabled:pointer-events-none disabled:opacity-60"
+            aria-label="Explorar catálogo"
+            className="flex-none inline-flex h-9 items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-3 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 sm:px-4 disabled:pointer-events-none disabled:opacity-60"
           >
             <Compass className="h-4 w-4" />
-            Explorar
+            <span className="hidden sm:inline">Explorar</span>
           </Link>
         </div>
       </div>

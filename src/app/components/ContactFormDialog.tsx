@@ -78,7 +78,7 @@ export function ContactFormDialog() {
       <DialogContent className="bg-neutral-950 text-neutral-100 sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Contacto</DialogTitle>
-          <DialogDescription>Cuéntanos qué necesitas de Ludora.</DialogDescription>
+          <DialogDescription>Cuéntanos qué necesitas de Ludo Radar.</DialogDescription>
         </DialogHeader>
 
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>

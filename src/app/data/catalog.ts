@@ -192,7 +192,7 @@ function frontPageRowTitle(row: ApiFrontPageRow, rowGenre: string): string {
   const categoryName = preferredText(row.category_name);
   const translatedCategoryName = preferredText(row.category_name_es);
 
-  if (!title) return rowGenre || "Ludora";
+  if (!title) return rowGenre || "Ludo Radar";
   if (translatedCategoryName && categoryName && title === categoryName) return translatedCategoryName;
   return title;
 }

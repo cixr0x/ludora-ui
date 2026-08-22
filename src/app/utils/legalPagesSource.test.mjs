@@ -35,7 +35,7 @@ test("legal pages use shared public layout and published documentation content",
   assert.match(termsSource, /export function TermsOfService\(\)/);
   assert.match(termsSource, /<SiteHeader\s+contextBar=/);
   assert.match(termsSource, /T(?:e|\u00e9)rminos de Servicio/u);
-  assert.match(termsSource, /Ludora no es una tienda/);
+  assert.match(termsSource, /Ludo Radar no es una tienda/);
   assert.match(termsSource, /Enlaces y servicios de terceros/);
   assert.match(termsSource, /Relaciones comerciales/);
   assert.match(termsSource, /Para preguntas sobre estos T(?:e|\u00e9)rminos/u);

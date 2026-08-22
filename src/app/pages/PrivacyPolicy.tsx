@@ -49,32 +49,32 @@ export function PrivacyPolicy() {
           Aviso de Privacidad
         </h1>
         <p className="mt-4 text-sm leading-6 text-neutral-400">
-          Última actualización: 20 de julio de 2026
+          Última actualización: 21 de agosto de 2026
         </p>
 
         <div className="mt-10 space-y-8">
           <LegalSection title="2.1 Datos personales que recopilamos">
             <p>
-              Ludora no solicita datos personales de identificación directa fuera del formulario de
+              Ludo Radar no solicita datos personales de identificación directa fuera del formulario de
               contacto.
             </p>
-            <p>Cuando usas el formulario de contacto, Ludora recopila:</p>
+            <p>Cuando usas el formulario de contacto, Ludo Radar recopila:</p>
             <BulletList items={["Nombre.", "Correo electrónico.", "Mensaje.", "Fecha y hora de envío."]} />
-            <p>Con base en la implementación actual, Ludora no recopila:</p>
+            <p>Con base en la implementación actual, Ludo Radar no recopila:</p>
             <BulletList
               items={[
                 "Cuentas públicas de usuario.",
                 "Contraseñas.",
                 "Datos de pago.",
                 "Direcciones de envío.",
-                "Historial de compras dentro de Ludora.",
+                "Historial de compras dentro de Ludo Radar.",
                 "Datos personales sensibles solicitados de forma intencional.",
               ]}
             />
           </LegalSection>
 
           <LegalSection title="2.2 Datos sensibles">
-            <p>Ludora no solicita ni trata intencionalmente datos personales sensibles.</p>
+            <p>Ludo Radar no solicita ni trata intencionalmente datos personales sensibles.</p>
             <p>
               No debes enviar datos sensibles por el formulario de contacto. Datos sensibles pueden
               incluir, entre otros, información de salud, origen racial o étnico, creencias
@@ -85,7 +85,7 @@ export function PrivacyPolicy() {
           </LegalSection>
 
           <LegalSection title="2.3 Finalidades del tratamiento">
-            <p>Ludora usa los datos del formulario de contacto para:</p>
+            <p>Ludo Radar usa los datos del formulario de contacto para:</p>
             <BulletList
               items={[
                 "Recibir tu mensaje.",
@@ -95,7 +95,7 @@ export function PrivacyPolicy() {
               ]}
             />
             <p>
-              Ludora también usa Google Analytics para entender de forma general el uso del sitio y
+              Ludo Radar también usa Google Analytics para entender de forma general el uso del sitio y
               mejorar la experiencia. Google Analytics puede operar mediante cookies o tecnologías
               similares, de acuerdo con las políticas y configuraciones de Google.
             </p>
@@ -109,7 +109,7 @@ export function PrivacyPolicy() {
 
           <LegalSection title="2.4 Google Analytics y cookies">
             <p>
-              Ludora usa Google Analytics para medir tráfico y uso del sitio. Google Analytics puede
+              Ludo Radar usa Google Analytics para medir tráfico y uso del sitio. Google Analytics puede
               recopilar información de uso mediante cookies, identificadores o tecnologías
               similares.
             </p>
@@ -131,8 +131,8 @@ export function PrivacyPolicy() {
           </LegalSection>
 
           <LegalSection title="2.5 Terceros">
-            <p>Ludora no vende datos personales y no comparte datos personales para publicidad comportamental.</p>
-            <p>Ludora no participa actualmente en redes de afiliados ni recibe compensación por enlaces a tiendas.</p>
+            <p>Ludo Radar no vende datos personales y no comparte datos personales para publicidad comportamental.</p>
+            <p>Ludo Radar no participa actualmente en redes de afiliados ni recibe compensación por enlaces a tiendas.</p>
             <p>
               El formulario de contacto no envía información a proveedores externos de correo,
               soporte o tickets.
@@ -145,9 +145,9 @@ export function PrivacyPolicy() {
           </LegalSection>
 
           <LegalSection title="2.6 Alcance geográfico">
-            <p>Ludora está dirigido principalmente a México.</p>
+            <p>Ludo Radar está dirigido principalmente a México.</p>
             <p>
-              El sitio puede estar disponible desde otros países, pero Ludora no garantiza que el
+              El sitio puede estar disponible desde otros países, pero Ludo Radar no garantiza que el
               sitio, el catálogo, las tiendas enlazadas, los precios, la disponibilidad, el contenido
               o este Aviso de Privacidad cumplan con los requisitos legales o comerciales de otros
               países.
@@ -156,7 +156,7 @@ export function PrivacyPolicy() {
 
           <LegalSection title="2.7 Conservación">
             <p>
-              Ludora conserva la información del formulario de contacto durante el tiempo necesario
+              Ludo Radar conserva la información del formulario de contacto durante el tiempo necesario
               para responder y dar seguimiento al mensaje, y durante el tiempo adicional que sea
               necesario para cumplir obligaciones legales, resolver disputas o proteger derechos.
             </p>
@@ -168,7 +168,7 @@ export function PrivacyPolicy() {
 
           <LegalSection title="2.8 Seguridad">
             <p>
-              Ludora usa medidas razonables para proteger la información del formulario de contacto
+              Ludo Radar usa medidas razonables para proteger la información del formulario de contacto
               contra acceso, pérdida, uso indebido, alteración o divulgación no autorizada.
             </p>
             <p>Ningún sitio web, sistema o transmisión por internet es completamente seguro.</p>
@@ -186,17 +186,17 @@ export function PrivacyPolicy() {
             </p>
             <p>
               Tu solicitud debe incluir información suficiente para identificar el mensaje o dato
-              relacionado con tu solicitud y un medio para responderte. Ludora podrá pedir
+              relacionado con tu solicitud y un medio para responderte. Ludo Radar podrá pedir
               información adicional razonable para confirmar la solicitud cuando sea necesario.
             </p>
           </LegalSection>
 
           <LegalSection title="2.10 Cambios al Aviso de Privacidad">
             <p>
-              Ludora puede actualizar este Aviso de Privacidad ocasionalmente. La versión actualizada
+              Ludo Radar puede actualizar este Aviso de Privacidad ocasionalmente. La versión actualizada
               se publicará en el sitio con una nueva fecha de "Última actualización".
             </p>
-            <p>Ludora no enviará notificaciones individuales de cambios al Aviso de Privacidad.</p>
+            <p>Ludo Radar no enviará notificaciones individuales de cambios al Aviso de Privacidad.</p>
           </LegalSection>
 
           <LegalSection title="2.11 Leyes mexicanas de protección de datos">

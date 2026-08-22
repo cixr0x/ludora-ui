@@ -49,24 +49,24 @@ export function TermsOfService() {
           Términos de Servicio
         </h1>
         <p className="mt-4 text-sm leading-6 text-neutral-400">
-          Última actualización: 20 de julio de 2026
+          Última actualización: 21 de agosto de 2026
         </p>
 
         <div className="mt-8 space-y-4 text-base leading-7 text-neutral-300">
           <p>
-            Estos Términos de Servicio regulan el uso de Ludora, un sitio web que ayuda a las
+            Estos Términos de Servicio regulan el uso de Ludo Radar, un sitio web que ayuda a las
             personas a descubrir juegos de mesa y expansiones, consultar información de catálogo,
             ver enlaces de tutoriales y encontrar enlaces a tiendas externas.
           </p>
           <p>
-            Al usar Ludora, aceptas estos Términos. Si no estás de acuerdo, no uses el sitio.
+            Al usar Ludo Radar, aceptas estos Términos. Si no estás de acuerdo, no uses el sitio.
           </p>
         </div>
 
         <div className="mt-10 space-y-8">
-          <LegalSection title="1.1 Qué es Ludora">
+          <LegalSection title="1.1 Qué es Ludo Radar">
             <p>
-              Ludora es una plataforma de descubrimiento y catálogo enfocada en juegos de mesa y
+              Ludo Radar es una plataforma de descubrimiento y catálogo enfocada en juegos de mesa y
               expansiones, especialmente para personas en México.
             </p>
             <p>El sitio permite:</p>
@@ -82,14 +82,14 @@ export function TermsOfService() {
             />
           </LegalSection>
 
-          <LegalSection title="1.2 Ludora no es una tienda">
+          <LegalSection title="1.2 Ludo Radar no es una tienda">
             <p>
-              Ludora no vende productos directamente, no procesa pagos, no gestiona envíos, no crea
+              Ludo Radar no vende productos directamente, no procesa pagos, no gestiona envíos, no crea
               órdenes de compra y no maneja devoluciones, garantías o soporte postventa de tiendas
               externas.
             </p>
             <p>
-              Cuando haces clic en un enlace de tienda, sales de Ludora y visitas un sitio de un
+              Cuando haces clic en un enlace de tienda, sales de Ludo Radar y visitas un sitio de un
               tercero. Cualquier compra, precio, impuesto, envío, disponibilidad, garantía,
               devolución o reclamación se rige por los términos y políticas de esa tienda.
             </p>
@@ -97,7 +97,7 @@ export function TermsOfService() {
 
           <LegalSection title="1.3 Información de catálogo, precio y disponibilidad">
             <p>
-              Ludora muestra información de juegos, expansiones, editoriales, autores, categorías,
+              Ludo Radar muestra información de juegos, expansiones, editoriales, autores, categorías,
               mecánicas, calificaciones, tutoriales, precios, disponibilidad y tiendas a partir de
               datos curados y fuentes externas.
             </p>
@@ -122,10 +122,10 @@ export function TermsOfService() {
 
           <LegalSection title="1.4 Enlaces y servicios de terceros">
             <p>
-              Ludora puede enlazar o mostrar contenido de terceros, incluyendo tiendas,
+              Ludo Radar puede enlazar o mostrar contenido de terceros, incluyendo tiendas,
               BoardGameGeek, YouTube, TikTok, Google Analytics y otros servicios externos.
             </p>
-            <p>Ludora no controla esos servicios y no es responsable por:</p>
+            <p>Ludo Radar no controla esos servicios y no es responsable por:</p>
             <BulletList
               items={[
                 "Sus términos, políticas o prácticas de privacidad.",
@@ -142,7 +142,7 @@ export function TermsOfService() {
 
           <LegalSection title="1.5 Relaciones comerciales">
             <p>
-              Ludora actualmente no recibe comisiones de afiliado, pagos por referido, patrocinios,
+              Ludo Radar actualmente no recibe comisiones de afiliado, pagos por referido, patrocinios,
               productos gratis, descuentos, publicidad, colocación pagada ni otra compensación por
               mostrar o enlazar productos.
             </p>
@@ -150,23 +150,23 @@ export function TermsOfService() {
 
           <LegalSection title="1.6 Uso permitido">
             <p>
-              Puedes usar Ludora para fines personales, informativos y no comerciales, siempre que
+              Puedes usar Ludo Radar para fines personales, informativos y no comerciales, siempre que
               cumplas estos Términos y la ley aplicable.
             </p>
             <p>No puedes:</p>
             <BulletList
               items={[
-                "Usar Ludora para actividades ilegales, fraudulentas, abusivas o dañinas.",
+                "Usar Ludo Radar para actividades ilegales, fraudulentas, abusivas o dañinas.",
                 "Interferir con la seguridad, disponibilidad o funcionamiento del sitio.",
                 "Intentar acceder a sistemas, datos o cuentas sin autorización.",
                 "Enviar código malicioso, spam, mensajes ofensivos o contenido ilegal.",
                 "Sobrecargar, hacer scraping, extraer o automatizar solicitudes al sitio.",
-                "Copiar, vender, sublicenciar, reproducir o explotar comercialmente el contenido o software de Ludora.",
-                "Usar Ludora para enviar datos personales sensibles, información confidencial o datos de terceros sin permiso.",
+                "Copiar, vender, sublicenciar, reproducir o explotar comercialmente el contenido o software de Ludo Radar.",
+                "Usar Ludo Radar para enviar datos personales sensibles, información confidencial o datos de terceros sin permiso.",
               ]}
             />
             <p>
-              Ludora puede limitar solicitudes, bloquear tráfico o suspender funcionalidades para
+              Ludo Radar puede limitar solicitudes, bloquear tráfico o suspender funcionalidades para
               proteger el servicio.
             </p>
           </LegalSection>
@@ -188,7 +188,7 @@ export function TermsOfService() {
 
           <LegalSection title="1.8 Propiedad intelectual">
             <p>
-              Ludora conserva todos los derechos sobre el sitio, software, interfaz, diseño, marca,
+              Ludo Radar conserva todos los derechos sobre el sitio, software, interfaz, diseño, marca,
               textos originales, lógica de búsqueda y demás materiales propios.
             </p>
             <p>
@@ -196,7 +196,7 @@ export function TermsOfService() {
               contenido enlazado pertenecen a sus respectivos titulares.
             </p>
             <p>
-              Salvo que la ley lo permita o Ludora lo autorice por escrito, no puedes copiar,
+              Salvo que la ley lo permita o Ludo Radar lo autorice por escrito, no puedes copiar,
               modificar, distribuir, vender, publicar, crear obras derivadas, hacer ingeniería
               inversa o explotar el sitio o sus materiales.
             </p>
@@ -204,24 +204,24 @@ export function TermsOfService() {
 
           <LegalSection title="1.9 Disponibilidad y cambios al servicio">
             <p>
-              Ludora puede modificar, suspender o descontinuar cualquier parte del sitio en
+              Ludo Radar puede modificar, suspender o descontinuar cualquier parte del sitio en
               cualquier momento, incluyendo catálogo, búsqueda, enlaces, filtros, formularios o
               páginas legales.
             </p>
             <p>
-              Ludora no garantiza que el sitio esté disponible sin interrupciones, errores, retrasos
+              Ludo Radar no garantiza que el sitio esté disponible sin interrupciones, errores, retrasos
               o fallas.
             </p>
           </LegalSection>
 
           <LegalSection title="1.10 Descargos de responsabilidad">
-            <p>Ludora se proporciona "tal cual" y "según disponibilidad".</p>
+            <p>Ludo Radar se proporciona "tal cual" y "según disponibilidad".</p>
             <p>
-              En la máxima medida permitida por la ley, Ludora no otorga garantías de ningún tipo,
+              En la máxima medida permitida por la ley, Ludo Radar no otorga garantías de ningún tipo,
               expresas o implícitas, incluyendo garantías de exactitud, disponibilidad, idoneidad
               para un propósito particular, no infracción o funcionamiento sin errores.
             </p>
-            <p>Ludora no garantiza:</p>
+            <p>Ludo Radar no garantiza:</p>
             <BulletList
               items={[
                 "Que los datos del catálogo sean completos o correctos.",
@@ -236,11 +236,11 @@ export function TermsOfService() {
 
           <LegalSection title="1.11 Ley aplicable y protección de datos">
             <p>
-              Estos Términos y el uso de Ludora se interpretarán conforme a las leyes aplicables en
+              Estos Términos y el uso de Ludo Radar se interpretarán conforme a las leyes aplicables en
               México, en la medida que correspondan al servicio y a las personas usuarias.
             </p>
             <p>
-              En materia de datos personales, Ludora toma como referencia la Ley Federal de
+              En materia de datos personales, Ludo Radar toma como referencia la Ley Federal de
               Protección de Datos Personales en Posesión de los Particulares vigente, su Reglamento
               y las demás disposiciones mexicanas aplicables en materia de protección de datos
               personales.
@@ -249,7 +249,7 @@ export function TermsOfService() {
 
           <LegalSection title="1.12 Cambios a estos Términos">
             <p>
-              Ludora puede actualizar estos Términos ocasionalmente. La versión actualizada se
+              Ludo Radar puede actualizar estos Términos ocasionalmente. La versión actualizada se
               publicará en el sitio con una nueva fecha de "Última actualización".
             </p>
             <p>

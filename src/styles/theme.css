@@ -187,6 +187,7 @@
     line-height: 1;
     letter-spacing: 0;
     text-shadow: 0 0 18px rgba(217, 70, 239, 0.42);
+    white-space: nowrap;
   }
 
   .ludora-wordmark::first-letter {
