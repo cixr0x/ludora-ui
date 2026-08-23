@@ -466,12 +466,12 @@ export function GameDetail() {
           </button>
           <div
             className="flex h-[70vh] w-[calc(100vw-2rem)] md:h-[50vh] md:w-[50vw] max-h-[calc(100vh-4rem)] max-w-[calc(100vw-3rem)] items-center justify-center"
-            onClick={(event) => event.stopPropagation()}
           >
             <ImageWithFallback
               src={detail.image}
               alt={detail.name}
               className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
             />
           </div>
         </div>

@@ -94,6 +94,20 @@ test("GameDetail opens the product cover in a half-screen overlay", () => {
   assert.match(source, /Escape/);
 });
 
+test("GameDetail closes the image overlay from every visible backdrop area", () => {
+  const source = gameDetailSource();
+  const overlaySizerMatch = source.match(
+    /<div\s+className="flex h-\[70vh\][^"]*"([^>]*)>/,
+  );
+
+  assert.ok(overlaySizerMatch);
+  assert.doesNotMatch(overlaySizerMatch[1], /onClick/);
+  assert.match(
+    source,
+    /className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"\s+onClick=\{\(event\) => event\.stopPropagation\(\)\}/,
+  );
+});
+
 test("GameDetail cover button keeps the regular image transparent with a pointer cursor", () => {
   const source = gameDetailSource();
   const coverButtonMatch = source.match(/aria-label=\{`Ver imagen ampliada de \$\{detail\.name\}`\}[\s\S]*?className="([^"]+)"/);
