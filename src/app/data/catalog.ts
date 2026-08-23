@@ -17,6 +17,7 @@ import {
   type ApiTaxonomyEntry,
 } from "../api/catalog";
 import { isExpansionItem, positiveInteger } from "../utils/expansionDisplay.js";
+import { formatStorePrice } from "../utils/priceFormat.js";
 import { storeDisplayName, storeOfferUrl } from "../utils/storeLinks.js";
 import { storeAvailabilityRank, storeAvailabilityState } from "../utils/storeAvailability.js";
 import { tiktokTutorialFromUrl, youtubeIdFromUrl } from "../utils/tutorialLinks.js";
@@ -331,7 +332,7 @@ function mapOffer(offer: ApiOffer, game: Game): StoreEntry {
     country: offer.store_country || "MX",
     image: offer.image_url || game.image,
     gameTitle: offer.game_title || game.name,
-    price: formatPrice(priceValue, currency, offer.raw_price),
+    price: formatStorePrice(priceValue, currency),
     priceValue,
     currency,
     inStock: stockLevel !== "out",
@@ -373,20 +374,6 @@ function stockLevelFromAvailability(value?: string): StoreEntry["stockLevel"] {
   if (normalized.includes("out") || normalized.includes("agotado") || normalized.includes("unavailable")) return "out";
   if (normalized.includes("low") || normalized.includes("pocas")) return "low";
   return "high";
-}
-
-function formatPrice(value: number, currency: string, raw?: string): string {
-  const trimmedRaw = raw?.trim();
-  if (trimmedRaw && /[^\d.,\s]/.test(trimmedRaw)) return trimmedRaw;
-  if (!value) return "Consultar";
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      currency,
-      style: "currency",
-    }).format(value);
-  } catch {
-    return `${currency} ${value.toFixed(2)}`;
-  }
 }
 
 function genreAliases(value: string): string[] {
