@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -9,6 +10,8 @@ import {
 } from "../../../scripts/seo-output.mjs";
 
 const blockedTemplate = '<head><meta name="robots" content="noindex, nofollow" /></head>';
+const packageJson = JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8"));
+const indexableBuildSource = readFileSync(new URL("../../../scripts/build-indexable.mjs", import.meta.url), "utf8");
 
 test("indexing remains disabled unless explicitly enabled", () => {
   assert.equal(parseIndexingEnabled(undefined), false);
@@ -35,6 +38,13 @@ test("the explicit launch switch enables indexable page output", () => {
     robotsDocument({ indexingEnabled: true, siteUrl: "https://www.ludoradar.mx" }),
     /^User-agent: \*\nDisallow: \/api\/\nSitemap: https:\/\/www\.ludoradar\.mx\/sitemap\.xml\n$/,
   );
+});
+
+test("the indexable production command pins the launch switch and canonical host", () => {
+  assert.equal(packageJson.scripts["build:indexable"], "node scripts/build-indexable.mjs");
+  assert.match(indexableBuildSource, /LUDORA_INDEXING_ENABLED = "true"/);
+  assert.match(indexableBuildSource, /LUDORA_SITE_URL = "https:\/\/www\.ludoradar\.mx"/);
+  assert.match(indexableBuildSource, /await import\("\.\/build\.mjs"\)/);
 });
 
 test("the sitemap contains only unique absolute canonical URLs", () => {

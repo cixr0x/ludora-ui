@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "build:indexable": "node scripts/build-indexable.mjs",
     "dev": "vite",
     "dev:codex": "vite --host 127.0.0.1 --port 5175 --strictPort",
     "test": "node --test src/app/utils/*.test.mjs",
