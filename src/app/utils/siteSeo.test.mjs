@@ -15,16 +15,16 @@ const icon = readFileSync(new URL("../../../public/ludoradar-icon.webp", import.
 
 test("landing SEO signals describe Ludo Radar on its Mexican domain", () => {
   assert.equal(SITE_NAME, "Ludo Radar");
-  assert.equal(DEFAULT_SITE_URL, "https://ludoradar.mx");
-  assert.equal(HOME_TITLE, "Ludo Radar  | Juegos de mesa en México: Descubre y compara precios");
+  assert.equal(DEFAULT_SITE_URL, "https://www.ludoradar.mx");
+  assert.equal(HOME_TITLE, "Juegos de mesa en México: Descubre y compara precios | Ludo Radar");
   assert.equal(
     HOME_DESCRIPTION,
     "Ludo Radar: La referencia de juegos de mesa en México. Descubre, conoce y encuentra la mejor oferta.",
   );
-  assert.equal(siteRootUrl(), "https://ludoradar.mx/");
-  assert.match(indexSource, /<link rel="canonical" href="https:\/\/ludoradar\.mx\/" \/>/);
+  assert.equal(siteRootUrl(), "https://www.ludoradar.mx/");
+  assert.match(indexSource, /<link rel="canonical" href="https:\/\/www\.ludoradar\.mx\/" \/>/);
   assert.match(indexSource, /<link rel="icon" type="image\/webp" href="\/ludoradar-icon\.webp" \/>/);
-  assert.match(indexSource, /"@type":"WebSite","name":"Ludo Radar","url":"https:\/\/ludoradar\.mx\/"/);
+  assert.match(indexSource, /"@type":"WebSite","name":"Ludo Radar","url":"https:\/\/www\.ludoradar\.mx\/"/);
   assert.ok(icon.byteLength > 0);
 });
 

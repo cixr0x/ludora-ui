@@ -28,5 +28,5 @@ test("productSeoMetadata describes one canonical Mexican product page", () => {
 test("productSeoMetadata uses the future Ludo Radar domain by default", () => {
   const metadata = productSeoMetadata(detail);
 
-  assert.equal(metadata.canonicalUrl, "https://ludoradar.mx/game/851/dixit");
+  assert.equal(metadata.canonicalUrl, "https://www.ludoradar.mx/game/851/dixit");
 });

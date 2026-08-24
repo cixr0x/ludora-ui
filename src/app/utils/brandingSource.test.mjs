@@ -21,17 +21,17 @@ test("customer-facing surfaces consistently use the Ludo Radar product name", ()
   const indexSource = customerFacingSources[0][1];
   assert.match(
     indexSource,
-    /<title>Ludo Radar  \| Juegos de mesa en México: Descubre y compara precios<\/title>/,
+    /<title>Juegos de mesa en México: Descubre y compara precios \| Ludo Radar<\/title>/,
   );
   assert.match(indexSource, /<meta name="application-name" content="Ludo Radar" \/>/);
   assert.match(indexSource, /<meta property="og:site_name" content="Ludo Radar" \/>/);
   assert.match(
     indexSource,
-    /<meta property="og:title" content="Ludo Radar  \| Juegos de mesa en México: Descubre y compara precios" \/>/,
+    /<meta property="og:title" content="Juegos de mesa en México: Descubre y compara precios \| Ludo Radar" \/>/,
   );
   assert.match(
     indexSource,
-    /<meta name="twitter:title" content="Ludo Radar  \| Juegos de mesa en México: Descubre y compara precios" \/>/,
+    /<meta name="twitter:title" content="Juegos de mesa en México: Descubre y compara precios \| Ludo Radar" \/>/,
   );
   assert.match(customerFacingSources[1][1], /className="ludora-wordmark-accent">L<\/span>udo\{" "\}/);
   assert.match(customerFacingSources[1][1], /className="ludora-wordmark-accent">R<\/span>adar/);

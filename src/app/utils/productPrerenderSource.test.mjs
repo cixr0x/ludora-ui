@@ -23,9 +23,14 @@ test("the build creates product documents from the read-only prerender feed", ()
   const buildSource = source("../../../scripts/build.mjs");
   const serverSource = source("../../entry-server.tsx");
 
-  assert.match(buildSource, /fetchCatalogPage\(endpoint, offset/);
-  assert.match(buildSource, /\$\{apiOrigin\}\$\{endpointPath\}\?limit=\$\{pageSize\}&offset=\$\{offset\}/);
+  assert.match(buildSource, /fetchCatalogPage\(endpoint, \{ offset \}\)/);
+  assert.match(buildSource, /after_id/);
+  assert.match(buildSource, /next_after_id/);
+  assert.match(buildSource, /Duplicate canonical path/);
   assert.match(buildSource, /writeFile\(outputPath, rendered\.document/);
+  assert.match(buildSource, /LUDORA_INDEXING_ENABLED/);
+  assert.match(buildSource, /robots\.txt/);
+  assert.match(buildSource, /sitemap\.xml/);
   assert.match(serverSource, /renderToString\(<App prerenderData=\{prerenderData\} router=\{router\} \/>\)/);
   assert.match(serverSource, /offers: \[\]/);
   assert.match(serverSource, /product-structured-data/);
