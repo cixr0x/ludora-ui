@@ -52,7 +52,7 @@ export function LudoscopioCallout({
   return (
     <div className={`rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3 ${className}`}>
       <p className={`text-sm leading-relaxed text-neutral-300 ${messageClassName}`}>
-        ¿No sabes qué jugar? Prueba nuestro LudoRadar y encuentra juegos de mesa que se ajusten al tipo de experiencia que buscas.
+        ¿Buscas algo nuevo para jugar? Prueba nuestro LudoRadar y encuentra juegos de mesa que se ajusten al tipo de experiencia que buscas.
       </p>
       {onTrigger ? (
         <div className="mt-3 flex items-center gap-2 xl:mt-0 xl:flex-none">
@@ -87,7 +87,7 @@ export function LudoscopioCallout({
           <DialogHeader>
             <DialogTitle className="text-white">LudoRadar</DialogTitle>
             <DialogDescription className="text-sm leading-relaxed text-neutral-400">
-              Describe lo que quieres jugar: “un juego cooperativo para dos”, “algo de estrategia con gatos” o “un puzzle familiar rápido”.
+              Describe lo que quieres jugar: “juegos de estrategia con gatitos”, “juegos cooperativos de misterio”.
             </DialogDescription>
           </DialogHeader>
           <form
@@ -106,7 +106,6 @@ export function LudoscopioCallout({
                 type="text"
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                placeholder="“juegos de misterio para 2”, “algo como Catan pero más corto”, “puzzles de gatitos”"
                 className="h-11 w-full rounded-md border border-neutral-800 bg-neutral-900 px-3 text-sm text-white outline-none transition-colors placeholder:text-neutral-600 focus:border-fuchsia-500/60"
                 autoFocus
               />
