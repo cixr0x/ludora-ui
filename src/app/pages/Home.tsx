@@ -1,21 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { GameRow } from "../components/GameRow";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
 import { SiteHeader } from "../components/SiteHeader";
 import { loadFrontPageRows, type CatalogRow } from "../data/catalog";
+import { usePrerenderedFeaturedGames } from "../PrerenderData";
 import {
   dismissHomeLudoscopioCallout,
   isHomeLudoscopioCalloutDismissed,
 } from "../utils/homeLudoscopioCalloutSession.js";
+import { productPath } from "../utils/productRoutes.js";
 import { BGG_FOOTER_LOGO_URL } from "../utils/siteFooter.js";
 
 export function Home() {
   const [rows, setRows] = useState<CatalogRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLudoscopioCalloutVisible, setIsLudoscopioCalloutVisible] = useState(
-    () => !isHomeLudoscopioCalloutDismissed(),
-  );
+  const [isLudoscopioCalloutVisible, setIsLudoscopioCalloutVisible] = useState(false);
+  const featuredGames = usePrerenderedFeaturedGames();
   const navigate = useNavigate();
 
   const handleLudoscopioOpen = useCallback(() => {
@@ -25,6 +26,10 @@ export function Home() {
   const handleLudoscopioDismiss = useCallback(() => {
     dismissHomeLudoscopioCallout();
     setIsLudoscopioCalloutVisible(false);
+  }, []);
+
+  useEffect(() => {
+    setIsLudoscopioCalloutVisible(!isHomeLudoscopioCalloutDismissed());
   }, []);
 
   useEffect(() => {
@@ -57,6 +62,28 @@ export function Home() {
 
       {/* Main content */}
       <main className="pt-4 pb-10 md:pt-8 md:pb-16">
+        <section className="px-3 pb-6 md:px-14 md:pb-8" aria-labelledby="homepage-title">
+          <h1 id="homepage-title" className="text-2xl font-bold tracking-tight md:text-4xl">
+            Juegos de mesa en México
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm text-neutral-300 md:text-base">
+            Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México.
+          </p>
+          <div className="mt-5">
+            <h2 className="text-lg font-semibold">Juegos destacados</h2>
+            {featuredGames.length > 0 && (
+              <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-sm text-fuchsia-300">
+                {featuredGames.map((game) => (
+                  <li key={game.id}>
+                    <Link to={productPath(game.id, game.name)} className="hover:text-fuchsia-200 hover:underline">
+                      {game.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
         {isLudoscopioCalloutVisible && (
           <div className="px-3 mb-4 md:px-14 md:mb-7">
             <LudoscopioCallout

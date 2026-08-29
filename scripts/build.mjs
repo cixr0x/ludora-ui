@@ -11,6 +11,7 @@ import {
   sitemapDocument,
 } from "./seo-output.mjs";
 import { DEFAULT_SITE_URL } from "../src/app/utils/siteSeo.js";
+import { selectFeaturedGames } from "../src/app/utils/homePrerender.js";
 
 const projectRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const distDir = resolve(projectRoot, "dist");
@@ -40,7 +41,15 @@ try {
   const templatePath = resolve(distDir, "index.html");
   const template = applyIndexingPolicy(await readFile(templatePath, "utf8"), indexingEnabled);
   await writeFile(templatePath, template, "utf8");
-  const { renderProductDocument } = await import(`${pathToFileURL(serverEntry).href}?v=${Date.now()}`);
+  const { renderHomepageDocument, renderProductDocument } = await import(
+    `${pathToFileURL(serverEntry).href}?v=${Date.now()}`
+  );
+  const homepageRows = await fetchHomepageRows();
+  await writeFile(
+    templatePath,
+    renderHomepageDocument({ featuredGames: selectFeaturedGames(homepageRows), template }),
+    "utf8",
+  );
   const items = await fetchPrerenderItems();
   const canonicalPaths = [];
   const renderedPaths = new Map();
@@ -85,6 +94,26 @@ async function fetchPrerenderItems() {
   }
 
   return fetchKeysetItems(firstPage);
+}
+
+async function fetchHomepageRows() {
+  const response = await fetch(`${apiOrigin}/api/front-page`);
+  if (!response.ok) {
+    throw new Error(`Homepage prerender request failed with ${response.status}: ${response.url}`);
+  }
+
+  let envelope;
+  try {
+    envelope = await response.json();
+  } catch {
+    throw new Error(`Homepage prerender response was not valid JSON: ${response.url}`);
+  }
+
+  if (!Array.isArray(envelope?.data)) {
+    throw new Error(`Homepage prerender response did not contain a data array: ${response.url}`);
+  }
+
+  return envelope.data;
 }
 
 async function fetchKeysetItems(firstPage) {

@@ -2,7 +2,15 @@ import { createContext, type ReactNode, useContext } from "react";
 
 import type { GameDetail } from "./data/games";
 
+export interface PrerenderedFeaturedGame {
+  id: number;
+  name: string;
+}
+
 export interface PrerenderData {
+  homepage?: {
+    featuredGames: PrerenderedFeaturedGame[];
+  };
   product?: GameDetail;
 }
 
@@ -21,4 +29,8 @@ export function PrerenderDataProvider({
 export function usePrerenderedProduct(itemId: number): GameDetail | undefined {
   const product = useContext(PrerenderDataContext).product;
   return product?.id === itemId ? product : undefined;
+}
+
+export function usePrerenderedFeaturedGames(): PrerenderedFeaturedGame[] {
+  return useContext(PrerenderDataContext).homepage?.featuredGames ?? [];
 }

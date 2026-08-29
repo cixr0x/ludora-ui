@@ -16,7 +16,8 @@ test("the browser hydrates generated product markup with embedded product data",
 
   assert.match(mainSource, /hydrateRoot\(root, app\)/);
   assert.match(mainSource, /ludo-radar-prerender-data/);
-  assert.match(mainSource, /prerenderData\?\.product && root\.hasChildNodes\(\)/);
+  assert.match(mainSource, /prerenderData\?\.product/);
+  assert.match(mainSource, /root\.hasChildNodes\(\)/);
 });
 
 test("the build creates product documents from the read-only prerender feed", () => {

@@ -8,6 +8,27 @@ import { routeDefinitions } from "./app/routes";
 import { productSeoMetadata } from "./app/utils/productSeo.js";
 import { productPath } from "./app/utils/productRoutes.js";
 import { DEFAULT_SITE_URL } from "./app/utils/siteSeo.js";
+import type { PrerenderedFeaturedGame } from "./app/PrerenderData";
+
+export function renderHomepageDocument({
+  featuredGames,
+  template,
+}: {
+  featuredGames: PrerenderedFeaturedGame[];
+  template: string;
+}): string {
+  const prerenderData = { homepage: { featuredGames } };
+  const router = createMemoryRouter(routeDefinitions, { initialEntries: ["/"] });
+  const appHtml = renderToString(<App prerenderData={prerenderData} router={router} />);
+  const rootMarkup = `<div id="root">${appHtml}</div><script id="ludo-radar-prerender-data" type="application/json">${serializeJsonForHtml(prerenderData)}</script>`;
+  const document = template.replace(/<div id="root"><\/div>/, rootMarkup);
+
+  if (document === template) {
+    throw new Error("Could not find the root element in the built HTML template");
+  }
+
+  return document;
+}
 
 export function renderProductDocument({
   item,
