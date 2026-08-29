@@ -40,3 +40,30 @@ test("selectFeaturedGames preserves feed order while deduplicating and limiting 
     { id: 9, name: "Ninth" },
   ]);
 });
+
+test("selectFeaturedGames rejects malformed rows and feeds without usable featured games", () => {
+  assert.equal(typeof homePrerender.selectFeaturedGames, "function");
+  if (typeof homePrerender.selectFeaturedGames !== "function") return;
+
+  assert.throws(
+    () => homePrerender.selectFeaturedGames([{ products: "not-an-array" }]),
+    /Homepage prerender row 0 products must be an array/,
+  );
+  assert.throws(
+    () => homePrerender.selectFeaturedGames([{ products: [] }]),
+    /Homepage prerender feed did not contain usable featured games/,
+  );
+  assert.throws(
+    () =>
+      homePrerender.selectFeaturedGames([
+        {
+          products: Array.from({ length: 8 }, (_, index) => ({
+            id: index + 1,
+            canonical_name: `Game ${index + 1}`,
+          })),
+        },
+        { products: "not-an-array" },
+      ]),
+    /Homepage prerender row 1 products must be an array/,
+  );
+});

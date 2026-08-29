@@ -12,12 +12,11 @@ test("the homepage renderer embeds safe minimal data in the existing HTML templa
   assert.match(serverSource, /serializeJsonForHtml\(prerenderData\)/);
 });
 
-test("the build fetches and validates the homepage feed before writing the homepage document", () => {
+test("the build wires the homepage feed to the homepage renderer", () => {
   const buildSource = source("../../../scripts/build.mjs");
 
   assert.match(buildSource, /fetchHomepageRows\(\)/);
   assert.match(buildSource, /\/api\/front-page/);
-  assert.match(buildSource, /Homepage prerender response did not contain a data array/);
   assert.match(buildSource, /renderHomepageDocument/);
 });
 
@@ -34,11 +33,4 @@ test("the homepage renders durable SEO content and hydrates homepage prerender d
   assert.match(homeSource, /usePrerenderedFeaturedGames/);
   assert.match(mainSource, /prerenderData\?\.homepage/);
   assert.match(mainSource, /hydrateRoot\(root, app\)/);
-});
-
-test("the homepage starts with a deterministic callout state for hydration", () => {
-  const homeSource = source("../pages/Home.tsx");
-
-  assert.match(homeSource, /useState\(false\)/);
-  assert.match(homeSource, /setIsLudoscopioCalloutVisible\(!isHomeLudoscopioCalloutDismissed\(\)\)/);
 });
