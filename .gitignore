@@ -4,6 +4,7 @@ logs/
 .playwright-cli/
 playwright-report/
 test-results/
+.worktrees/
 .env
 .env.*
 *.local
