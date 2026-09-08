@@ -35,7 +35,7 @@ test("home SEO anchors remain in SSR and hydrated HTML while hidden from visual 
     await page.goto("http://127.0.0.1:5175/");
     await assertHiddenContent(page);
     await mkdir(new URL("../../output/playwright/header-visibility/", import.meta.url), { recursive: true });
-    for (const [name, width, height] of [["desktop", 1280, 900], ["tablet", 768, 900], ["mobile", 390, 844], ["small-mobile", 320, 800]]) {
+    for (const [name, width, height] of [["desktop", 1280, 900], ["small-desktop", 1024, 900], ["wide-tablet", 900, 900], ["tablet", 768, 900], ["below-md", 767, 900], ["mobile", 390, 844], ["small-mobile", 320, 800]]) {
       await page.setViewportSize({ width, height });
       const logo = await page.locator("header .ludora-wordmark").boundingBox();
       const description = await page.locator("header").getByText(sentence, { exact: true }).boundingBox();
@@ -43,9 +43,19 @@ test("home SEO anchors remain in SSR and hydrated HTML while hidden from visual 
       assert.ok(logo && description && input);
       assert.ok(description.x >= logo.x + logo.width - 1, `${name}: sentence stays next to logo`);
       assert.ok(input.width >= 100, `${name}: search remains usable`);
+      if (width >= 768) {
+        const row = await page.locator("header > div").first().boundingBox();
+        assert.ok(Math.abs((logo.y + logo.height / 2) - (input.y + input.height / 2)) <= 1, `${name}: logo and search share the md desktop row`);
+        assert.equal(row.height, 64, `${name}: md row retains its 64px height`);
+        assert.equal(input.width, width >= 1024 ? 288 : Math.min(256, Math.max(128, width - 640)), `${name}: search scales within its desktop width bounds`);
+        assert.ok(description.y >= row.y && description.y + description.height <= row.y + row.height, `${name}: whole sentence fits inside the desktop row ${JSON.stringify({ row, logo, description, input })}`);
+        assert.ok(input.x >= description.x + description.width, `${name}: sentence does not overlap search`);
+      } else {
+        assert.ok(input.y >= Math.max(logo.y + logo.height, description.y + description.height), `${name}: search remains on the second mobile row`);
+      }
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${name}: no horizontal overflow`);
       assert.equal(await page.getByRole("link", { name: "Explorar catálogo", exact: true }).isVisible(), true);
-      if (name === "desktop" || name === "mobile") await page.screenshot({ path: fileURLToPath(new URL(`../../output/playwright/header-visibility/${name}.png`, import.meta.url)), fullPage: false });
+      if (name === "desktop" || name === "mobile" || name === "tablet") await page.screenshot({ path: fileURLToPath(new URL(`../../output/playwright/header-visibility/${name}.png`, import.meta.url)), fullPage: false });
     }
     await noJs.close();
 

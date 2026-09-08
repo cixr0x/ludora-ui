@@ -133,8 +133,8 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 bg-neutral-950/85 backdrop-blur-md border-b border-white/5">
-      <div className="flex flex-col gap-2 px-3 py-3 md:px-8 lg:min-h-16 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:py-2">
-        <div className="flex w-full min-w-0 items-center gap-3 lg:flex-1">
+      <div className="flex flex-col gap-2 px-3 py-3 md:h-16 md:flex-row md:items-center md:justify-between md:gap-4 md:px-8 md:py-0">
+        <div className="flex w-full min-w-0 items-center gap-3 md:w-auto md:flex-1">
           <Link
             to="/"
             onClick={handleWordmarkClick}
@@ -151,7 +151,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
               className="h-7 w-7 flex-none object-contain sm:h-8 sm:w-8"
             />
           </Link>
-          <p className="min-w-0 flex-1 text-xs leading-snug text-neutral-300 sm:text-sm lg:max-w-sm">
+          <p className="min-w-0 flex-1 text-xs leading-snug text-neutral-300 sm:text-sm md:text-xs md:leading-tight lg:max-w-sm lg:text-sm lg:leading-snug">
             Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México.
           </p>
         </div>
@@ -168,7 +168,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
                 placeholder="Buscar juegos..."
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-neutral-500 outline-none md:w-64 md:flex-none lg:w-72"
+                className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-neutral-500 outline-none md:w-[clamp(8rem,calc(100vw-40rem),16rem)] md:flex-none lg:w-72"
               />
               {searchValue && (
                 <button

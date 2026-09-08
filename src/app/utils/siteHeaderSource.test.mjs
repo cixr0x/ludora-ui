@@ -11,7 +11,7 @@ test("site header owns the shared logo search and category strip", () => {
   assert.match(headerSource, /export function SiteHeader/);
   assert.match(headerSource, /<Link[\s\S]*to="\/"[\s\S]*className="ludora-wordmark text-xl[^"]*sm:text-2xl/);
   assert.match(headerSource, /placeholder="Buscar juegos/);
-  assert.match(headerSource, /min-w-0 flex-1[^\"]*md:w-64 md:flex-none lg:w-72/);
+  assert.match(headerSource, /min-w-0 flex-1[^\"]*md:w-\[clamp\(8rem,calc\(100vw-40rem\),16rem\)\] md:flex-none lg:w-72/);
   assert.match(headerSource, /loadCatalogFilterOptions/);
   assert.match(headerSource, /buildExploreTaxonomyPath\("category", category\.id\)/);
   assert.match(headerSource, /contextBar \?\?/);
