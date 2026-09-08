@@ -69,6 +69,10 @@ export function Home() {
           <p className="mt-2 max-w-3xl text-sm text-neutral-300 md:text-base">
             Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México.
           </p>
+          <nav aria-label="Explora todos los juegos" className="mt-4 flex gap-5 text-sm text-fuchsia-300">
+            <Link to="/juegos-de-mesa" className="hover:underline">Ver todos los juegos</Link>
+            <Link to="/categorias" className="hover:underline">Explorar categorías</Link>
+          </nav>
           <div className="mt-5">
             <h2 className="text-lg font-semibold">Juegos destacados</h2>
             {featuredGames.length > 0 && (

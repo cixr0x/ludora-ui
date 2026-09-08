@@ -141,6 +141,9 @@ async function verifyGeneration(stageDirectory, checkAccess) {
   const manifestHash = await fileHash(join(stageDirectory, "manifest.json"));
   checkAccess();
   if (validation.manifestHash !== manifestHash) throw new Error("Validated manifest changed");
+  const routesHash = await fileHash(join(stageDirectory, "routes.json"));
+  checkAccess();
+  if (validation.routesHash !== routesHash) throw new Error("Validated routes changed");
   for (const [file, expected] of Object.entries(validation.files)) {
     checkAccess();
     const path = resolve(stageDirectory, "public", file);

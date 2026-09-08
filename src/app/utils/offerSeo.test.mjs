@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { pricingOffers, productOfferSchema } from "./offerSeo.js";
+import { apiMinimumPrice, pricingOffers, productOfferSchema } from "./offerSeo.js";
 
 const base = {
   id: 1, storeId: 7, name: "Example store",
@@ -63,4 +63,14 @@ test("out-of-stock and unknown states remain distinct without invented editions"
 test("a store-homepage fallback never becomes a product listing in schema", () => {
   assert.deepEqual(productOfferSchema([{ ...base, listingUrl: undefined }]), []);
   assert.equal(productOfferSchema([{ ...base, listingUrl: base.url }]).length, 1);
+});
+
+test("compact raw API summaries apply the same price and eligibility policy", () => {
+  const offer = { store_name: "Shop", source_url: "https://shop.example/game", price: "350", currency: "MXN",
+    listing_status: "LISTED", store_active: true, is_bundle: false, availability: "available" };
+  const excluded = [{ is_bundle: true }, { availability: "unknown" }, { availability: "out_of_stock" },
+    { store_active: false }, { currency: "USD" }, { currency: null }, { listing_status: "PENDING" },
+    { source_url: null, store_website_url: "https://shop.example/" }, { price: true }, { price: -1 }];
+  assert.equal(apiMinimumPrice(excluded.map(change => ({ ...offer, price: 1, ...change }))), null);
+  assert.equal(apiMinimumPrice([offer, ...excluded.map(change => ({ ...offer, price: 1, ...change }))]), 350);
 });

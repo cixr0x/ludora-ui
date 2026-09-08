@@ -7,6 +7,7 @@ import { canonicalFile, contentFingerprint, reconcilePages } from "./seo/manifes
 import { fileHash, publishGeneration, pruneManagedState, readLiveGeneration, readVerifiedRuntime, requireLease, withGenerationLock, writeJsonAtomic } from "./seo/publish.mjs";
 import { robotsDocument, sitemapDocument } from "./seo-output.mjs";
 import { selectFeaturedGames } from "../src/app/utils/homePrerender.js";
+import { buildCatalogIndex, catalogPageDescriptors, catalogPageModel, categoryPath, CATALOG_PAGE_SIZE } from "../src/app/utils/catalogSeo.js";
 
 export async function refreshSeo(config) {
   const { runtimeDirectory, stateDirectory, livePath, lockPath, lease, apiOrigin, fetchImpl = fetch,
@@ -44,6 +45,8 @@ export async function refreshSeo(config) {
     for (const featured of featuredGames) if (!ids.has(featured.id)) throw new Error(`Homepage references missing export item ${featured.id}`);
     checkDeadline();
     const renderStart = performance.now();
+    const catalogIndex = buildCatalogIndex(exported.items);
+    const catalogMs = Math.round(performance.now() - renderStart);
     const publishedAt = now();
     const candidates = [{ canonicalPath: "/", fingerprint: contentFingerprint({ featuredGames, siteUrl: release.siteUrl, indexingEnabled: release.indexingEnabled }) }];
     for (const summary of exported.items) {
@@ -52,6 +55,13 @@ export async function refreshSeo(config) {
       candidates.push({ canonicalPath: item.canonical_path, itemId: summary.id,
         fingerprint: contentFingerprint({ item, siteUrl: release.siteUrl, indexingEnabled: release.indexingEnabled }) });
     }
+    for (const descriptor of catalogPageDescriptors(catalogIndex)) {
+      checkDeadline();
+      const model = { ...catalogPageModel(catalogIndex, descriptor), indexingEnabled: release.indexingEnabled };
+      candidates.push({ canonicalPath: model.canonicalPath, descriptor,
+        fingerprint: contentFingerprint({ model, siteUrl: release.siteUrl }) });
+    }
+    const prepareMs = Math.round(performance.now() - renderStart);
     const reconciliation = reconcilePages({ previous: previous?.manifest, candidates, publishedAt, uiSha: release.uiSha });
     const { manifest, changedPaths, removedPaths } = reconciliation;
     manifest.generationId = generationId;
@@ -80,7 +90,12 @@ export async function refreshSeo(config) {
       } else {
         let document;
         if (candidate.canonicalPath === "/") document = renderer.renderHomepageDocument({ featuredGames, template, publishedAt });
-        else {
+        else if (candidate.descriptor) {
+          const model = { ...catalogPageModel(catalogIndex, candidate.descriptor), indexingEnabled: release.indexingEnabled };
+          const rendered = renderer.renderCatalogDocument({ model, template, siteUrl: release.siteUrl });
+          if (rendered.canonicalPath !== candidate.canonicalPath) throw new Error("Catalog renderer changed canonical path");
+          document = rendered.document;
+        } else {
           const item = await exported.readItem(candidate.itemId);
           const rendered = renderer.renderProductDocument({ item, template, siteUrl: release.siteUrl, publishedAt });
           if (rendered.canonicalPath !== candidate.canonicalPath) throw new Error("Renderer changed the export canonical path");
@@ -92,12 +107,21 @@ export async function refreshSeo(config) {
     }
     await writeFile(join(publicDirectory, "robots.txt"), robotsDocument({ indexingEnabled: release.indexingEnabled, siteUrl: release.siteUrl }));
     await writeFile(join(publicDirectory, "sitemap.xml"), sitemapDocument({ canonicalPaths: candidates.map(page => page.canonicalPath), siteUrl: release.siteUrl }));
+    const routes = { version: 1, generationId,
+      games: Object.fromEntries(exported.items.map(item => [item.id, item.canonicalPath])),
+      catalogPageCount: Math.max(1, Math.ceil(exported.items.length / CATALOG_PAGE_SIZE)),
+      categories: Object.fromEntries([...catalogIndex.categories.values()].map(category => [category.id,
+        { canonicalPath: categoryPath(category), pageCount: Math.ceil(category.items.length / CATALOG_PAGE_SIZE) }])) };
+    await writeJsonAtomic(join(stageDirectory, "routes.json"), routes);
+    const graphStart = performance.now();
+    await validateGeneratedGraph(publicDirectory, candidates.map(page => page.canonicalPath), checkDeadline);
+    const graphMs = Math.round(performance.now() - graphStart);
     await writeJsonAtomic(join(stageDirectory, "manifest.json"), manifest);
     const files = {};
     for (const file of await listFiles(publicDirectory)) { checkDeadline(); files[file] = await fileHash(join(publicDirectory, file)); }
     for (const file of assetReferences) if (!Object.hasOwn(files, file)) throw new Error(`Rendered document references a missing asset: ${file}`);
     await writeJsonAtomic(join(stageDirectory, "validation.json"), { version: 1, complete: exported.complete,
-      manifestHash: await fileHash(join(stageDirectory, "manifest.json")), files });
+      manifestHash: await fileHash(join(stageDirectory, "manifest.json")), routesHash: await fileHash(join(stageDirectory, "routes.json")), files });
     checkDeadline();
     const publication = await publishGeneration({ stageDirectory, livePath, lockPath, lease, checkDeadline });
     published = true;
@@ -105,7 +129,7 @@ export async function refreshSeo(config) {
       previousLiveDirectory: publication.previousLiveDirectory, lockPath, lease });
     result = { status: "complete", uiSha: release.uiSha, publishedAt, generationId, source: exported.stats,
       rendered: changedPaths.length, reused: candidates.length - changedPaths.length, removed: removedPaths.length,
-      fetchMs, renderMs: Math.round(performance.now() - renderStart), durationMs: Math.round(performance.now() - started),
+      fetchMs, catalogMs, prepareMs, graphMs, renderMs: Math.round(performance.now() - renderStart), durationMs: Math.round(performance.now() - started),
       peakRssBytes: process.resourceUsage().maxRSS * 1024, pruned, previousLiveDirectory: publication.previousLiveDirectory };
   } catch (error) {
     primaryError = error;
@@ -134,6 +158,22 @@ export async function refreshSeo(config) {
   } finally {
     clearTimeout(timer); process.removeListener("SIGTERM", abort); process.removeListener("SIGINT", abort);
   }
+}
+
+export async function validateGeneratedGraph(publicDirectory, canonicalPaths, checkDeadline = () => {}) {
+  const paths = new Set(canonicalPaths), reached = new Set(), scheduled = new Set(["/"]), queue = ["/"];
+  for (let cursor = 0; cursor < queue.length; cursor++) {
+    checkDeadline();
+    const path = queue[cursor];
+    if (reached.has(path)) continue;
+    reached.add(path);
+    const document = await readFile(join(publicDirectory, canonicalFile(path)), "utf8");
+    for (const [, target] of document.matchAll(/<a\b[^>]*href="(\/[^"?#]*)/g)) {
+      if (paths.has(target)) { if (!scheduled.has(target)) { scheduled.add(target); queue.push(target); } }
+      else if (/^\/(?:game|categoria|categorias|juegos-de-mesa)(?:\/|$)/.test(target)) throw new Error(`Missing generated link target ${target} from ${path}`);
+    }
+  }
+  for (const path of paths) if (!reached.has(path)) throw new Error(`Unreachable generated page ${path}`);
 }
 
 async function validateDocument(file, canonicalPath, release, assetReferences) {

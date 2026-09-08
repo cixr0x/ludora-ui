@@ -1,5 +1,21 @@
 // A LISTED, non-bundle association is the existing reviewed product identity.
 // Language alone never establishes an edition and no aggregate range is emitted.
+import { storeAvailabilityState } from "./storeAvailability.js";
+import { storeDisplayName, storeOfferUrl } from "./storeLinks.js";
+
+export function apiMinimumPrice(offers) {
+  const eligible = pricingOffers((offers ?? []).map(offer => {
+    const availabilityStatus = storeAvailabilityState(offer.availability, offer.store_active);
+    return { storeActive: offer.store_active, listingStatus: offer.listing_status, isBundle: offer.is_bundle,
+      name: storeDisplayName(offer.store_name, offer.store_platform),
+      priceValue: typeof offer.price === "number" || typeof offer.price === "string" ? Number(offer.price) : NaN,
+      currency: typeof offer.currency === "string" ? offer.currency.trim().toUpperCase() : "",
+      listingUrl: storeOfferUrl({ source_url: offer.source_url, source_listing_url: offer.source_listing_url }) ?? null,
+      availabilityStatus, inStock: availabilityStatus === "available" };
+  }));
+  return eligible.length ? Math.min(...eligible.map(offer => offer.priceValue)) : null;
+}
+
 export function visibleStoreOffers(stores) {
   return (Array.isArray(stores) ? stores : []).filter(store =>
     store && store.listingStatus === "LISTED" && typeof store.name === "string" && store.name.trim()

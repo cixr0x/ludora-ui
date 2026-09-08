@@ -15,10 +15,11 @@ import { t } from "../data/translations";
 import { BGG_FOOTER_LOGO_URL } from "../utils/siteFooter.js";
 import { buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
 import { usePrerenderedProduct } from "../PrerenderData";
-import { ProductMetadata } from "../components/ProductMetadata";
+import { ProductMetadata, applyPageMetadata } from "../components/ProductMetadata";
 import { productPath } from "../utils/productRoutes.js";
 import { pricingOffers, visibleStoreOffers } from "../utils/offerSeo.js";
 import { formatStorePrice } from "../utils/priceFormat.js";
+import { categoryPath } from "../utils/catalogSeo.js";
 
 const BGG_PRIMARY_LOGO_URL = "/bgg-primary-logo-reverse.svg";
 
@@ -115,7 +116,7 @@ function TagPills({
         item.id > 0 ? (
           <Link
             key={`${taxonomyType}-${item.id}`}
-            to={buildExploreTaxonomyPath(taxonomyType, item.id)}
+            to={taxonomyType === "category" ? categoryPath(item) : buildExploreTaxonomyPath(taxonomyType, item.id)}
             className={`${pillClassName} focus:outline-none focus:ring-2 focus:ring-fuchsia-400/70`}
           >
             {t(item.name)}
@@ -283,6 +284,13 @@ export function GameDetail() {
   const location = useLocation();
   const itemId = Number(id);
   const prerenderedDetail = usePrerenderedProduct(itemId);
+  const snapshotPath = prerenderedDetail ? productPath(prerenderedDetail.id, prerenderedDetail.name) : undefined;
+  const [publishedRoute, setPublishedRoute] = useState<{ requestedPath: string; canonicalPath?: string; missing?: boolean }>(() => ({
+    requestedPath: location.pathname, canonicalPath: snapshotPath === location.pathname ? snapshotPath : undefined,
+  }));
+  const publishedCanonical = publishedRoute.requestedPath === location.pathname || publishedRoute.canonicalPath === location.pathname
+    ? publishedRoute.canonicalPath : undefined;
+  const missingPublishedRoute = publishedRoute.requestedPath === location.pathname && publishedRoute.missing;
   const [detail, setDetail] = useState<GameDetailData | undefined>(() => prerenderedDetail);
   const [expansionGames, setExpansionGames] = useState<Game[]>(() => prerenderedDetail?.expansionGames ?? []);
   const [relatedGames, setRelatedGames] = useState<Game[]>(() => prerenderedDetail?.relatedGames ?? []);
@@ -323,12 +331,35 @@ export function GameDetail() {
   }, [itemId, prerenderedDetail]);
 
   useEffect(() => {
-    if (!detail || detail.id !== itemId) return;
-    const canonicalPath = productPath(detail.id, detail.name);
-    if (location.pathname === canonicalPath) return;
+    if (publishedCanonical === location.pathname) return;
+    if (snapshotPath === location.pathname) {
+      setPublishedRoute({ requestedPath: location.pathname, canonicalPath: snapshotPath }); return;
+    }
+    const controller = new AbortController();
+    // The published route can lag the live API name until the daily refresh.
+    // A HEAD lookup follows Nginx's generation-bound redirects without reading
+    // or executing the destination HTML, and never creates a DB-name loop.
+    fetch(location.pathname, { method: "HEAD", cache: "no-store", signal: controller.signal })
+      .then(response => {
+        const target = new URL(response.url);
+        if (!response.ok || target.origin !== window.location.origin ||
+          !new RegExp(`^/game/${itemId}/[a-z0-9-]+$`).test(target.pathname) ||
+          !response.headers.get("content-type")?.includes("text/html")) throw new Error("Missing published game");
+        if (controller.signal.aborted) return;
+        setPublishedRoute({ requestedPath: location.pathname, canonicalPath: target.pathname });
+        if (target.pathname !== location.pathname) navigate(`${target.pathname}${location.search}${location.hash}`, { replace: true });
+      }).catch(() => {
+        if (!controller.signal.aborted) setPublishedRoute({ requestedPath: location.pathname, missing: true });
+      });
+    return () => controller.abort();
+  }, [itemId, snapshotPath, location.hash, location.pathname, location.search, navigate]);
 
-    navigate(`${canonicalPath}${location.search}${location.hash}`, { replace: true });
-  }, [detail, itemId, location.hash, location.pathname, location.search, navigate]);
+  useEffect(() => {
+    if (!publishedCanonical || (!isLoading && !detail)) applyPageMetadata({
+      title: missingPublishedRoute ? "Juego no encontrado | Ludo Radar" : "Juego de mesa | Ludo Radar",
+      description: "Consulta los juegos de mesa disponibles en el catálogo.", canonicalPath: location.pathname,
+    }, false);
+  }, [publishedCanonical, missingPublishedRoute, isLoading, detail, location.pathname]);
 
   useEffect(() => {
     if (!Number.isInteger(itemId) || itemId <= 0) {
@@ -373,7 +404,7 @@ export function GameDetail() {
     };
   }, [isImageOverlayOpen]);
 
-  if (isLoading && !detail) {
+  if (!missingPublishedRoute && (!publishedCanonical || (isLoading && !detail) || (detail && detail.id !== itemId))) {
     return (
       <div className="min-h-screen bg-neutral-950 text-white">
         <SiteHeader
@@ -406,7 +437,7 @@ export function GameDetail() {
     );
   }
 
-  if (!detail) {
+  if (!detail || missingPublishedRoute) {
     return (
       <div className="min-h-screen bg-neutral-950 text-white">
         <SiteHeader
@@ -455,7 +486,7 @@ export function GameDetail() {
         background: "radial-gradient(ellipse 120% 35% at 50% 0%, rgba(217, 70, 239, 0.06) 0%, transparent 55%), rgb(10, 10, 10)",
       }}
     >
-      <ProductMetadata detail={detail} />
+      <ProductMetadata detail={detail} canonicalPath={publishedCanonical} />
       {isImageOverlayOpen && (
         <div
           role="dialog"

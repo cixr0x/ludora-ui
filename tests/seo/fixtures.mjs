@@ -24,3 +24,12 @@ export function visibleText(document) {
   return document.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, "").replace(/<[^>]*>/g, "")
     .replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 }
+
+export function catalogFixtures() {
+  return Array.from({ length: 50 }, (_, n) => {
+    const name = `Juego ${String(n + 1).padStart(2, "0")}`;
+    return { ...item, id: n + 1, canonical_name: name, canonical_path: `/game/${n + 1}/juego-${String(n + 1).padStart(2, "0")}`,
+      offers: n === 0 ? [{ ...offer, game_title: name }] : [], related_items: [], expansion_items: [],
+      categories: n < 49 ? [{ id: 7, name: "Estrategia" }] : [] };
+  });
+}

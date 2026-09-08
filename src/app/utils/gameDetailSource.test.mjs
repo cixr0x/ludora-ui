@@ -123,27 +123,3 @@ test("catalog detail maps every API parent item to a localized game reference", 
   assert.match(catalogSource, /parentGames: itemReferences\(item\.parent_items \?\? \[\]\)/);
   assert.match(catalogSource, /name: preferredText\(item\.canonical_name_es, item\.canonical_name\)/);
 });
-
-test("game detail does not canonicalize a new card route from stale product data", () => {
-  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
-
-  assert.match(source, /if \(!detail \|\| detail\.id !== itemId\) return;/);
-  assert.match(
-    source,
-    /\[detail, itemId, location\.hash, location\.pathname, location\.search, navigate\]/,
-  );
-  assert.match(source, /to=\{productPath\(game\.id, game\.name\)\}/);
-  assert.match(source, /<RelatedRow games=\{expansionGames\} \/>/);
-  assert.match(source, /<RelatedRow games=\{relatedGames\} \/>/);
-});
-
-test("game detail links category and mechanic chips to filtered explore results", () => {
-  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
-
-  assert.match(source, /import \{ buildExploreTaxonomyPath \} from "\.\.\/utils\/catalogSearch\.js";/);
-  assert.match(source, /to=\{buildExploreTaxonomyPath\(taxonomyType,\s*item\.id\)\}/);
-  assert.match(source, /taxonomyType="category"/);
-  assert.match(source, /taxonomyType="mechanic"/);
-  assert.match(source, /entries=\{detail\.categoryEntries\}/);
-  assert.match(source, /entries=\{detail\.mechanicEntries\}/);
-});

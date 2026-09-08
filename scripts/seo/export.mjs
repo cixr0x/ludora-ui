@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { productPath } from "../../src/app/utils/productRoutes.js";
+import { apiMinimumPrice } from "../../src/app/utils/offerSeo.js";
 
 export async function fetchSeoExport({ apiOrigin, fetchImpl = fetch, spoolParent = tmpdir(), signal, onProgress = () => {} }) {
   await mkdir(spoolParent, { recursive: true });
@@ -50,8 +51,10 @@ export async function fetchSeoExport({ apiOrigin, fetchImpl = fetch, spoolParent
         }
         const serialized = JSON.stringify(record);
         await writeFile(join(directory, `${id}.json`), serialized, { flag: "wx" });
-        items.push({ id, canonical_path: record.canonical_path, canonical_name: record.canonical_name,
-          canonical_name_es: record.canonical_name_es, categories: record.categories });
+        items.push({ id, name, canonicalPath: record.canonical_path, image: record.image_url_es || record.image_url || "",
+          minimumPrice: apiMinimumPrice(record.offers),
+          categories: record.categories.map(category => ({ id: Number(category.id), name: category.name_es?.trim() || category.name?.trim() })),
+          canonical_path: record.canonical_path, canonical_name: record.canonical_name, canonical_name_es: record.canonical_name_es });
         stats.games++; stats.offers += record.offers.length;
         stats.related += record.related_items.length; stats.expansions += record.expansion_items.length;
         stats.serializedBytes += Buffer.byteLength(serialized);

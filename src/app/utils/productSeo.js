@@ -4,8 +4,9 @@ import { productOfferSchema } from "./offerSeo.js";
 
 export { DEFAULT_SITE_URL } from "./siteSeo.js";
 
-export function productSeoMetadata(detail, siteUrl = DEFAULT_SITE_URL) {
-  const canonicalUrl = new URL(productPath(detail.id, detail.name), siteRootUrl(siteUrl)).href;
+export function productSeoMetadata(detail, siteUrl = DEFAULT_SITE_URL, canonicalPath = productPath(detail.id, detail.name)) {
+  if (!new RegExp(`^/game/${detail.id}/[a-z0-9-]+$`).test(canonicalPath)) throw new Error("Invalid published product canonical");
+  const canonicalUrl = new URL(canonicalPath, siteRootUrl(siteUrl)).href;
   const description = `Compara precios de ${detail.name} en tiendas de México. Consulta ofertas y disponibilidad y encuentra dónde comprarlo.`;
   const offers = productOfferSchema(detail.stores);
   const structuredData = {

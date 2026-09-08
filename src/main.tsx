@@ -10,9 +10,10 @@ const root = document.getElementById("root")!;
 let prerenderData = readPrerenderData();
 const routeItemId = window.location.pathname.match(/^\/game\/(\d+)(?:\/[^/]+)?\/?$/)?.[1];
 const hasMatchingPrerenderData = (routeItemId && prerenderData?.product?.id === Number(routeItemId)) ||
-  (prerenderData?.homepage && window.location.pathname === "/");
+  (prerenderData?.homepage && window.location.pathname === "/") ||
+  (prerenderData?.catalogPage?.canonicalPath === window.location.pathname);
 if (!hasMatchingPrerenderData) {
-  if (prerenderData?.product || document.getElementById("product-structured-data")) resetProductMetadata();
+  if (prerenderData?.product || prerenderData?.catalogPage || document.getElementById("product-structured-data")) resetProductMetadata();
   prerenderData = undefined;
   document.getElementById("ludo-radar-prerender-data")?.remove();
 }

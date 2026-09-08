@@ -9,8 +9,8 @@
     "seo:refresh": "node --max-old-space-size=256 scripts/refresh-seo.mjs",
     "dev": "vite",
     "dev:codex": "vite --host 127.0.0.1 --port 5175 --strictPort",
-    "test": "node --test src/app/utils/*.test.mjs",
-    "test:seo:browser": "node --test tests/seo/productHydration.test.mjs",
+    "test": "node --test --test-concurrency=1 src/app/utils/*.test.mjs",
+    "test:seo:browser": "node --test --test-concurrency=1 tests/seo/productHydration.test.mjs tests/seo/catalogNavigation.test.mjs",
     "test:visual": "playwright test"
   },
   "dependencies": {

@@ -236,6 +236,10 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
         </div>
       </div>
 
+      <nav aria-label="Catálogo y categorías" className="flex gap-5 border-t border-white/5 px-4 py-2 text-sm text-fuchsia-300 sm:px-8">
+        <Link to="/juegos-de-mesa" className="hover:underline">Catálogo</Link>
+        <Link to="/categorias" className="hover:underline">Categorías</Link>
+      </nav>
       {contextBar ?? (
         <div className="flex items-center gap-0.5 border-b border-white/5 px-2 pb-2 md:gap-1 md:px-6 md:pb-3">
           <button

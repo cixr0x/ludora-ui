@@ -40,6 +40,8 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
     const initial = await run("scripts/build.mjs", env);
     assert.equal(initial.code, 0, initial.output.slice(-6000));
     const initialPublic = await realpath(env.LUDORA_SEO_LIVE_PATH);
+    assert.match(await readFile(join(initialPublic, "juegos-de-mesa.html"), "utf8"), /Fixture Game/);
+    assert.match(await readFile(join(initialPublic, "categorias.html"), "utf8"), /Categorías de juegos de mesa/);
     const manifest = JSON.parse(await readFile(join(initialPublic, "..", "manifest.json"), "utf8"));
     const releasePath = join(manifest.runtimeDirectory, "release.json");
     const releaseHash = await fileHash(releasePath);
@@ -63,10 +65,11 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
     assert.equal(await fileHash(join(manifest.runtimeDirectory, "refresh-worker.mjs")), workerHash);
     assert.equal(requests.every(path => ["/api/front-page", "/api/items/prerender"].includes(path)), true);
     const completed = JSON.parse(refreshed.output.trim().split("\n").at(-1));
-    assert.equal(completed.rendered, 1);
-    assert.equal(completed.reused, 1);
-    assert.ok(completed.fetchMs >= 0 && completed.renderMs > 0);
-    t.diagnostic(JSON.stringify({ fetchMs: completed.fetchMs, renderMs: completed.renderMs, peakRssBytes: completed.peakRssBytes, rendered: completed.rendered, reused: completed.reused }));
+    assert.equal(completed.rendered, 2);
+    assert.equal(completed.reused, 2);
+    assert.ok(completed.fetchMs >= 0 && completed.renderMs > 0 && completed.catalogMs >= 0 && completed.prepareMs >= 0 && completed.graphMs >= 0);
+    t.diagnostic(JSON.stringify({ fetchMs: completed.fetchMs, catalogMs: completed.catalogMs, prepareMs: completed.prepareMs,
+      graphMs: completed.graphMs, renderMs: completed.renderMs, peakRssBytes: completed.peakRssBytes, rendered: completed.rendered, reused: completed.reused }));
   } finally {
     server.close(); await once(server, "close");
     await rm(root, { recursive: true, force: true });

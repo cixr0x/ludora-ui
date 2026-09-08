@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useLocation } from "react-router";
 
 import type { GameDetail } from "../data/games";
 import { productSeoMetadata } from "../utils/productSeo.js";
@@ -11,11 +12,12 @@ import {
 
 const STRUCTURED_DATA_ID = "product-structured-data";
 const SITE_URL = (import.meta.env.VITE_LUDORA_SITE_URL as string | undefined) ?? DEFAULT_SITE_URL;
+const INDEXING_ENABLED = typeof document !== "undefined" && document.querySelector('meta[name="robots"]')?.getAttribute("content")?.startsWith("index") === true;
 
-export function ProductMetadata({ detail }: { detail: GameDetail }) {
+export function ProductMetadata({ detail, canonicalPath }: { detail: GameDetail; canonicalPath?: string }) {
   useEffect(() => resetProductMetadata, []);
   useEffect(() => {
-    const metadata = productSeoMetadata(detail, SITE_URL);
+    const metadata = productSeoMetadata(detail, SITE_URL, canonicalPath);
     document.title = metadata.title;
     setMeta("name", "description", metadata.description);
     setMeta("property", "og:title", metadata.title);
@@ -29,8 +31,9 @@ export function ProductMetadata({ detail }: { detail: GameDetail }) {
     setOptionalMeta("name", "twitter:image", metadata.imageUrl);
     setCanonical(metadata.canonicalUrl);
     setStructuredData(metadata.structuredData);
+    setMeta("name", "robots", INDEXING_ENABLED ? "index, follow" : "noindex, nofollow");
 
-  }, [detail]);
+  }, [detail, canonicalPath]);
 
   return null;
 }
@@ -50,6 +53,30 @@ export function resetProductMetadata() {
   removeHeadElement('meta[property="og:image"]');
   removeHeadElement('meta[name="twitter:image"]');
   document.getElementById(STRUCTURED_DATA_ID)?.remove();
+  setMeta("name", "robots", INDEXING_ENABLED ? "index, follow" : "noindex, nofollow");
+}
+
+export function applyPageMetadata(metadata: { title: string; description: string; canonicalPath: string }, indexingEnabled: boolean) {
+  resetProductMetadata();
+  const url = new URL(metadata.canonicalPath, siteRootUrl(SITE_URL)).href;
+  document.title = metadata.title;
+  for (const key of ["description", "twitter:description"]) setMeta("name", key, metadata.description);
+  setMeta("name", "twitter:title", metadata.title);
+  setMeta("property", "og:title", metadata.title);
+  setMeta("property", "og:description", metadata.description);
+  setMeta("property", "og:url", url);
+  setCanonical(url);
+  setMeta("name", "robots", !INDEXING_ENABLED ? "noindex, nofollow" : indexingEnabled ? "index, follow" : "noindex, follow");
+}
+
+export function RouteMetadata() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    if (/^\/(?:game|juegos-de-mesa|categorias|categoria)(?:\/|$)/.test(pathname)) return;
+    if (pathname === "/") resetProductMetadata();
+    else applyPageMetadata({ title: HOME_TITLE, description: HOME_DESCRIPTION, canonicalPath: "/" }, false);
+  }, [pathname]);
+  return null;
 }
 
 function setMeta(attribute: "name" | "property", key: string, content: string) {

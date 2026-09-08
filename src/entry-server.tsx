@@ -9,6 +9,30 @@ import { productSeoMetadata } from "./app/utils/productSeo.js";
 import { productPath } from "./app/utils/productRoutes.js";
 import { DEFAULT_SITE_URL } from "./app/utils/siteSeo.js";
 import type { PrerenderedFeaturedGame } from "./app/PrerenderData";
+import type { CatalogPageData } from "./app/PrerenderData";
+import { catalogSeoMetadata } from "./app/utils/catalogSeo.js";
+
+export function renderCatalogDocument({ model, template, siteUrl = DEFAULT_SITE_URL }: {
+  model: CatalogPageData; template: string; siteUrl?: string;
+}): { canonicalPath: string; document: string } {
+  const page = { ...model, indexingEnabled: template.includes('name="robots" content="index, follow"') };
+  const prerenderData = { catalogPage: page };
+  const router = createMemoryRouter(routeDefinitions, { initialEntries: [page.canonicalPath] });
+  const appHtml = renderToString(<App prerenderData={prerenderData} router={router} />);
+  const markup = `<div id="root">${appHtml}</div><script id="ludo-radar-prerender-data" type="application/json">${serializeJsonForHtml(prerenderData)}</script>`;
+  let document = template.replace(/<div id="root"><\/div>/, () => markup);
+  if (document === template) throw new Error("Could not find the catalog root template");
+  const metadata = catalogSeoMetadata(page);
+  const canonicalUrl = new URL(page.canonicalPath, siteUrl).href;
+  document = replaceTitle(document, metadata.title);
+  for (const key of ["description", "twitter:description"]) document = replaceMeta(document, "name", key, metadata.description);
+  document = replaceMeta(document, "name", "twitter:title", metadata.title);
+  document = replaceMeta(document, "property", "og:title", metadata.title);
+  document = replaceMeta(document, "property", "og:description", metadata.description);
+  document = replaceMeta(document, "property", "og:url", canonicalUrl);
+  document = replaceCanonical(document, canonicalUrl);
+  return { canonicalPath: page.canonicalPath, document };
+}
 
 export function renderHomepageDocument({
   featuredGames,

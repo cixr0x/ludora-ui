@@ -38,6 +38,18 @@ test("fallback mounting rejects product context while matching hydration retains
   assert.equal(hydratedData.product.id, 851);
 });
 
+test("catalog hydration requires its exact route and rejects another page's context", () => {
+  const data = { catalogPage: { canonicalPath: "/juegos-de-mesa/pagina/2" } };
+  let received;
+  assert.deepEqual(bootstrap({ pathname: data.catalogPage.canonicalPath, data,
+    capture: value => { received = value; } }), ["hydrate"]);
+  assert.equal(received.catalogPage.canonicalPath, data.catalogPage.canonicalPath);
+  for (const pathname of ["/juegos-de-mesa", "/categorias", "/categoria/7/estrategia", "/search"]) {
+    assert.deepEqual(bootstrap({ pathname, data, capture: value => { received = value; } }), ["clear", "mount"]);
+    assert.equal(received, undefined);
+  }
+});
+
 function bootstrap({ pathname, data, hasMarkup = true, capture = () => {} }) {
   const operations = [];
   const root = {

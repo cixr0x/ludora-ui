@@ -4,17 +4,31 @@ import { mkdtemp, mkdir, readFile, writeFile, rm, realpath, readdir } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import filesystem from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { fetchSeoExport } from "../../../scripts/seo/export.mjs";
 import { contentFingerprint, reconcilePages } from "../../../scripts/seo/manifest.mjs";
 import { withGenerationLock, publishGeneration, requireLease, fileHash } from "../../../scripts/seo/publish.mjs";
-import { refreshSeo, refreshCurrentGeneration } from "../../../scripts/refresh-seo.mjs";
+import { refreshSeo, refreshCurrentGeneration, validateGeneratedGraph } from "../../../scripts/refresh-seo.mjs";
 
 const item = (id = 1, price = 350) => ({ id, canonical_name: `Game ${id}`, canonical_path: `/game/${id}/game-${id}`,
   categories: [], mechanics: [], families: [], designers: [], publishers: [], parent_items: [], related_items: [], expansion_items: [],
   offers: [{ id: 20 + id, store_id: 7, store_name: "Store", price, currency: "MXN", availability: "available",
     store_active: true, listing_status: "LISTED", is_bundle: false, source_url: "https://store.example/game" }] });
+
+test("generation graph validation rejects missing targets and disconnected exported pages", async t => {
+  const root = await mkdtemp(join(tmpdir(), "ludoradar-seo-graph-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, "index.html"), '<a href="/juegos-de-mesa">catalog</a>');
+  await writeFile(join(root, "juegos-de-mesa.html"), '<a href="/game/1/gone">missing game</a>');
+  await assert.rejects(validateGeneratedGraph(root, ["/", "/juegos-de-mesa"]), /Missing generated link target/);
+  await writeFile(join(root, "index.html"), '<a href="/search">search is not a catalog connection</a>');
+  await assert.rejects(validateGeneratedGraph(root, ["/", "/juegos-de-mesa"]), /Unreachable generated page/);
+  await writeFile(join(root, "index.html"), '<a href="/juegos-de-mesa">catalog</a>');
+  await writeFile(join(root, "juegos-de-mesa.html"), '<a href="/">home</a>');
+  await validateGeneratedGraph(root, ["/", "/juegos-de-mesa"]);
+});
 
 function feed(items, mutate = value => value) {
   const calls = [];
@@ -52,6 +66,8 @@ test("export freezes maxId, consumes a terminal page, and retains one disk recor
     assert.equal(result.complete, true);
     assert.equal(result.items.length, 2);
     assert.equal(result.items[0].offers, undefined);
+    assert.equal(result.items[0].minimumPrice, 350);
+    assert.equal(result.items[0].name, "Game 1");
     assert.equal((await result.readItem(1)).offers[0].price, 350);
     assert.equal(fixture.calls.length, 2);
     assert.equal(fixture.calls[1].searchParams.get("maxId"), "3");
@@ -79,7 +95,10 @@ async function environment(t) {
   await writeFile(join(runtimeDirectory, "static", "assets", "fixture.js"), "immutable client asset");
   await writeFile(join(runtimeDirectory, "template.html"), '<html><head><meta name="robots" content="index, follow" /><link rel="canonical" href="https://www.ludoradar.mx/" /></head><body><div id="root"></div></body></html>');
   await writeFile(join(runtimeDirectory, "entry-server.mjs"), `
-    export function renderHomepageDocument({template}) { return template.replace('<div id="root"></div>', '<div id="root">home</div>'); }
+    export function renderHomepageDocument({template}) { return template.replace('<div id="root"></div>', '<div id="root">home<a href="/juegos-de-mesa">catalog</a><a href="/categorias">categories</a></div>'); }
+    export function renderCatalogDocument({model,template}) { return { canonicalPath: model.canonicalPath,
+      document: template.replace('href="https://www.ludoradar.mx/"','href="https://www.ludoradar.mx'+model.canonicalPath+'"')
+        .replace('<div id="root"></div>', '<div id="root">'+(model.items ?? []).map(item => '<a href="'+item.canonicalPath+'">game</a>').join('')+'</div>') }; }
     export function renderProductDocument({item,template}) { return { canonicalPath: item.canonical_path,
       document: template.replace('href="https://www.ludoradar.mx/"','href="https://www.ludoradar.mx'+item.canonical_path+'"')
         .replace('<div id="root"></div>', '<div id="root">price '+item.offers[0].price+'</div>') }; }
@@ -110,8 +129,8 @@ test("changed data publishes new HTML without compilation and preserves unchange
   const firstLive = await realpath(config.livePath);
   const second = await refreshSeo({ ...config, fetchImpl: feed([item(1, 400), item(2)]).fetchImpl, now: () => "2026-09-08T12:00:00Z" });
   assert.equal(first.status, "complete");
-  assert.equal(second.rendered, 1);
-  assert.equal(second.reused, 2);
+  assert.equal(second.rendered, 2);
+  assert.equal(second.reused, 3);
   assert.match(await readFile(join(config.livePath, "game/1/game-1.html"), "utf8"), /price 400/);
   assert.match(await readFile(join(firstLive, "game/1/game-1.html"), "utf8"), /price 350/);
   assert.equal(await readFile(join(config.livePath, "assets/fixture.js"), "utf8"), "immutable client asset");
@@ -164,10 +183,13 @@ test("incomplete runtime hashes cannot bypass integrity checks", async t => {
 
 test("Linux lock-holder loss invalidates publication ownership and release does not wait for a past exit", { timeout: 3000 }, async t => {
   const config = await environment(t);
+  let holder;
   await withGenerationLock(config.lockPath, async lease => {
-    await new Promise(resolve => setTimeout(resolve, 150));
+    // Await the actual child event: loaded CI hosts need not schedule a child
+    // timer before an arbitrary delay in the parent expires.
+    if (holder.exitCode === null && holder.signalCode === null) await once(holder, "exit");
     assert.throws(() => requireLease(lease, config.lockPath), /active shared lock/);
-  }, { platform: "linux", spawnImpl: () => spawn(process.execPath, ["-e", "process.stdout.write('locked\\n'); setTimeout(()=>process.exit(0), 25)"], { stdio: ["pipe", "pipe", "pipe"] }) });
+  }, { platform: "linux", spawnImpl: () => (holder = spawn(process.execPath, ["-e", "process.stdout.write('locked\\n'); setTimeout(()=>process.exit(0), 25)"], { stdio: ["pipe", "pipe", "pipe"] })) });
   await assert.rejects(withGenerationLock(config.lockPath, async () => assert.fail("must not acquire"), {
     platform: "linux", spawnImpl: () => spawn(process.execPath, ["-e", "process.exit(0)"], { stdio: ["pipe", "pipe", "pipe"] })
   }), /before acquisition/);
@@ -179,6 +201,14 @@ test("post-validation file corruption prevents publication of that generation", 
   const target = await realpath(config.livePath);
   await writeFile(join(target, "game/1/game-1.html"), "corrupted");
   await assert.rejects(publishGeneration({ ...config, stageDirectory: join(target, ".."), livePath: join(config.root, "another-live") }), /changed/);
+});
+
+test("private published route changes invalidate generation integrity", async t => {
+  const config = await environment(t);
+  await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl });
+  const target = await realpath(config.livePath);
+  await writeFile(join(target, "..", "routes.json"), '{"version":1,"games":{}}');
+  await assert.rejects(publishGeneration({ ...config, stageDirectory: join(target, ".."), livePath: join(config.root, "another-live") }), /route.*changed/i);
 });
 
 test("successful publication retains two managed generations and preserves unrelated state", async t => {
