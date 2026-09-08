@@ -21,7 +21,7 @@ export async function refreshSeo(config) {
   process.once("SIGTERM", abort);
   process.once("SIGINT", abort);
   const checkDeadline = () => { requireLease(lease, lockPath); controller.signal.throwIfAborted(); if (performance.now() - started >= deadlineMs) throw new Error("SEO refresh deadline exceeded"); };
-  let exported, stageDirectory, published = false;
+  let exported, stageDirectory, published = false, result, primaryError;
   const generationId = randomUUID();
   const statusPath = join(stateDirectory, "status.json");
   const status = async entry => { const value = { generationId, ...entry }; log(value); await writeJsonAtomic(statusPath, value); };
@@ -99,23 +99,40 @@ export async function refreshSeo(config) {
     await writeJsonAtomic(join(stageDirectory, "validation.json"), { version: 1, complete: exported.complete,
       manifestHash: await fileHash(join(stageDirectory, "manifest.json")), files });
     checkDeadline();
-    const publication = await publishGeneration({ stageDirectory, livePath, lockPath, lease });
+    const publication = await publishGeneration({ stageDirectory, livePath, lockPath, lease, checkDeadline });
     published = true;
     const pruned = await pruneManagedState({ stateDirectory, currentGeneration: stageDirectory,
       previousLiveDirectory: publication.previousLiveDirectory, lockPath, lease });
-    const result = { status: "complete", uiSha: release.uiSha, publishedAt, generationId, source: exported.stats,
+    result = { status: "complete", uiSha: release.uiSha, publishedAt, generationId, source: exported.stats,
       rendered: changedPaths.length, reused: candidates.length - changedPaths.length, removed: removedPaths.length,
       fetchMs, renderMs: Math.round(performance.now() - renderStart), durationMs: Math.round(performance.now() - started),
       peakRssBytes: process.resourceUsage().maxRSS * 1024, pruned, previousLiveDirectory: publication.previousLiveDirectory };
+  } catch (error) {
+    primaryError = error;
+  }
+  const cleanupErrors = [...(primaryError?.cleanupErrors ?? [])];
+  const cleanupStarted = performance.now();
+  const clean = async (phase, action) => {
+    try { await action(); }
+    catch (error) { cleanupErrors.push({ phase, error: error.message, code: error.code }); }
+  };
+  try {
+    // Cleanup phases are independent: spool failure cannot skip failed-stage removal.
+    if (exported) await clean("export-spool", () => exported.cleanup());
+    if (stageDirectory && !published) await clean("failed-stage", () => rm(stageDirectory, { recursive: true, force: true }));
+    if (!primaryError && controller.signal.aborted) primaryError = controller.signal.reason;
+    if (primaryError || cleanupErrors.length) {
+      const failure = primaryError ?? new Error(`SEO cleanup failed: ${cleanupErrors.map(entry => entry.error).join("; ")}`);
+      await status({ status: "failed", phase: cleanupErrors.length ? "cleanup" : "refresh", error: failure.message,
+        cleanupErrors, publicationCompleted: published, durationMs: Math.round(performance.now() - started) }).catch(() => {});
+      throw failure;
+    }
+    result.cleanupMs = Math.round(performance.now() - cleanupStarted);
+    result.durationMs = Math.round(performance.now() - started);
     await status(result);
     return result;
-  } catch (error) {
-    await status({ status: "failed", error: error.message, publicationCompleted: published, durationMs: Math.round(performance.now() - started) }).catch(() => {});
-    throw error;
   } finally {
     clearTimeout(timer); process.removeListener("SIGTERM", abort); process.removeListener("SIGINT", abort);
-    if (exported) await exported.cleanup();
-    if (stageDirectory && !published) await rm(stageDirectory, { recursive: true, force: true });
   }
 }
 

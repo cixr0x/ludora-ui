@@ -72,5 +72,12 @@ export async function fetchSeoExport({ apiOrigin, fetchImpl = fetch, spoolParent
       afterId = lastId;
     }
     throw new Error("SEO export exceeds the supported 100000 item range");
-  } catch (error) { await cleanup(); throw error; }
+  } catch (error) {
+    // Retain source/validation failure as the primary error if spool removal fails too.
+    try { await cleanup(); }
+    catch (cleanupError) {
+      error.cleanupErrors = [...(error.cleanupErrors ?? []), { phase: "export-spool", error: cleanupError.message, code: cleanupError.code }];
+    }
+    throw error;
+  }
 }

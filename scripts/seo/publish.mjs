@@ -129,27 +129,36 @@ export async function readLiveGeneration(livePath) {
   } catch (error) { if (error.code === "ENOENT") return null; throw error; }
 }
 
-async function verifyGeneration(stageDirectory) {
+async function verifyGeneration(stageDirectory, checkAccess) {
+  checkAccess();
   let validation;
   try { validation = JSON.parse(await readFile(join(stageDirectory, "validation.json"), "utf8")); }
   catch { throw new Error("Generation has no complete validation record"); }
+  checkAccess();
   if (validation.version !== 1 || validation.complete !== true || !validation.files || !Object.keys(validation.files).length) {
     throw new Error("Generation is not validated and complete");
   }
-  if (validation.manifestHash !== await fileHash(join(stageDirectory, "manifest.json"))) throw new Error("Validated manifest changed");
+  const manifestHash = await fileHash(join(stageDirectory, "manifest.json"));
+  checkAccess();
+  if (validation.manifestHash !== manifestHash) throw new Error("Validated manifest changed");
   for (const [file, expected] of Object.entries(validation.files)) {
+    checkAccess();
     const path = resolve(stageDirectory, "public", file);
     const within = relative(resolve(stageDirectory, "public"), path);
     if (!within || within.startsWith("..") || isAbsolute(within) || (await lstat(path)).isSymbolicLink()) throw new Error("Unsafe validation path");
-    if (await fileHash(path) !== expected) throw new Error(`Validated generation file changed: ${file}`);
+    checkAccess();
+    const actual = await fileHash(path);
+    checkAccess();
+    if (actual !== expected) throw new Error(`Validated generation file changed: ${file}`);
   }
 }
 
-export async function publishGeneration({ stageDirectory, livePath, lockPath, lease }) {
-  if (!lease) return withGenerationLock(lockPath, active => publishGeneration({ stageDirectory, livePath, lockPath, lease: active }));
-  requireLease(lease, lockPath);
-  await verifyGeneration(stageDirectory);
-  requireLease(lease, lockPath);
+export async function publishGeneration({ stageDirectory, livePath, lockPath, lease, checkDeadline = () => {} }) {
+  if (!lease) return withGenerationLock(lockPath, active => publishGeneration({ stageDirectory, livePath, lockPath, lease: active, checkDeadline }));
+  const checkAccess = () => { requireLease(lease, lockPath); checkDeadline(); };
+  checkAccess();
+  await verifyGeneration(stageDirectory, checkAccess);
+  checkAccess();
   const publicDirectory = resolve(stageDirectory, "public");
   await mkdir(dirname(livePath), { recursive: true });
   const link = `${livePath}.next-${randomUUID()}`;
@@ -164,10 +173,11 @@ export async function publishGeneration({ stageDirectory, livePath, lockPath, le
     // Windows junction replacement require a preserved backup and rollback on failure.
     if (old && (!old.isSymbolicLink() || process.platform === "win32")) {
       backup = `${livePath}.previous-${randomUUID()}`;
+      checkAccess();
       await rename(livePath, backup);
       if (!old.isSymbolicLink()) previousLiveDirectory = backup;
     }
-    try { requireLease(lease, lockPath); await rename(link, livePath); switched = true; }
+    try { checkAccess(); await rename(link, livePath); switched = true; }
     catch (error) { if (backup) await rename(backup, livePath); throw error; }
     let cleanupWarning;
     if (backup && old.isSymbolicLink()) {

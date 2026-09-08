@@ -4,6 +4,8 @@ import { mkdtemp, mkdir, readFile, writeFile, rm, realpath, readdir } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
+import filesystem from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { fetchSeoExport } from "../../../scripts/seo/export.mjs";
 import { contentFingerprint, reconcilePages } from "../../../scripts/seo/manifest.mjs";
 import { withGenerationLock, publishGeneration, requireLease, fileHash } from "../../../scripts/seo/publish.mjs";
@@ -210,9 +212,10 @@ test("the worker deadline aborts source requests and releases its lock without p
   const config = await environment(t);
   await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl });
   const original = await realpath(config.livePath);
-  await assert.rejects(refreshSeo({ ...config, deadlineMs: 20, fetchImpl: (_url, { signal }) => new Promise((_accept, reject) => {
-    signal.addEventListener("abort", () => reject(signal.reason), { once: true });
-  }) }), /deadline/);
+  await assert.rejects(refreshSeo({ ...config, deadlineMs: 20, fetchImpl: (_url, { signal }) => {
+    signal.throwIfAborted();
+    return new Promise((_accept, reject) => { signal.addEventListener("abort", () => reject(signal.reason), { once: true }); });
+  } }), /deadline/);
   assert.equal(await realpath(config.livePath), original);
   assert.equal((await withGenerationLock(config.lockPath, async () => ({ status: "acquired" }))).status, "acquired");
 });
@@ -228,3 +231,124 @@ test("runtime-selection integrity failure records status before importing worker
   assert.equal(status.status, "failed");
   assert.equal(status.phase, "runtime-selection");
 });
+
+test("expiry during final publication verification preserves the prior live generation", async t => {
+  const config = await environment(t);
+  await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl });
+  const previous = await realpath(config.livePath);
+  let delayed = false;
+  const originalRead = filesystem.readFile;
+  await withFilesystemOverride("readFile", async (path, ...args) => {
+    if (!delayed && String(path).endsWith("validation.json")) {
+      delayed = true;
+      await new Promise(resolve => setTimeout(resolve, 1100));
+    }
+    return originalRead(path, ...args);
+  }, async () => {
+    await assert.rejects(refreshSeo({ ...config, deadlineMs: 1000, fetchImpl: feed([item(1, 400)]).fetchImpl }), /deadline/);
+  });
+  assert.equal(delayed, true, "The deadline must expire during final generation verification");
+  assert.equal(await realpath(config.livePath), previous);
+  const status = JSON.parse(await readFile(join(config.stateDirectory, "status.json"), "utf8"));
+  assert.equal(status.status, "failed");
+  assert.equal(status.publicationCompleted, false);
+});
+
+test("spool cleanup failure after publication rejects with an explicit cleanup status and preserves published HTML", async t => {
+  const config = await environment(t);
+  await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl });
+  const previous = await realpath(config.livePath);
+  const originalRemove = filesystem.rm;
+  await withFilesystemOverride("rm", async (path, ...args) => {
+    if (String(path).replaceAll("\\", "/").includes("/work/export-")) {
+      throw Object.assign(new Error("Injected spool cleanup failure"), { code: "EACCES" });
+    }
+    return originalRemove(path, ...args);
+  }, async () => {
+    await assert.rejects(refreshSeo({ ...config, fetchImpl: feed([item(1, 400)]).fetchImpl }), /Injected spool cleanup failure/);
+  });
+  assert.notEqual(await realpath(config.livePath), previous);
+  assert.match(await readFile(join(config.livePath, "game/1/game-1.html"), "utf8"), /price 400/);
+  const status = JSON.parse(await readFile(join(config.stateDirectory, "status.json"), "utf8"));
+  assert.equal(status.status, "failed");
+  assert.equal(status.phase, "cleanup");
+  assert.equal(status.publicationCompleted, true);
+  assert.match(status.cleanupErrors[0].error, /Injected spool cleanup failure/);
+});
+
+test("spool cleanup failure preserves the original renderer failure and still removes its failed stage", async t => {
+  const config = await environment(t);
+  await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl });
+  const previous = await realpath(config.livePath);
+  const broken = await environment(t);
+  const brokenFile = join(broken.runtimeDirectory, "entry-server.mjs");
+  await writeFile(brokenFile, 'export function renderHomepageDocument(){throw new Error("Original renderer failure")}');
+  const releasePath = join(broken.runtimeDirectory, "release.json");
+  const release = JSON.parse(await readFile(releasePath, "utf8"));
+  release.uiSha = "sha-b";
+  release.files["entry-server.mjs"] = await fileHash(brokenFile);
+  await writeFile(releasePath, JSON.stringify(release));
+  const originalRemove = filesystem.rm;
+  await withFilesystemOverride("rm", async (path, ...args) => {
+    if (String(path).replaceAll("\\", "/").includes("/work/export-")) throw new Error("Injected spool cleanup failure");
+    return originalRemove(path, ...args);
+  }, async () => {
+    await assert.rejects(refreshSeo({ ...config, runtimeDirectory: broken.runtimeDirectory, fetchImpl: feed([item()]).fetchImpl }), /^Error: Original renderer failure$/);
+  });
+  assert.equal(await realpath(config.livePath), previous);
+  assert.equal((await readdir(join(config.stateDirectory, "generations"))).length, 1);
+  const status = JSON.parse(await readFile(join(config.stateDirectory, "status.json"), "utf8"));
+  assert.equal(status.phase, "cleanup");
+  assert.equal(status.error, "Original renderer failure");
+  assert.equal(status.publicationCompleted, false);
+  assert.match(status.cleanupErrors[0].error, /Injected spool cleanup failure/);
+});
+
+test("an incomplete export preserves its original error when its own spool cleanup also fails", async t => {
+  const config = await environment(t);
+  await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl });
+  const previous = await realpath(config.livePath);
+  const originalRemove = filesystem.rm;
+  await withFilesystemOverride("rm", async (path, ...args) => {
+    if (String(path).replaceAll("\\", "/").includes("/work/export-")) throw new Error("Injected failed-export cleanup error");
+    return originalRemove(path, ...args);
+  }, async () => {
+    await assert.rejects(refreshSeo({ ...config, fetchImpl: feed([item()], e => ({ ...e, meta: { ...e.meta, export_version: 1 } })).fetchImpl }),
+      /Malformed SEO export v2 envelope/);
+  });
+  assert.equal(await realpath(config.livePath), previous);
+  const status = JSON.parse(await readFile(join(config.stateDirectory, "status.json"), "utf8"));
+  assert.equal(status.phase, "cleanup");
+  assert.equal(status.error, "Malformed SEO export v2 envelope");
+  assert.match(status.cleanupErrors[0].error, /Injected failed-export cleanup error/);
+});
+
+test("cancellation after bootstrap backup restores the original directory before returning failure", async t => {
+  const config = await environment(t);
+  await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl });
+  const stageDirectory = join(await realpath(config.livePath), "..");
+  const legacy = join(config.root, "legacy-dist");
+  await mkdir(legacy);
+  await writeFile(join(legacy, "index.html"), "original legacy release");
+  let aborted = false;
+  const originalRename = filesystem.rename;
+  await withFilesystemOverride("rename", async (from, ...args) => {
+    const result = await originalRename(from, ...args);
+    if (String(from) === legacy) aborted = true;
+    return result;
+  }, async () => {
+    await assert.rejects(publishGeneration({ ...config, livePath: legacy, stageDirectory,
+      checkDeadline: () => { if (aborted) throw new Error("Cancelled before live switch"); } }), /Cancelled before live switch/);
+  });
+  assert.equal(aborted, true);
+  assert.equal(await readFile(join(legacy, "index.html"), "utf8"), "original legacy release");
+  assert.equal(await realpath(legacy), legacy);
+});
+
+async function withFilesystemOverride(name, replacement, action) {
+  const original = filesystem[name];
+  filesystem[name] = replacement;
+  syncBuiltinESMExports();
+  try { return await action(); }
+  finally { filesystem[name] = original; syncBuiltinESMExports(); }
+}
