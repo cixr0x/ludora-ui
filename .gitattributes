@@ -1,0 +1,3 @@
+ops/seo/*.sh text eol=lf
+ops/seo/*.service text eol=lf
+ops/seo/*.timer text eol=lf

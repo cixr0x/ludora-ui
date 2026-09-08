@@ -1,5 +1,5 @@
-import { mkdir, readFile, writeFile, copyFile, cp, readdir, rm } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { mkdir, readFile, writeFile, copyFile, cp, readdir, rm, lstat } from "node:fs/promises";
+import { dirname, join, resolve, relative, isAbsolute, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
 import { fetchSeoExport } from "./seo/export.mjs";
@@ -8,11 +8,32 @@ import { fileHash, publishGeneration, pruneManagedState, readLiveGeneration, rea
 import { robotsDocument, sitemapDocument } from "./seo-output.mjs";
 import { selectFeaturedGames } from "../src/app/utils/homePrerender.js";
 import { buildCatalogIndex, catalogPageDescriptors, catalogPageModel, categoryPath, CATALOG_PAGE_SIZE } from "../src/app/utils/catalogSeo.js";
+import { captureBaseIdentity } from "./seo/base.mjs";
+import { checkedDirectory } from "./seo/paths.mjs";
+import { processEvidence } from "./seo/process.mjs";
+import { refreshCurrentGeneration } from "./seo/current.mjs";
+export { refreshCurrentGeneration } from "./seo/current.mjs";
 
 export async function refreshSeo(config) {
+  if (!config.lease) return withGenerationLock(config.lockPath, lease => refreshSeo({ ...config, lease }));
+  return executeGeneration({ ...config, publish: true });
+}
+
+export async function generateSeoStage(config) {
+  requireLease(config.lease, config.lockPath);
+  const pending = join(resolve(config.stateDirectory), "pending-deployments");
+  const stageDirectory = resolve(config.stageDirectory);
+  const within = relative(pending, stageDirectory);
+  if (!within || within.startsWith("..") || isAbsolute(within)) throw new Error("Stage must stay within pending deployments");
+  await checkedDirectory(config.stateDirectory, ["pending-deployments", ...within.split(sep).slice(0, -1)], { create: true });
+  try { await lstat(stageDirectory); throw new Error("Stage already exists"); } catch (error) { if (error.code !== "ENOENT") throw error; }
+  return executeGeneration({ ...config, stageDirectory, publish: false });
+}
+
+async function executeGeneration(config) {
   const { runtimeDirectory, stateDirectory, livePath, lockPath, lease, apiOrigin, fetchImpl = fetch,
-    now = () => new Date().toISOString(), log = value => process.stdout.write(`${JSON.stringify(value)}\n`), deadlineMs = 590000 } = config;
-  if (!lease) return withGenerationLock(lockPath, active => refreshSeo({ ...config, lease: active }));
+    now = () => new Date().toISOString(), log = value => process.stdout.write(`${JSON.stringify(value)}\n`), deadlineMs = 590000,
+    publish, reusePages = true } = config;
   requireLease(lease, lockPath);
   const started = performance.now();
   const controller = new AbortController();
@@ -23,8 +44,8 @@ export async function refreshSeo(config) {
   process.once("SIGINT", abort);
   const checkDeadline = () => { requireLease(lease, lockPath); controller.signal.throwIfAborted(); if (performance.now() - started >= deadlineMs) throw new Error("SEO refresh deadline exceeded"); };
   let exported, stageDirectory, published = false, result, primaryError;
-  const generationId = randomUUID();
-  const statusPath = join(stateDirectory, "status.json");
+  const generationId = config.generationId ?? randomUUID();
+  const statusPath = config.statusPath ?? join(stateDirectory, "status.json");
   const status = async entry => { const value = { generationId, ...entry }; log(value); await writeJsonAtomic(statusPath, value); };
   try {
     await mkdir(join(stateDirectory, "generations"), { recursive: true });
@@ -33,6 +54,7 @@ export async function refreshSeo(config) {
     const template = await readFile(join(runtimeDirectory, "template.html"), "utf8");
     const renderer = await import(/* @vite-ignore */ pathToFileURL(join(runtimeDirectory, "entry-server.mjs")).href);
     const previous = await readLiveGeneration(livePath);
+    const baseIdentity = publish ? undefined : await captureBaseIdentity(livePath, checkDeadline);
     const sourceStart = performance.now();
     const homepageResponse = await fetchImpl(`${apiOrigin.replace(/\/+$/, "")}/api/front-page`, { signal: controller.signal });
     if (!homepageResponse.ok) throw new Error(`Homepage prerender request failed with ${homepageResponse.status}`);
@@ -63,13 +85,14 @@ export async function refreshSeo(config) {
     }
     const prepareMs = Math.round(performance.now() - renderStart);
     const reconciliation = reconcilePages({ previous: previous?.manifest, candidates, publishedAt, uiSha: release.uiSha });
-    const { manifest, changedPaths, removedPaths } = reconciliation;
+    const { manifest, removedPaths } = reconciliation;
+    const changedPaths = reusePages ? reconciliation.changedPaths : candidates.map(page => page.canonicalPath);
     manifest.generationId = generationId;
     manifest.runtimeDirectory = resolve(runtimeDirectory);
     manifest.previousRuntimeDirectory = previous?.manifest?.runtimeDirectory !== resolve(runtimeDirectory)
       ? previous?.manifest?.runtimeDirectory ?? null : previous?.manifest?.previousRuntimeDirectory ?? null;
     manifest.source = { ...exported.stats, maxId: exported.maxId };
-    stageDirectory = join(stateDirectory, "generations", generationId);
+    stageDirectory = config.stageDirectory ?? join(stateDirectory, "generations", generationId);
     const publicDirectory = join(stageDirectory, "public");
     await cp(join(runtimeDirectory, "static"), publicDirectory, { recursive: true });
     const previousAssets = manifest.previousRuntimeDirectory ? join(manifest.previousRuntimeDirectory, "static", "assets")
@@ -89,7 +112,8 @@ export async function refreshSeo(config) {
         await copyFile(join(previous.publicDirectory, file), output);
       } else {
         let document;
-        if (candidate.canonicalPath === "/") document = renderer.renderHomepageDocument({ featuredGames, template, publishedAt });
+        const pagePublishedAt = manifest.pages[candidate.canonicalPath].lastmod;
+        if (candidate.canonicalPath === "/") document = renderer.renderHomepageDocument({ featuredGames, template, publishedAt: pagePublishedAt });
         else if (candidate.descriptor) {
           const model = { ...catalogPageModel(catalogIndex, candidate.descriptor), indexingEnabled: release.indexingEnabled };
           const rendered = renderer.renderCatalogDocument({ model, template, siteUrl: release.siteUrl });
@@ -97,7 +121,7 @@ export async function refreshSeo(config) {
           document = rendered.document;
         } else {
           const item = await exported.readItem(candidate.itemId);
-          const rendered = renderer.renderProductDocument({ item, template, siteUrl: release.siteUrl, publishedAt });
+          const rendered = renderer.renderProductDocument({ item, template, siteUrl: release.siteUrl, publishedAt: pagePublishedAt });
           if (rendered.canonicalPath !== candidate.canonicalPath) throw new Error("Renderer changed the export canonical path");
           document = rendered.document;
         }
@@ -125,14 +149,18 @@ export async function refreshSeo(config) {
     await writeJsonAtomic(join(stageDirectory, "validation.json"), { version: 1, complete: exported.complete,
       manifestHash: await fileHash(join(stageDirectory, "manifest.json")), routesHash: await fileHash(join(stageDirectory, "routes.json")), files });
     checkDeadline();
-    const publication = await publishGeneration({ stageDirectory, livePath, lockPath, lease, checkDeadline });
-    published = true;
-    const pruned = await pruneManagedState({ stateDirectory, currentGeneration: stageDirectory,
-      previousLiveDirectory: publication.previousLiveDirectory, lockPath, lease });
-    result = { status: "complete", uiSha: release.uiSha, publishedAt, generationId, source: exported.stats,
+    let publication, pruned;
+    if (publish) {
+      publication = await publishGeneration({ stageDirectory, livePath, lockPath, lease, checkDeadline });
+      published = true;
+      pruned = await pruneManagedState({ stateDirectory, currentGeneration: stageDirectory,
+        previousLiveDirectory: publication.previousLiveDirectory, lockPath, lease });
+    }
+    result = { status: publish ? "complete" : "generated", publicationCompleted: published,
+      uiSha: release.uiSha, publishedAt, generationId, stageDirectory, baseIdentity, source: exported.stats,
       rendered: changedPaths.length, reused: candidates.length - changedPaths.length, removed: removedPaths.length,
       fetchMs, catalogMs, prepareMs, graphMs, renderMs: Math.round(performance.now() - renderStart), durationMs: Math.round(performance.now() - started),
-      peakRssBytes: process.resourceUsage().maxRSS * 1024, pruned, previousLiveDirectory: publication.previousLiveDirectory };
+      peakRssBytes: process.resourceUsage().maxRSS * 1024, process: await processEvidence(lease), pruned, previousLiveDirectory: publication?.previousLiveDirectory };
   } catch (error) {
     primaryError = error;
   }
@@ -145,7 +173,7 @@ export async function refreshSeo(config) {
   try {
     // Cleanup phases are independent: spool failure cannot skip failed-stage removal.
     if (exported) await clean("export-spool", () => exported.cleanup());
-    if (stageDirectory && !published) await clean("failed-stage", () => rm(stageDirectory, { recursive: true, force: true }));
+    if (stageDirectory && !published && (publish || primaryError || cleanupErrors.length)) await clean("failed-stage", () => rm(stageDirectory, { recursive: true, force: true }));
     if (!primaryError && controller.signal.aborted) primaryError = controller.signal.reason;
     if (primaryError || cleanupErrors.length) {
       const failure = primaryError ?? new Error(`SEO cleanup failed: ${cleanupErrors.map(entry => entry.error).join("; ")}`);
@@ -207,24 +235,6 @@ export async function refreshCli() {
   const result = await refreshCurrentGeneration({ stateDirectory, livePath, lockPath,
     apiOrigin: process.env.LUDORA_PRERENDER_API_ORIGIN ?? "http://127.0.0.1:4000" });
   if (result.status === "skipped") process.stdout.write(`${JSON.stringify(result)}\n`);
-}
-
-export async function refreshCurrentGeneration({ stateDirectory, livePath, lockPath, apiOrigin,
-  loadWorker = directory => import(/* @vite-ignore */ pathToFileURL(join(directory, "refresh-worker.mjs")).href) }) {
-  return withGenerationLock(lockPath, async lease => {
-    let worker, runtimeDirectory;
-    try {
-      const live = await readLiveGeneration(livePath);
-      runtimeDirectory = live?.manifest?.runtimeDirectory;
-      if (!runtimeDirectory) throw new Error("No retained SEO runtime: run the initial build first");
-      await readVerifiedRuntime(runtimeDirectory);
-      worker = await loadWorker(runtimeDirectory);
-    } catch (error) {
-      await writeJsonAtomic(join(stateDirectory, "status.json"), { status: "failed", phase: "runtime-selection", error: error.message, failedAt: new Date().toISOString() }).catch(() => {});
-      throw error;
-    }
-    return worker.refreshSeo({ runtimeDirectory, stateDirectory, livePath, lockPath, lease, apiOrigin });
-  });
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {

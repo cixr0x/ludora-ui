@@ -17,6 +17,7 @@ export async function withGenerationLock(lockPath, action, { platform = process.
     // Kernel-owned lock: killed workers and closed parent pipes release it automatically.
     const child = spawnImpl("flock", ["-F", "-n", "-E", "75", lockPath, process.execPath, "-e",
       "process.stdout.write('locked\\n'); process.stdin.resume();"], { stdio: ["pipe", "pipe", "pipe"] });
+    lease.holderPid = child.pid;
     child.once("exit", () => { lease.active = false; });
     child.once("error", () => { lease.active = false; });
     const acquired = await new Promise((accept, reject) => {
@@ -129,7 +130,7 @@ export async function readLiveGeneration(livePath) {
   } catch (error) { if (error.code === "ENOENT") return null; throw error; }
 }
 
-async function verifyGeneration(stageDirectory, checkAccess) {
+export async function verifyGeneration(stageDirectory, checkAccess) {
   checkAccess();
   let validation;
   try { validation = JSON.parse(await readFile(join(stageDirectory, "validation.json"), "utf8")); }
@@ -144,6 +145,16 @@ async function verifyGeneration(stageDirectory, checkAccess) {
   const routesHash = await fileHash(join(stageDirectory, "routes.json"));
   checkAccess();
   if (validation.routesHash !== routesHash) throw new Error("Validated routes changed");
+  const inspectTree = async (directory, prefix = "") => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      checkAccess();
+      const file = `${prefix}${entry.name}`;
+      if (entry.isSymbolicLink()) throw new Error("Generation contains a symbolic link");
+      if (entry.isDirectory()) await inspectTree(join(directory, entry.name), `${file}/`);
+      else if (!entry.isFile() || !Object.hasOwn(validation.files, file)) throw new Error(`Unvalidated generation file: ${file}`);
+    }
+  };
+  await inspectTree(join(stageDirectory, "public"));
   for (const [file, expected] of Object.entries(validation.files)) {
     checkAccess();
     const path = resolve(stageDirectory, "public", file);

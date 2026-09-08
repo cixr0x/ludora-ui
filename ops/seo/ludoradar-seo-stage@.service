@@ -1,19 +1,19 @@
 [Unit]
-Description=Publish the daily Ludo Radar comparison snapshot
+Description=Cold-stage the Ludo Radar SEO deployment %i
 After=network-online.target ludora-service.service
 Wants=network-online.target
 
 [Service]
 Type=oneshot
+Slice=system.slice
 User=mcp13
 Group=mcp13
 WorkingDirectory=/var/lib/ludoradar-seo
-StateDirectory=ludoradar-seo
 Environment=LUDORA_SEO_STATE_DIR=/var/lib/ludoradar-seo
 Environment=LUDORA_SEO_LIVE_PATH=/opt/ludora/ludora-ui/dist
 Environment=LUDORA_SEO_LOCK_PATH=/run/lock/ludoradar-seo-refresh.lock
 Environment=LUDORA_PRERENDER_API_ORIGIN=http://127.0.0.1:4000
-ExecStart=/bin/sh /var/lib/ludoradar-seo/bin/measure.sh refresh
+ExecStart=/bin/sh /var/lib/ludoradar-seo/bin/measure.sh stage %i
 TimeoutStartSec=600
 TimeoutStopSec=10
 KillMode=control-group

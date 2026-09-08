@@ -1,6 +1,7 @@
 # Public crawl access
 
-`npm run build:indexable` emits crawlable homepage and product HTML. Its generated
+`npm run build:indexable` emits crawlable homepage, product, 48-game catalog,
+category directory and paginated category HTML. Its generated
 `robots.txt` blocks `/api/` except the browser reads needed to render those pages:
 
 - `/api/front-page` and `/api/items/filter-options` use exact, end-anchored rules.
@@ -14,9 +15,20 @@ prerender and semantic-search endpoints remain blocked. Public API responses ret
 their service-owned `X-Robots-Tag: noindex, nofollow`; crawl access lets the renderer
 read JSON without making that JSON an indexable page.
 
-The default build still blocks all crawling. Sitemap and canonical URLs keep their
-existing behavior. See [Google's robots.txt matching rules](https://developers.google.com/crawling/docs/robots-txt/robots-txt-spec#url-matching-based-on-path-values).
+The default build still blocks all crawling. The indexable sitemap contains only
+the selected generation's canonical pages, each with its own significant-content
+`lastmod`; unchanged data and volatile fetch timestamps do not advance it. See
+[Google's robots.txt matching rules](https://developers.google.com/crawling/docs/robots-txt/robots-txt-spec#url-matching-based-on-path-values).
 
 The homepage document is also the SPA fallback for search, browse and legal routes.
-Only `/` hydrates embedded homepage markup; fallback routes clear it and mount their
-own page. Product documents keep their existing hydration path.
+Only `/` hydrates embedded homepage markup; fallback routes reject mismatched
+snapshots and reset stale metadata before mounting their own page. Products and
+catalogs hydrate only matching snapshots. Generated catalog navigation reads inert
+same-origin HTML payloads without executing fetched scripts, follows published
+redirects, and updates URL/metadata together. Search and legal routes stay noindex.
+
+Private generation route registries drive canonical aliases. A newer database name
+cannot redirect to an unpublished path; malformed, absent and out-of-range targets
+return true 404 responses. The daily worker updates complete generations atomically
+using one bulk export. See [refresh operations](seo-refresh-operations.md) for the
+exact-SHA deployment, cgroup gate, daily timer and rollback procedures.
