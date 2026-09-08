@@ -21,7 +21,7 @@ export function renderHomepageDocument({
   const router = createMemoryRouter(routeDefinitions, { initialEntries: ["/"] });
   const appHtml = renderToString(<App prerenderData={prerenderData} router={router} />);
   const rootMarkup = `<div id="root">${appHtml}</div><script id="ludo-radar-prerender-data" type="application/json">${serializeJsonForHtml(prerenderData)}</script>`;
-  const document = template.replace(/<div id="root"><\/div>/, rootMarkup);
+  const document = template.replace(/<div id="root"><\/div>/, () => rootMarkup);
 
   if (document === template) {
     throw new Error("Could not find the root element in the built HTML template");
@@ -53,7 +53,7 @@ export function renderProductDocument({
   const metadata = productSeoMetadata(detail, siteUrl);
   const rootMarkup = `<div id="root">${appHtml}</div><script id="ludo-radar-prerender-data" type="application/json">${serializeJsonForHtml(prerenderData)}</script>`;
 
-  let document = template.replace(/<div id="root"><\/div>/, rootMarkup);
+  let document = template.replace(/<div id="root"><\/div>/, () => rootMarkup);
   if (document === template) {
     throw new Error("Could not find the root element in the built HTML template");
   }
@@ -81,12 +81,12 @@ export function renderProductDocument({
     .filter(Boolean)
     .join("\n      ");
 
-  document = document.replace("</head>", `      ${productHead}\n    </head>`);
+  document = document.replace("</head>", () => `      ${productHead}\n    </head>`);
   return { canonicalPath, document };
 }
 
 function replaceTitle(document: string, title: string): string {
-  return document.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtmlText(title)}</title>`);
+  return document.replace(/<title>[^<]*<\/title>/, () => `<title>${escapeHtmlText(title)}</title>`);
 }
 
 function replaceMeta(
@@ -97,15 +97,15 @@ function replaceMeta(
 ): string {
   const pattern = new RegExp(`<meta\\s+${attribute}="${escapeRegExp(key)}"\\s+content="[^"]*"\\s*\\/>`);
   const replacement = `<meta ${attribute}="${key}" content="${escapeHtmlAttribute(content)}" />`;
-  if (pattern.test(document)) return document.replace(pattern, replacement);
-  return document.replace("</head>", `      ${replacement}\n    </head>`);
+  if (pattern.test(document)) return document.replace(pattern, () => replacement);
+  return document.replace("</head>", () => `      ${replacement}\n    </head>`);
 }
 
 function replaceCanonical(document: string, href: string): string {
   const pattern = /<link\s+rel="canonical"\s+href="[^"]*"\s*\/>/;
   const replacement = `<link rel="canonical" href="${escapeHtmlAttribute(href)}" />`;
-  if (pattern.test(document)) return document.replace(pattern, replacement);
-  return document.replace("</head>", `      ${replacement}\n    </head>`);
+  if (pattern.test(document)) return document.replace(pattern, () => replacement);
+  return document.replace("</head>", () => `      ${replacement}\n    </head>`);
 }
 
 function serializeJsonForHtml(value: unknown): string {
