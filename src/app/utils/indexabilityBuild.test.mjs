@@ -117,6 +117,24 @@ test("the sitemap contains only unique absolute canonical URLs", () => {
   );
 });
 
+test("production sitemap records preserve each page's significant lastmod and exact page set", () => {
+  const pages = [
+    { canonicalPath: "/", lastmod: "2026-09-07T06:00:00.000Z" },
+    { canonicalPath: "/juegos-de-mesa/pagina/2", lastmod: "2026-09-08T06:00:00.000Z" },
+  ];
+  const sitemap = sitemapDocument({ pages, siteUrl: "https://www.ludoradar.mx" });
+  assert.match(sitemap, /<loc>https:\/\/www\.ludoradar\.mx\/<\/loc><lastmod>2026-09-07T06:00:00.000Z<\/lastmod>/);
+  assert.match(sitemap, /\/juegos-de-mesa\/pagina\/2<\/loc><lastmod>2026-09-08T06:00:00.000Z<\/lastmod>/);
+  assert.doesNotMatch(sitemap, /priority|changefreq/);
+  assert.doesNotMatch(sitemapDocument({ pages: [], siteUrl: "https://www.ludoradar.mx" }), /<url>/);
+  for (const lastmod of [undefined, "invalid", "2026-02-30", "2026-09-08T25:00:00Z"]) {
+    assert.throws(() => sitemapDocument({ pages: [{ canonicalPath: "/", lastmod }], siteUrl: "https://www.ludoradar.mx" }), /lastmod/i);
+  }
+  assert.throws(() => sitemapDocument({ pages: [...pages, { ...pages[0], lastmod: pages[1].lastmod }], siteUrl: "https://www.ludoradar.mx" }), /duplicate/i);
+  const escaped = sitemapDocument({ canonicalPaths: ["/example?first=1&second=2"], siteUrl: "https://www.ludoradar.mx" });
+  assert.match(escaped, /first=1&amp;second=2/);
+});
+
 // The generated file has one wildcard user-agent group. Evaluate its rules against
 // the complete path + query: Google supports * and $, with the longest rule winning
 // and Allow winning ties. Other regex characters (including ? and []) are literal.

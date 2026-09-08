@@ -106,7 +106,9 @@ export async function refreshSeo(config) {
       await validateDocument(output, candidate.canonicalPath, release, assetReferences);
     }
     await writeFile(join(publicDirectory, "robots.txt"), robotsDocument({ indexingEnabled: release.indexingEnabled, siteUrl: release.siteUrl }));
-    await writeFile(join(publicDirectory, "sitemap.xml"), sitemapDocument({ canonicalPaths: candidates.map(page => page.canonicalPath), siteUrl: release.siteUrl }));
+    await writeFile(join(publicDirectory, "sitemap.xml"), sitemapDocument({
+      pages: release.indexingEnabled ? Object.values(manifest.pages) : [], siteUrl: release.siteUrl,
+    }));
     const routes = { version: 1, generationId,
       games: Object.fromEntries(exported.items.map(item => [item.id, item.canonicalPath])),
       catalogPageCount: Math.max(1, Math.ceil(exported.items.length / CATALOG_PAGE_SIZE)),

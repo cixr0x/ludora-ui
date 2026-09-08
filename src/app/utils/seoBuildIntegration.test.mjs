@@ -61,6 +61,7 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
     assert.match(visibleText(document), /Desde \$425\.00 MXN, sin envío/);
     assert.equal(jsonScript(document, "product-structured-data")["@graph"][0].offers[0].price, 425);
     assert.match(document, /noindex, nofollow/);
+    assert.doesNotMatch(await readFile(join(nextPublic, "sitemap.xml"), "utf8"), /<url>/, "blocked builds have no indexable sitemap entries");
     assert.equal(await fileHash(releasePath), releaseHash);
     assert.equal(await fileHash(join(manifest.runtimeDirectory, "refresh-worker.mjs")), workerHash);
     assert.equal(requests.every(path => ["/api/front-page", "/api/items/prerender"].includes(path)), true);
