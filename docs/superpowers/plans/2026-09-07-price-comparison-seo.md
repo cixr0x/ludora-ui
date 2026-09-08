@@ -49,12 +49,13 @@ type SeoOfferFields = {
 
 // Extended prerender feed remains { data, meta }.
 type SeoExportMeta = {
-  schemaVersion: 2;
+  export_version: 2;
   pagination: "keyset";
   limit: number;
-  afterId: number;
-  maxId: number;
-  nextAfterId: number | null;
+  count: number;
+  after_id: number;
+  max_id: number;
+  next_after_id: number;
 };
 
 type SeoPageRecord = {
@@ -72,7 +73,7 @@ type SeoManifest = {
 };
 ~~~
 
-The initial export captures maxId; later requests send that same maxId. Reject changing bounds and repeated/non-advancing cursors. A schemaVersion mismatch is an error for the new refresh worker; do not silently downgrade to the offer-free feed. Existing consumers can ignore additive fields.
+The initial request sends after_id=0 and captures meta.max_id; later requests send that same bound using the maxId query parameter and advance after_id using meta.next_after_id. A terminal empty page preserves its incoming cursor. Reject changing bounds and repeated/non-advancing nonempty pages. An export_version mismatch is an error for the new refresh worker; do not silently downgrade to the offer-free feed. Existing consumers can ignore additive fields.
 
 ## Task 1: Export complete comparison data and establish one offer policy
 
