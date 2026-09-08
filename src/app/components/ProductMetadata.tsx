@@ -35,7 +35,7 @@ export function ProductMetadata({ detail }: { detail: GameDetail }) {
   return null;
 }
 
-function resetProductMetadata() {
+export function resetProductMetadata() {
   const homeUrl = siteRootUrl(SITE_URL);
   document.title = HOME_TITLE;
   setMeta("name", "description", HOME_DESCRIPTION);

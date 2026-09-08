@@ -3,15 +3,21 @@ import { createBrowserRouter } from "react-router";
 import App from "./app/App.tsx";
 import type { PrerenderData } from "./app/PrerenderData.tsx";
 import { routeDefinitions } from "./app/routes.ts";
+import { resetProductMetadata } from "./app/components/ProductMetadata.tsx";
 import "./styles/index.css";
 
 const root = document.getElementById("root")!;
-const prerenderData = readPrerenderData();
-const app = <App prerenderData={prerenderData} router={createBrowserRouter(routeDefinitions)} />;
-
+let prerenderData = readPrerenderData();
 const routeItemId = window.location.pathname.match(/^\/game\/(\d+)(?:\/[^/]+)?\/?$/)?.[1];
 const hasMatchingPrerenderData = (routeItemId && prerenderData?.product?.id === Number(routeItemId)) ||
   (prerenderData?.homepage && window.location.pathname === "/");
+if (!hasMatchingPrerenderData) {
+  if (prerenderData?.product || document.getElementById("product-structured-data")) resetProductMetadata();
+  prerenderData = undefined;
+  document.getElementById("ludo-radar-prerender-data")?.remove();
+}
+const app = <App prerenderData={prerenderData} router={createBrowserRouter(routeDefinitions)} />;
+
 if (hasMatchingPrerenderData && root.hasChildNodes()) {
   hydrateRoot(root, app);
 } else {

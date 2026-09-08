@@ -26,7 +26,19 @@ test("missing data or empty markup mounts normally", () => {
   assert.deepEqual(bootstrap({ pathname: "/", data: homepageData, hasMarkup: false }), ["clear", "mount"]);
 });
 
-function bootstrap({ pathname, data, hasMarkup = true }) {
+test("fallback mounting rejects product context while matching hydration retains it", () => {
+  const data = { product: { id: 851 } };
+  for (const pathname of ["/privacidad", "/search", "/game/852/another"]) {
+    let mountedData;
+    bootstrap({ pathname, data, capture: value => { mountedData = value; } });
+    assert.equal(mountedData, undefined, pathname);
+  }
+  let hydratedData;
+  bootstrap({ pathname: "/game/851/dixit", data, capture: value => { hydratedData = value; } });
+  assert.equal(hydratedData.product.id, 851);
+});
+
+function bootstrap({ pathname, data, hasMarkup = true, capture = () => {} }) {
   const operations = [];
   const root = {
     hasChildNodes: () => hasMarkup,
@@ -39,16 +51,18 @@ function bootstrap({ pathname, data, hasMarkup = true }) {
     "react-dom/client": {
       createRoot: (target) => {
         assert.equal(target, root);
-        return { render: () => operations.push("mount") };
+        return { render: app => { capture(app.prerenderData); operations.push("mount"); } };
       },
-      hydrateRoot: (target) => {
+      hydrateRoot: (target, app) => {
         assert.equal(target, root);
+        capture(app.prerenderData);
         operations.push("hydrate");
       },
     },
     "react-router": { createBrowserRouter: () => ({}) },
     "./app/App.tsx": { default: () => null },
     "./app/routes.ts": { routeDefinitions: [] },
+    "./app/components/ProductMetadata.tsx": { resetProductMetadata: () => {} },
     "./styles/index.css": {},
   };
   runInNewContext(code, {
@@ -57,7 +71,8 @@ function bootstrap({ pathname, data, hasMarkup = true }) {
       return modules[name];
     },
     document: {
-      getElementById: (id) => id === "root" ? root : data ? { textContent: JSON.stringify(data) } : null,
+      getElementById: (id) => id === "root" ? root : id === "ludo-radar-prerender-data" && data
+        ? { textContent: JSON.stringify(data), remove: () => {} } : null,
     },
     window: { location: { pathname } },
   });
