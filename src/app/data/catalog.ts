@@ -198,7 +198,7 @@ function frontPageRowTitle(row: ApiFrontPageRow, rowGenre: string): string {
   return title;
 }
 
-function mapApiItemToGame(item: ApiCatalogGameBase, extraGenre?: string): Game {
+export function mapApiItemToGame(item: ApiCatalogGameBase, extraGenre?: string): Game {
   const id = positiveInteger(item.id) ?? 0;
   const name = preferredText(item.canonical_name_es, item.canonical_name, "Juego sin nombre");
   const altTitle = item.canonical_name_es ? item.canonical_name : undefined;

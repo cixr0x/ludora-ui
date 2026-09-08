@@ -11,12 +11,14 @@ const homepageData = { homepage: { featuredGames: [{ id: 851, name: "Dixit" }] }
 test("fallback routes replace homepage HTML before mounting their own page", () => {
   for (const pathname of ["/search", "/browse/strategy", "/privacidad", "/terminos"]) {
     assert.deepEqual(bootstrap({ pathname, data: homepageData }), ["clear", "mount"], pathname);
+    assert.deepEqual(bootstrap({ pathname, data: { product: { id: 851 } } }), ["clear", "mount"], pathname);
   }
 });
 
 test("the homepage and prerendered product still hydrate their existing HTML", () => {
   assert.deepEqual(bootstrap({ pathname: "/", data: homepageData }), ["hydrate"]);
   assert.deepEqual(bootstrap({ pathname: "/game/851/dixit", data: { product: { id: 851 } } }), ["hydrate"]);
+  assert.deepEqual(bootstrap({ pathname: "/game/852/another", data: { product: { id: 851 } } }), ["clear", "mount"]);
 });
 
 test("missing data or empty markup mounts normally", () => {

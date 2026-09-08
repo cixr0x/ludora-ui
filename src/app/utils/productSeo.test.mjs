@@ -18,8 +18,8 @@ test("productSeoMetadata describes one canonical Mexican product page", () => {
   const metadata = productSeoMetadata(detail, "https://example.mx");
 
   assert.equal(metadata.canonicalUrl, "https://example.mx/game/851/dixit");
-  assert.match(metadata.title, /^Dixit:/);
-  assert.match(metadata.description, /3-6 jugadores/);
+  assert.equal(metadata.title, "Dixit: compara precios en México | Ludo Radar");
+  assert.equal(metadata.description, "Compara precios de Dixit en tiendas de México. Consulta ofertas y disponibilidad y encuentra dónde comprarlo.");
   assert.equal(metadata.structuredData["@graph"][0]["@type"], "Product");
   assert.equal(metadata.structuredData["@graph"][1]["@type"], "BreadcrumbList");
   assert.equal(metadata.structuredData["@graph"][0].offers, undefined);

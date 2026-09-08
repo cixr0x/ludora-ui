@@ -17,6 +17,8 @@ import { buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
 import { usePrerenderedProduct } from "../PrerenderData";
 import { ProductMetadata } from "../components/ProductMetadata";
 import { productPath } from "../utils/productRoutes.js";
+import { pricingOffers, visibleStoreOffers } from "../utils/offerSeo.js";
+import { formatStorePrice } from "../utils/priceFormat.js";
 
 const BGG_PRIMARY_LOGO_URL = "/bgg-primary-logo-reverse.svg";
 
@@ -165,8 +167,11 @@ function TikTokEmbed({ tiktokId, tiktokUser, gameName }: { tiktokId: string; tik
 }
 
 function StoreCard({ store }: { store: StoreEntry }) {
-  const availabilityStatus = store.availabilityStatus ?? (store.inStock ? "available" : "out_of_stock");
-  const availabilityLabel = storeAvailabilityLabel(availabilityStatus);
+  const availabilityStatus = store.availabilityStatus ?? "unknown";
+  const availabilityLabel = availabilityStatus === "available" ? "Disponible" : storeAvailabilityLabel(availabilityStatus);
+  const price = Number.isFinite(store.priceValue) && store.priceValue > 0 && store.currency
+    ? `${formatStorePrice(store.priceValue, store.currency)} ${store.currency}` : "Consultar";
+  const language = store.language === "es" ? "Español" : store.language === "en" ? "Inglés" : store.language;
   const content = (
     <>
       <div className="flex-none w-12 h-12 rounded-md overflow-hidden">
@@ -179,6 +184,7 @@ function StoreCard({ store }: { store: StoreEntry }) {
       <div className="flex-1 min-w-0">
         <p className="text-white text-sm truncate">{store.name}</p>
         <p className="text-neutral-500 text-xs truncate">{store.gameTitle}</p>
+        <p className="text-neutral-400 text-xs">{language ? `Idioma: ${language}` : "Idioma por confirmar"}</p>
       </div>
       <div className="flex-none flex flex-col items-end gap-1">
         {availabilityLabel && (
@@ -193,7 +199,7 @@ function StoreCard({ store }: { store: StoreEntry }) {
           </span>
         )}
         <div className="flex items-center gap-2">
-          {availabilityStatus !== "unavailable" && <p className="text-fuchsia-400 text-sm">{store.price}</p>}
+          {availabilityStatus !== "unavailable" && <p className="text-fuchsia-400 text-sm">{price}</p>}
           {store.url && <ExternalLink className="w-3.5 h-3.5 text-neutral-500 group-hover:text-fuchsia-300 transition-colors" />}
         </div>
       </div>
@@ -278,8 +284,8 @@ export function GameDetail() {
   const itemId = Number(id);
   const prerenderedDetail = usePrerenderedProduct(itemId);
   const [detail, setDetail] = useState<GameDetailData | undefined>(() => prerenderedDetail);
-  const [expansionGames, setExpansionGames] = useState<Game[]>([]);
-  const [relatedGames, setRelatedGames] = useState<Game[]>([]);
+  const [expansionGames, setExpansionGames] = useState<Game[]>(() => prerenderedDetail?.expansionGames ?? []);
+  const [relatedGames, setRelatedGames] = useState<Game[]>(() => prerenderedDetail?.relatedGames ?? []);
   const [isLoading, setIsLoading] = useState(
     () => Number.isInteger(itemId) && itemId > 0 && !prerenderedDetail,
   );
@@ -300,12 +306,12 @@ export function GameDetail() {
     if (!prerenderedDetail) {
       setDetail(undefined);
       setIsLoading(true);
-    }
+    } else setDetail(prerenderedDetail);
     setIsImageOverlayOpen(false);
 
     loadGameDetail(itemId).then((nextDetail) => {
       if (!isActive) return;
-      setDetail(nextDetail);
+      if (nextDetail) setDetail(nextDetail);
       setIsLoading(false);
     }).finally(() => {
       if (isActive) setIsLoading(false);
@@ -332,8 +338,8 @@ export function GameDetail() {
     }
 
     let isActive = true;
-    setExpansionGames([]);
-    setRelatedGames([]);
+    setExpansionGames(prerenderedDetail?.expansionGames ?? []);
+    setRelatedGames(prerenderedDetail?.relatedGames ?? []);
 
     loadGameExpansions(itemId).then((nextExpansionGames) => {
       if (isActive) setExpansionGames(nextExpansionGames);
@@ -346,7 +352,7 @@ export function GameDetail() {
     return () => {
       isActive = false;
     };
-  }, [itemId]);
+  }, [itemId, prerenderedDetail]);
 
   useEffect(() => {
     if (!isImageOverlayOpen) return undefined;
@@ -430,9 +436,14 @@ export function GameDetail() {
     );
   }
 
-  const hasLinkedStoreOffers = hasStoreOfferLinks(detail.stores);
-  const singleStoreOffers = detail.stores.filter((store) => !store.isBundle);
-  const bundleStoreOffers = detail.stores.filter((store) => store.isBundle);
+  const visibleOffers = visibleStoreOffers(detail.stores) as StoreEntry[];
+  const hasLinkedStoreOffers = hasStoreOfferLinks(visibleOffers);
+  const singleStoreOffers = visibleOffers.filter((store) => !store.isBundle);
+  const bundleStoreOffers = visibleOffers.filter((store) => store.isBundle);
+  const availableOffers = pricingOffers(visibleOffers) as StoreEntry[];
+  const minimumPrice = availableOffers.length ? Math.min(...availableOffers.map(store => store.priceValue)) : undefined;
+  const publishedAt = prerenderedDetail?.comparisonPublishedAt;
+  const publicationDate = publishedAt && Number.isFinite(Date.parse(publishedAt)) ? new Date(publishedAt) : undefined;
   const scrollToStores = () => {
     storesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -704,9 +715,20 @@ export function GameDetail() {
 
         {/* ── Stores ───────────────────────────────────────────────────── */}
         <div ref={storesSectionRef} id="store-offers" style={{ scrollMarginTop: 80 }}>
-          <h2 className="text-white mb-1">Disponibilidad en Tiendas</h2>
+          <h2 className="text-white mb-1">Precios de {detail.name} en tiendas de México</h2>
+          <p className="mb-2 text-sm text-neutral-300">
+            {minimumPrice !== undefined ? `Desde ${formatStorePrice(minimumPrice, "MXN")} MXN, sin envío.`
+              : visibleOffers.length ? "No hay precios disponibles confirmados en MXN para comparar."
+              : "No hay ofertas registradas para este juego."}
+          </p>
           <p className="mb-4 text-xs text-neutral-500">
             La versión, edición o idioma disponible puede variar según la tienda.
+          </p>
+          <p className="mb-4 text-xs text-neutral-400">
+            {publicationDate && <>Comparación publicada: <time dateTime={publicationDate.toISOString()}>
+              {publicationDate.toISOString().slice(0, 16).replace("T", " ")} UTC
+            </time>. </>}
+            Los precios y la disponibilidad pueden cambiar. Confírmalos en la tienda.
           </p>
           <div className="flex flex-col gap-2 max-w-2xl">
             {singleStoreOffers.map((store) => (

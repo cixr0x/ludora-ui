@@ -8,17 +8,20 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fileHash } from "../../../scripts/seo/publish.mjs";
+import { offer, jsonScript, visibleText } from "../../../tests/seo/fixtures.mjs";
 
 const projectRoot = fileURLToPath(new URL("../../../", import.meta.url));
 
 test("a retained self-contained renderer refreshes real HTML without recompiling its assets", { timeout: 120000 }, async t => {
   const root = await mkdtemp(join(tmpdir(), "ludoradar-seo-build-"));
   let description = "Before refresh";
+  let price = 350;
   const requests = [];
   const server = createServer((request, response) => {
     const url = new URL(request.url, "http://localhost"); requests.push(url.pathname);
     const item = { id: 1, canonical_name: "Fixture Game", canonical_path: "/game/1/fixture-game", description,
-      categories: [], mechanics: [], families: [], designers: [], publishers: [], parent_items: [], offers: [], related_items: [], expansion_items: [] };
+      categories: [], mechanics: [], families: [], designers: [], publishers: [], parent_items: [],
+      offers: [{ ...offer, price }], related_items: [], expansion_items: [] };
     let envelope;
     if (url.pathname === "/api/front-page") envelope = { data: [{ products: [item] }] };
     else if (url.pathname === "/api/items/prerender") {
@@ -41,14 +44,20 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
     const releasePath = join(manifest.runtimeDirectory, "release.json");
     const releaseHash = await fileHash(releasePath);
     const workerHash = await fileHash(join(manifest.runtimeDirectory, "refresh-worker.mjs"));
-    assert.match(await readFile(join(initialPublic, "game/1/fixture-game.html"), "utf8"), /Before refresh/);
+    const initialHtml = await readFile(join(initialPublic, "game/1/fixture-game.html"), "utf8");
+    assert.match(initialHtml, /Before refresh/);
+    assert.match(visibleText(initialHtml), /Desde \$350\.00 MXN, sin envío/);
+    assert.equal(jsonScript(initialHtml, "product-structured-data")["@graph"][0].offers[0].price, 350);
     description = "After refresh";
+    price = 425;
     const refreshed = await run("scripts/refresh-seo.mjs", env);
     assert.equal(refreshed.code, 0, refreshed.output.slice(-6000));
     const nextPublic = await realpath(env.LUDORA_SEO_LIVE_PATH);
     assert.notEqual(nextPublic, initialPublic);
     const document = await readFile(join(nextPublic, "game/1/fixture-game.html"), "utf8");
     assert.match(document, /After refresh/);
+    assert.match(visibleText(document), /Desde \$425\.00 MXN, sin envío/);
+    assert.equal(jsonScript(document, "product-structured-data")["@graph"][0].offers[0].price, 425);
     assert.match(document, /noindex, nofollow/);
     assert.equal(await fileHash(releasePath), releaseHash);
     assert.equal(await fileHash(join(manifest.runtimeDirectory, "refresh-worker.mjs")), workerHash);

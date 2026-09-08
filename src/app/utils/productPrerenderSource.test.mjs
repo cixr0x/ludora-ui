@@ -19,12 +19,3 @@ test("the browser hydrates generated product markup with embedded product data",
   assert.match(mainSource, /prerenderData\?\.product/);
   assert.match(mainSource, /root\.hasChildNodes\(\)/);
 });
-
-test("the build creates product documents from the read-only prerender feed", () => {
-  const serverSource = source("../../entry-server.tsx");
-
-  assert.match(serverSource, /renderToString\(<App prerenderData=\{prerenderData\} router=\{router\} \/>\)/);
-  assert.match(serverSource, /offers: \[\]/);
-  assert.match(serverSource, /product-structured-data/);
-  assert.match(serverSource, /rel="canonical"/);
-});

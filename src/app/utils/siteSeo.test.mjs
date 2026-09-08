@@ -19,7 +19,7 @@ test("landing SEO signals describe Ludo Radar on its Mexican domain", () => {
   assert.equal(HOME_TITLE, "Juegos de mesa en México: Descubre y compara precios | Ludo Radar");
   assert.equal(
     HOME_DESCRIPTION,
-    "Ludo Radar: La referencia de juegos de mesa en México. Descubre, conoce y encuentra la mejor oferta.",
+    "Compara precios de juegos de mesa en tiendas de México. Consulta disponibilidad, descubre juegos y encuentra dónde comprarlos.",
   );
   assert.equal(siteRootUrl(), "https://www.ludoradar.mx/");
   assert.match(indexSource, /<link rel="canonical" href="https:\/\/www\.ludoradar\.mx\/" \/>/);

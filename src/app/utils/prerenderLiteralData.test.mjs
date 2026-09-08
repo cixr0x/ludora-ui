@@ -55,8 +55,8 @@ test("prerendered catalog text is inserted literally into HTML and embedded data
           assert.equal(canonicalPath, path);
           assert.equal(readCanonical(document), `https://www.ludoradar.mx${path}`);
 
-          const title = `${name}: información y precios en México | Ludo Radar`;
-          const description = `${name}: información para 2-4 jugadores, duración Sin registrar, complejidad, descripción y disponibilidad en tiendas de México.`;
+          const title = `${name}: compara precios en México | Ludo Radar`;
+          const description = `Compara precios de ${name} en tiendas de México. Consulta ofertas y disponibilidad y encuentra dónde comprarlo.`;
           assert.equal(decodeHtml(document.match(/<title>([^<]*)<\/title>/)?.[1] ?? ""), title);
           assert.equal(readMeta(document, "description"), description);
           assert.equal(readMeta(document, "og:title"), title);

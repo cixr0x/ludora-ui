@@ -13,6 +13,7 @@ const STRUCTURED_DATA_ID = "product-structured-data";
 const SITE_URL = (import.meta.env.VITE_LUDORA_SITE_URL as string | undefined) ?? DEFAULT_SITE_URL;
 
 export function ProductMetadata({ detail }: { detail: GameDetail }) {
+  useEffect(() => resetProductMetadata, []);
   useEffect(() => {
     const metadata = productSeoMetadata(detail, SITE_URL);
     document.title = metadata.title;
@@ -29,7 +30,6 @@ export function ProductMetadata({ detail }: { detail: GameDetail }) {
     setCanonical(metadata.canonicalUrl);
     setStructuredData(metadata.structuredData);
 
-    return resetProductMetadata;
   }, [detail]);
 
   return null;

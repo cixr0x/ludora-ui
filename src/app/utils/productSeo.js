@@ -1,11 +1,13 @@
 import { productPath } from "./productRoutes.js";
 import { DEFAULT_SITE_URL, siteRootUrl } from "./siteSeo.js";
+import { productOfferSchema } from "./offerSeo.js";
 
 export { DEFAULT_SITE_URL } from "./siteSeo.js";
 
 export function productSeoMetadata(detail, siteUrl = DEFAULT_SITE_URL) {
   const canonicalUrl = new URL(productPath(detail.id, detail.name), siteRootUrl(siteUrl)).href;
-  const description = `${detail.name}: información para ${detail.players} jugadores, duración ${detail.playTime}, complejidad, descripción y disponibilidad en tiendas de México.`;
+  const description = `Compara precios de ${detail.name} en tiendas de México. Consulta ofertas y disponibilidad y encuentra dónde comprarlo.`;
+  const offers = productOfferSchema(detail.stores);
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [
@@ -18,6 +20,7 @@ export function productSeoMetadata(detail, siteUrl = DEFAULT_SITE_URL) {
         description: detail.description.join(" ") || description,
         category: detail.categories,
         productID: String(detail.id),
+        ...(offers.length ? { offers } : {}),
         additionalProperty: [
           {
             "@type": "PropertyValue",
@@ -62,6 +65,6 @@ export function productSeoMetadata(detail, siteUrl = DEFAULT_SITE_URL) {
     description,
     imageUrl: detail.image || "",
     structuredData,
-    title: `${detail.name}: información y precios en México | Ludo Radar`,
+    title: `${detail.name}: compara precios en México | Ludo Radar`,
   };
 }

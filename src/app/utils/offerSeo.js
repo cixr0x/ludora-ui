@@ -1,5 +1,11 @@
 // A LISTED, non-bundle association is the existing reviewed product identity.
 // Language alone never establishes an edition and no aggregate range is emitted.
+export function visibleStoreOffers(stores) {
+  return (Array.isArray(stores) ? stores : []).filter(store =>
+    store && store.listingStatus === "LISTED" && typeof store.name === "string" && store.name.trim()
+  );
+}
+
 export function pricingOffers(stores) {
   return eligibleOffers(stores).filter(store => store.availabilityStatus === "available" && store.inStock === true);
 }
@@ -23,9 +29,8 @@ export function productOfferSchema(stores) {
 }
 
 function eligibleOffers(stores) {
-  return (Array.isArray(stores) ? stores : []).filter(store =>
-    store && store.storeActive === true && store.listingStatus === "LISTED" && store.isBundle === false &&
-    typeof store.name === "string" && store.name.trim() &&
+  return visibleStoreOffers(stores).filter(store =>
+    store.storeActive === true && store.isBundle === false &&
     typeof store.priceValue === "number" && Number.isFinite(store.priceValue) && store.priceValue > 0 &&
     store.currency === "MXN" && publicListingUrl(listingUrl(store))
   );

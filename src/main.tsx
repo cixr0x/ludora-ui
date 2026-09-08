@@ -9,7 +9,9 @@ const root = document.getElementById("root")!;
 const prerenderData = readPrerenderData();
 const app = <App prerenderData={prerenderData} router={createBrowserRouter(routeDefinitions)} />;
 
-const hasMatchingPrerenderData = prerenderData?.product || (prerenderData?.homepage && window.location.pathname === "/");
+const routeItemId = window.location.pathname.match(/^\/game\/(\d+)(?:\/[^/]+)?\/?$/)?.[1];
+const hasMatchingPrerenderData = (routeItemId && prerenderData?.product?.id === Number(routeItemId)) ||
+  (prerenderData?.homepage && window.location.pathname === "/");
 if (hasMatchingPrerenderData && root.hasChildNodes()) {
   hydrateRoot(root, app);
 } else {

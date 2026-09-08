@@ -93,35 +93,6 @@ test("game detail reports store offer clicks while preserving external links", (
   assert.match(source, /onClick=\{\(\) => reportStoreItemClick\(store\.id\)\}/);
 });
 
-test("game detail distinguishes out-of-stock and no-longer-available store offers", () => {
-  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
-  const catalogSource = readFileSync(new URL("../data/catalog.ts", import.meta.url), "utf8");
-
-  assert.match(source, /storeAvailabilityLabel/);
-  assert.match(source, /availabilityStatus === "unavailable"/);
-  assert.match(source, /availabilityStatus !== "unavailable" && <p[^>]*>\{store\.price\}<\/p>/);
-  assert.match(source, />Disponibilidad en Tiendas<\/h/);
-  assert.match(source, /La versión, edición o idioma disponible puede variar según la tienda\./);
-  assert.match(catalogSource, /storeAvailabilityState\(offer\.availability, offer\.store_active\)/);
-  assert.match(catalogSource, /storeAvailabilityRank\(left\.availabilityStatus\) - storeAvailabilityRank\(right\.availabilityStatus\)/);
-  assert.doesNotMatch(catalogSource, /\.slice\(0, 8\)/);
-});
-
-test("game detail separates bundle offers from single-item offers", () => {
-  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
-  const catalogSource = readFileSync(new URL("../data/catalog.ts", import.meta.url), "utf8");
-  const apiCatalogSource = readFileSync(new URL("../api/catalog.ts", import.meta.url), "utf8");
-  const gamesSource = readFileSync(new URL("../data/games.ts", import.meta.url), "utf8");
-
-  assert.match(apiCatalogSource, /is_bundle\?: boolean/);
-  assert.match(gamesSource, /isBundle\?: boolean/);
-  assert.match(source, /const singleStoreOffers = detail\.stores\.filter\(\(store\) => !store\.isBundle\)/);
-  assert.match(source, /const bundleStoreOffers = detail\.stores\.filter\(\(store\) => store\.isBundle\)/);
-  assert.match(source, />Paquetes<\/h3>/);
-  assert.match(source, /singleStoreOffers\.map/);
-  assert.match(source, /bundleStoreOffers\.map/);
-});
-
 test("game detail collapses overflowing publishers to one expandable line", () => {
   const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
 
@@ -151,29 +122,6 @@ test("catalog detail maps every API parent item to a localized game reference", 
   assert.match(apiSource, /parent_items\?: ApiItemReference\[\]/);
   assert.match(catalogSource, /parentGames: itemReferences\(item\.parent_items \?\? \[\]\)/);
   assert.match(catalogSource, /name: preferredText\(item\.canonical_name_es, item\.canonical_name\)/);
-});
-
-test("game detail loads expansions and related games separately from primary detail rendering", () => {
-  const source = readFileSync(new URL("../pages/GameDetail.tsx", import.meta.url), "utf8");
-
-  assert.match(source, /import \{ loadGameDetail,\s*loadGameExpansions,\s*loadRelatedGames \} from "\.\.\/data\/catalog";/);
-  assert.match(source, /const \[expansionGames, setExpansionGames\] = useState<Game\[\]>\(\[\]\);/);
-  assert.match(source, /const \[relatedGames, setRelatedGames\] = useState<Game\[\]>\(\[\]\);/);
-  assert.match(source, /loadGameDetail\(itemId\)\.then\(\(nextDetail\) => \{/);
-  assert.match(source, /setDetail\(nextDetail\);[\s\S]*setIsLoading\(false\);/);
-  assert.match(source, /loadGameExpansions\(itemId\)/);
-  assert.match(source, /loadRelatedGames\(itemId\)/);
-  assert.doesNotMatch(source, /loadGames/);
-  assert.doesNotMatch(source, /const gamesPromise = loadGames\(\);/);
-  assert.doesNotMatch(source, /Promise\.all\(\[gamesPromise,\s*parentPromise\]\)/);
-  assert.doesNotMatch(source, /const relatedGames = allGames/);
-  assert.match(source, /expansionGames\.length > 0/);
-  assert.match(source, />Expansiones<\/h2>/);
-  assert.match(source, /<RelatedRow games=\{expansionGames\} \/>/);
-  assert.ok(
-    source.indexOf(">Expansiones</h2>") < source.indexOf(">Disponibilidad en Tiendas</h2>"),
-    "Expansiones should render before Disponibilidad en Tiendas",
-  );
 });
 
 test("game detail does not canonicalize a new card route from stale product data", () => {

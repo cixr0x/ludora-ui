@@ -3,7 +3,7 @@ import { createMemoryRouter } from "react-router";
 
 import App from "./app/App";
 import type { ApiItem } from "./app/api/catalog";
-import { mapApiItemToDetail } from "./app/data/catalog";
+import { mapApiItemToDetail, mapApiItemToGame } from "./app/data/catalog";
 import { routeDefinitions } from "./app/routes";
 import { productSeoMetadata } from "./app/utils/productSeo.js";
 import { productPath } from "./app/utils/productRoutes.js";
@@ -34,12 +34,19 @@ export function renderProductDocument({
   item,
   siteUrl = DEFAULT_SITE_URL,
   template,
+  publishedAt,
 }: {
   item: ApiItem;
   siteUrl?: string;
   template: string;
+  publishedAt?: string;
 }): { canonicalPath: string; document: string } {
-  const detail = mapApiItemToDetail({ ...item, offers: [] });
+  const detail = {
+    ...mapApiItemToDetail(item),
+    relatedGames: (item.related_items ?? []).map(reference => mapApiItemToGame(reference)),
+    expansionGames: (item.expansion_items ?? []).map(reference => mapApiItemToGame(reference)),
+    comparisonPublishedAt: publishedAt,
+  };
   const canonicalPath = productPath(detail.id, detail.name);
   if (item.canonical_path && item.canonical_path !== canonicalPath) {
     throw new Error(
