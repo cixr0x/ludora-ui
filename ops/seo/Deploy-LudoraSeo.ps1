@@ -32,7 +32,11 @@ switch ($Action) {
         $hash = (Get-FileHash -LiteralPath (Join-Path $out 'tools.json') -Algorithm SHA256).Hash.ToLowerInvariant()
         $launcherHash = (Get-FileHash -LiteralPath (Join-Path $out 'seo-launcher.mjs') -Algorithm SHA256).Hash.ToLowerInvariant()
         $remote = "/tmp/ludoradar-seo-tools-$toolId"
-        & gcloud compute scp --recurse $out "ludora:$remote" --project ludora-501213 --zone northamerica-south1-a
+        Invoke-Remote "mkdir -m 0700 $remote"
+        $bundleFiles = @('seo-launcher.mjs', 'measure.sh', 'ludoradar-seo-refresh.service',
+            'ludoradar-seo-stage@.service', 'ludoradar-seo-refresh.timer', 'tools.json') |
+            ForEach-Object { Join-Path $out $_ }
+        & gcloud compute scp @bundleFiles "ludora:$remote/" --project ludora-501213 --zone northamerica-south1-a
         if ($LASTEXITCODE -ne 0) { throw 'Stable tool transfer failed.' }
         # Fixed destinations and validated UUID/hash values only; no mutable checkout imports.
         $remoteInstall = @"
