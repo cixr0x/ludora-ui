@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.seo/
 logs/
 .playwright-cli/
 playwright-report/

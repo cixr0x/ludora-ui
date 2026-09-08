@@ -1,0 +1,13 @@
+# Daily SEO runtime
+
+These units are supplied for the controller's deployment milestone. Do not enable the timer until a full run passes under the configured limits.
+
+Deployment builds and refresh must use the same environment values as `refresh.sh`: state `/var/lib/ludoradar-seo`, live `/opt/ludora/ludora-ui/dist`, and shared lock `/run/lock/ludoradar-seo-refresh.lock`. Export those variables before `npm run build:indexable`. Compilation acquires the same lock; overlapping invocations skip. Refresh never invokes Vite. Linux uses kernel `flock`, so process termination releases ownership. Windows development uses an exclusive file; after an ungraceful Windows termination, inspect the recorded PID before manually removing its stale lock.
+
+Each immutable runtime under `runtimes/` retains bundled renderer and worker dependencies, template, original static assets, release SHA, and integrity hashes. Each generation under `generations/` keeps `public/` beside its private manifest and validation record. `dist` points only at the selected public directory. Do not point Nginx at the state directory or copy private runtime files into `dist`.
+
+On Linux an existing `dist` symlink is replaced atomically. The first conversion of a real `dist` directory saves the complete directory at `dist.previous-<uuid>`, then installs the symlink; if installation fails, it restores that directory. This one-time bootstrap and Windows junction replacement have a short rename interval and must happen as controlled deployment operations. Complete generations remain available for rollback. The preceding renderer runtime and its original hashed assets are retained for sessions crossing a code release.
+
+Worker status is in `/var/lib/ludoradar-seo/status.json` and the journal. It reports fetch time separately from generation time, source counts, rendered/reused/removed counts, generation ID, UI SHA, duration, and peak RSS. Its internal 590-second deadline leaves ten seconds before systemd's 600-second limit. Failed or incomplete exports cannot reconcile removals or replace the selected generation.
+
+The timer runs daily at 06:00 UTC (midnight Mexico City), with persistent recovery after a missed run. Run its exact service manually during initial validation; do not claim a natural daily timer firing occurred. After a successful publication the worker retains the current and previous complete managed generations, plus the runtimes and preceding hashed assets they reference. Cleanup requires recognized version markers and resolved containment under the managed state roots; it never touches the legacy bootstrap backup or unrelated directories. Unrecognized incomplete build directories require separate inspection.

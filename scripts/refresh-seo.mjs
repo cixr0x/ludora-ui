@@ -1,0 +1,173 @@
+import { mkdir, readFile, writeFile, copyFile, cp, readdir, rm } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { randomUUID } from "node:crypto";
+import { fetchSeoExport } from "./seo/export.mjs";
+import { canonicalFile, contentFingerprint, reconcilePages } from "./seo/manifest.mjs";
+import { fileHash, publishGeneration, pruneManagedState, readLiveGeneration, readVerifiedRuntime, requireLease, withGenerationLock, writeJsonAtomic } from "./seo/publish.mjs";
+import { robotsDocument, sitemapDocument } from "./seo-output.mjs";
+import { selectFeaturedGames } from "../src/app/utils/homePrerender.js";
+
+export async function refreshSeo(config) {
+  const { runtimeDirectory, stateDirectory, livePath, lockPath, lease, apiOrigin, fetchImpl = fetch,
+    now = () => new Date().toISOString(), log = value => process.stdout.write(`${JSON.stringify(value)}\n`), deadlineMs = 590000 } = config;
+  if (!lease) return withGenerationLock(lockPath, active => refreshSeo({ ...config, lease: active }));
+  requireLease(lease, lockPath);
+  const started = performance.now();
+  const controller = new AbortController();
+  const abort = () => controller.abort(new Error("SEO refresh interrupted"));
+  const timer = setTimeout(() => controller.abort(new Error("SEO refresh deadline exceeded")), deadlineMs);
+  timer.unref();
+  process.once("SIGTERM", abort);
+  process.once("SIGINT", abort);
+  const checkDeadline = () => { requireLease(lease, lockPath); controller.signal.throwIfAborted(); if (performance.now() - started >= deadlineMs) throw new Error("SEO refresh deadline exceeded"); };
+  let exported, stageDirectory, published = false;
+  const generationId = randomUUID();
+  const statusPath = join(stateDirectory, "status.json");
+  const status = async entry => { const value = { generationId, ...entry }; log(value); await writeJsonAtomic(statusPath, value); };
+  try {
+    await mkdir(join(stateDirectory, "generations"), { recursive: true });
+    const release = await readVerifiedRuntime(runtimeDirectory);
+    await status({ status: "started", startedAt: now(), uiSha: release.uiSha });
+    const template = await readFile(join(runtimeDirectory, "template.html"), "utf8");
+    const renderer = await import(/* @vite-ignore */ pathToFileURL(join(runtimeDirectory, "entry-server.mjs")).href);
+    const previous = await readLiveGeneration(livePath);
+    const sourceStart = performance.now();
+    const homepageResponse = await fetchImpl(`${apiOrigin.replace(/\/+$/, "")}/api/front-page`, { signal: controller.signal });
+    if (!homepageResponse.ok) throw new Error(`Homepage prerender request failed with ${homepageResponse.status}`);
+    const homepageEnvelope = await homepageResponse.json();
+    const featuredGames = selectFeaturedGames(homepageEnvelope?.data);
+    exported = await fetchSeoExport({ apiOrigin, fetchImpl, spoolParent: join(stateDirectory, "work"), signal: controller.signal,
+      onProgress: counts => { checkDeadline(); log({ status: "fetching", generationId, ...counts }); } });
+    const fetchMs = Math.round(performance.now() - sourceStart);
+    const ids = new Set(exported.items.map(item => item.id));
+    for (const featured of featuredGames) if (!ids.has(featured.id)) throw new Error(`Homepage references missing export item ${featured.id}`);
+    checkDeadline();
+    const renderStart = performance.now();
+    const publishedAt = now();
+    const candidates = [{ canonicalPath: "/", fingerprint: contentFingerprint({ featuredGames, siteUrl: release.siteUrl, indexingEnabled: release.indexingEnabled }) }];
+    for (const summary of exported.items) {
+      checkDeadline();
+      const item = await exported.readItem(summary.id);
+      candidates.push({ canonicalPath: item.canonical_path, itemId: summary.id,
+        fingerprint: contentFingerprint({ item, siteUrl: release.siteUrl, indexingEnabled: release.indexingEnabled }) });
+    }
+    const reconciliation = reconcilePages({ previous: previous?.manifest, candidates, publishedAt, uiSha: release.uiSha });
+    const { manifest, changedPaths, removedPaths } = reconciliation;
+    manifest.generationId = generationId;
+    manifest.runtimeDirectory = resolve(runtimeDirectory);
+    manifest.previousRuntimeDirectory = previous?.manifest?.runtimeDirectory !== resolve(runtimeDirectory)
+      ? previous?.manifest?.runtimeDirectory ?? null : previous?.manifest?.previousRuntimeDirectory ?? null;
+    manifest.source = { ...exported.stats, maxId: exported.maxId };
+    stageDirectory = join(stateDirectory, "generations", generationId);
+    const publicDirectory = join(stageDirectory, "public");
+    await cp(join(runtimeDirectory, "static"), publicDirectory, { recursive: true });
+    const previousAssets = manifest.previousRuntimeDirectory ? join(manifest.previousRuntimeDirectory, "static", "assets")
+      : previous?.publicDirectory ? join(previous.publicDirectory, "assets") : null;
+    if (previousAssets) {
+      try { await cp(previousAssets, join(publicDirectory, "assets"), { recursive: true, force: false, errorOnExist: false }); }
+      catch (error) { if (error.code !== "ENOENT") throw error; }
+    }
+    const changed = new Set(changedPaths);
+    const assetReferences = new Set();
+    for (const candidate of candidates) {
+      checkDeadline();
+      const file = canonicalFile(candidate.canonicalPath);
+      const output = join(publicDirectory, file);
+      await mkdir(dirname(output), { recursive: true });
+      if (!changed.has(candidate.canonicalPath) && previous?.publicDirectory) {
+        await copyFile(join(previous.publicDirectory, file), output);
+      } else {
+        let document;
+        if (candidate.canonicalPath === "/") document = renderer.renderHomepageDocument({ featuredGames, template, publishedAt });
+        else {
+          const item = await exported.readItem(candidate.itemId);
+          const rendered = renderer.renderProductDocument({ item, template, siteUrl: release.siteUrl, publishedAt });
+          if (rendered.canonicalPath !== candidate.canonicalPath) throw new Error("Renderer changed the export canonical path");
+          document = rendered.document;
+        }
+        await writeFile(output, document);
+      }
+      await validateDocument(output, candidate.canonicalPath, release, assetReferences);
+    }
+    await writeFile(join(publicDirectory, "robots.txt"), robotsDocument({ indexingEnabled: release.indexingEnabled, siteUrl: release.siteUrl }));
+    await writeFile(join(publicDirectory, "sitemap.xml"), sitemapDocument({ canonicalPaths: candidates.map(page => page.canonicalPath), siteUrl: release.siteUrl }));
+    await writeJsonAtomic(join(stageDirectory, "manifest.json"), manifest);
+    const files = {};
+    for (const file of await listFiles(publicDirectory)) { checkDeadline(); files[file] = await fileHash(join(publicDirectory, file)); }
+    for (const file of assetReferences) if (!Object.hasOwn(files, file)) throw new Error(`Rendered document references a missing asset: ${file}`);
+    await writeJsonAtomic(join(stageDirectory, "validation.json"), { version: 1, complete: exported.complete,
+      manifestHash: await fileHash(join(stageDirectory, "manifest.json")), files });
+    checkDeadline();
+    const publication = await publishGeneration({ stageDirectory, livePath, lockPath, lease });
+    published = true;
+    const pruned = await pruneManagedState({ stateDirectory, currentGeneration: stageDirectory,
+      previousLiveDirectory: publication.previousLiveDirectory, lockPath, lease });
+    const result = { status: "complete", uiSha: release.uiSha, publishedAt, generationId, source: exported.stats,
+      rendered: changedPaths.length, reused: candidates.length - changedPaths.length, removed: removedPaths.length,
+      fetchMs, renderMs: Math.round(performance.now() - renderStart), durationMs: Math.round(performance.now() - started),
+      peakRssBytes: process.resourceUsage().maxRSS * 1024, pruned, previousLiveDirectory: publication.previousLiveDirectory };
+    await status(result);
+    return result;
+  } catch (error) {
+    await status({ status: "failed", error: error.message, publicationCompleted: published, durationMs: Math.round(performance.now() - started) }).catch(() => {});
+    throw error;
+  } finally {
+    clearTimeout(timer); process.removeListener("SIGTERM", abort); process.removeListener("SIGINT", abort);
+    if (exported) await exported.cleanup();
+    if (stageDirectory && !published) await rm(stageDirectory, { recursive: true, force: true });
+  }
+}
+
+async function validateDocument(file, canonicalPath, release, assetReferences) {
+  const document = await readFile(file, "utf8");
+  const canonical = new URL(canonicalPath, release.siteUrl).href;
+  if (!document.includes(`rel="canonical" href="${canonical}"`) || !document.includes('<div id="root">')) throw new Error(`Invalid rendered canonical/root: ${canonicalPath}`);
+  const policy = release.indexingEnabled ? "index, follow" : "noindex, nofollow";
+  if (!document.includes(`<meta name="robots" content="${policy}"`)) throw new Error(`Invalid indexing policy: ${canonicalPath}`);
+  for (const match of document.matchAll(/<script[^>]+type="application\/(?:ld\+)?json"[^>]*>([\s\S]*?)<\/script>/g)) JSON.parse(match[1]);
+  for (const match of document.matchAll(/(?:src|href)="\/(assets\/[^"?#]+)(?:[?#][^"]*)?"/g)) assetReferences.add(decodeURIComponent(match[1]));
+}
+
+async function listFiles(directory, prefix = "") {
+  const files = [];
+  for (const entry of await readdir(join(directory, prefix), { withFileTypes: true })) {
+    const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isSymbolicLink()) throw new Error("Generation contains a symbolic link");
+    if (entry.isDirectory()) files.push(...await listFiles(directory, path));
+    else files.push(path);
+  }
+  return files;
+}
+
+export async function refreshCli() {
+  const projectRoot = process.env.LUDORA_UI_ROOT ?? resolve(dirname(fileURLToPath(import.meta.url)), "..");
+  const stateDirectory = process.env.LUDORA_SEO_STATE_DIR ?? join(projectRoot, ".seo");
+  const livePath = process.env.LUDORA_SEO_LIVE_PATH ?? join(projectRoot, "dist");
+  const lockPath = process.env.LUDORA_SEO_LOCK_PATH ?? join(stateDirectory, "refresh.lock");
+  const result = await refreshCurrentGeneration({ stateDirectory, livePath, lockPath,
+    apiOrigin: process.env.LUDORA_PRERENDER_API_ORIGIN ?? "http://127.0.0.1:4000" });
+  if (result.status === "skipped") process.stdout.write(`${JSON.stringify(result)}\n`);
+}
+
+export async function refreshCurrentGeneration({ stateDirectory, livePath, lockPath, apiOrigin,
+  loadWorker = directory => import(/* @vite-ignore */ pathToFileURL(join(directory, "refresh-worker.mjs")).href) }) {
+  return withGenerationLock(lockPath, async lease => {
+    let worker, runtimeDirectory;
+    try {
+      const live = await readLiveGeneration(livePath);
+      runtimeDirectory = live?.manifest?.runtimeDirectory;
+      if (!runtimeDirectory) throw new Error("No retained SEO runtime: run the initial build first");
+      await readVerifiedRuntime(runtimeDirectory);
+      worker = await loadWorker(runtimeDirectory);
+    } catch (error) {
+      await writeJsonAtomic(join(stateDirectory, "status.json"), { status: "failed", phase: "runtime-selection", error: error.message, failedAt: new Date().toISOString() }).catch(() => {});
+      throw error;
+    }
+    return worker.refreshSeo({ runtimeDirectory, stateDirectory, livePath, lockPath, lease, apiOrigin });
+  });
+}
+
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+  refreshCli().catch(error => { process.stderr.write(`${error.stack ?? error}\n`); process.exitCode = 1; });
+}

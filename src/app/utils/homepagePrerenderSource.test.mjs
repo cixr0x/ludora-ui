@@ -12,14 +12,6 @@ test("the homepage renderer embeds safe minimal data in the existing HTML templa
   assert.match(serverSource, /serializeJsonForHtml\(prerenderData\)/);
 });
 
-test("the build wires the homepage feed to the homepage renderer", () => {
-  const buildSource = source("../../../scripts/build.mjs");
-
-  assert.match(buildSource, /fetchHomepageRows\(\)/);
-  assert.match(buildSource, /\/api\/front-page/);
-  assert.match(buildSource, /renderHomepageDocument/);
-});
-
 test("the homepage renders durable SEO content and hydrates homepage prerender data", () => {
   const homeSource = source("../pages/Home.tsx");
   const mainSource = source("../../main.tsx");

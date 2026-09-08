@@ -1,0 +1,25 @@
+[Unit]
+Description=Publish the daily Ludo Radar comparison snapshot
+After=network-online.target ludora-service.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=mcp13
+Group=mcp13
+WorkingDirectory=/opt/ludora/ludora-ui
+StateDirectory=ludoradar-seo
+Environment=LUDORA_SEO_STATE_DIR=/var/lib/ludoradar-seo
+Environment=LUDORA_SEO_LIVE_PATH=/opt/ludora/ludora-ui/dist
+Environment=LUDORA_SEO_LOCK_PATH=/run/lock/ludoradar-seo-refresh.lock
+Environment=LUDORA_PRERENDER_API_ORIGIN=http://127.0.0.1:4000
+ExecStart=/bin/sh /opt/ludora/ludora-ui/ops/seo/refresh.sh
+TimeoutStartSec=600
+TimeoutStopSec=10
+KillMode=control-group
+Nice=10
+CPUQuota=50%
+MemoryHigh=320M
+MemoryMax=384M
+StandardOutput=journal
+StandardError=journal

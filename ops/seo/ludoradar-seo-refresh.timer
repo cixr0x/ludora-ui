@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Ludo Radar comparison HTML every 24 hours
+
+[Timer]
+OnCalendar=*-*-* 06:00:00 UTC
+Persistent=true
+AccuracySec=1min
+Unit=ludoradar-seo-refresh.service
+
+[Install]
+WantedBy=timers.target
