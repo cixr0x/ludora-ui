@@ -12,6 +12,8 @@ $ErrorActionPreference = 'Stop'
 $taskProjectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $launcher = '/usr/bin/node /var/lib/ludoradar-seo/bin/seo-launcher.mjs'
 function Invoke-Remote([string]$Command) {
+    # SSH executes this text in a POSIX shell even when the local checkout uses CRLF.
+    $Command = $Command.Replace("`r`n", "`n").Replace("`r", "`n")
     & gcloud compute ssh ludora --project ludora-501213 --zone northamerica-south1-a --command $Command
     if ($LASTEXITCODE -ne 0) { throw "Remote operation failed with exit $LASTEXITCODE. Busy (75), superseded (76), and failed phases are not deployment success." }
 }
