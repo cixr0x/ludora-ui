@@ -12,6 +12,9 @@ const readJson = async path => {
   if (!(await lstat(path)).isFile()) throw new Error(`Unsafe receipt: ${path}`);
   return JSON.parse(await readFile(path, "utf8"));
 };
+const optionalJson = async path => {
+  try { return await readJson(path); } catch (error) { if (error.code === "ENOENT") return null; throw error; }
+};
 const immutable = (path, data) => writeFile(path, JSON.stringify(data, null, 2), { flag: "wx", mode: 0o644 });
 const paths = config => Object.fromEntries(["projectRoot", "serviceRoot", "stateDirectory", "livePath", "lockPath", "nginxPath"].map(key => [key, resolve(config[key])]));
 export function run(command, args, cwd) {
@@ -152,11 +155,58 @@ function nginxOperations(config) {
   };
 }
 
+async function retryPublishedStage(config, { id, stageId, directory, attempt, check }) {
+  const proof = await optionalJson(join(attempt, "publication.json"));
+  const previous = await optionalJson(join(attempt, "finalize-status.json"));
+  if (!proof && previous?.publicationCompleted !== true) return null;
+  // Publication provenance is immutable. A retry records its own outcome without
+  // destroying the original completion/cleanup result or bootstrap backup path.
+  const history = proof ?? previous;
+  let result = { ...previous, ...history, publicationCompleted: true, retry: true, currentlySelected: false };
+  try {
+    const prepared = await readJson(join(directory, "prepared.json"));
+    const generated = await readJson(join(attempt, "generated.json"));
+    if (prepared.version !== 1 || prepared.id !== id || !sameBase(prepared.paths, paths(config)) ||
+        generated.version !== 1 || generated.id !== id || generated.stageId !== stageId || generated.uiSha !== prepared.uiSha ||
+        generated.preparedHash !== await fileHash(join(directory, "prepared.json"))) throw new Error("Published stage receipt bindings changed");
+    requiredSha(prepared.uiSha); requiredSha(prepared.serviceSha); uuid(generated.generationId);
+    const runtimeName = `${prepared.uiSha.slice(0, 12)}-${id}`;
+    const runtimeDirectory = join(resolve(config.stateDirectory), "runtimes", runtimeName);
+    const generationDirectory = join(resolve(config.stateDirectory), "generations", generated.generationId);
+    if (history.runtimeDirectory !== runtimeDirectory || history.generationDirectory !== generationDirectory ||
+        (proof && (proof.version !== 1 || proof.id !== id || proof.stageId !== stageId || proof.uiSha !== prepared.uiSha ||
+          proof.serviceSha !== prepared.serviceSha || proof.generationId !== generated.generationId || proof.preparedHash !== generated.preparedHash))) throw new Error("Published stage provenance changed");
+    result = { ...result, uiSha: prepared.uiSha, serviceSha: prepared.serviceSha, generationId: generated.generationId };
+    const selected = await captureBaseIdentity(config.livePath, check);
+    result.currentlySelected = selected.kind === "managed" && selected.publicDirectory === join(generationDirectory, "public") &&
+      selected.generationId === generated.generationId && selected.uiSha === prepared.uiSha && selected.runtimeDirectory === runtimeDirectory;
+    if (!result.currentlySelected) {
+      result = { ...result, status: "superseded", reason: "selected-generation-changed", selected };
+    } else {
+      await checkedDirectory(config.stateDirectory, ["runtimes", runtimeName]);
+      await checkedDirectory(config.stateDirectory, ["generations", generated.generationId]);
+      const release = await readVerifiedRuntime(runtimeDirectory); check();
+      if (release.uiSha !== prepared.uiSha || await directoryHash(runtimeDirectory, check) !== prepared.runtimeHash ||
+          (proof && (selected.manifestHash !== proof.manifestHash || await fileHash(join(generationDirectory, "validation.json")) !== proof.validationHash))) throw new Error("Published generation integrity changed");
+      await verifyGeneration(generationDirectory, check);
+      // Publication alone does not erase a failed or interrupted cleanup phase.
+      result.status = previous?.publicationCompleted === true && previous.status === "published" ? "published" : "failed";
+      if (result.status === "failed") result.error = previous?.error ?? "Publication completed without a successful finalization record";
+    }
+  } catch (error) {
+    result = { ...result, status: "failed", error: `Publication retry verification failed: ${error.message}` };
+  }
+  check(); await writeJsonAtomic(join(attempt, "finalize-retry-status.json"), result);
+  return result;
+}
+
 export async function finalizeDeployment(config, { id, stageId }, deps = {}) {
   uuid(id); uuid(stageId);
   return withGenerationLock(config.lockPath, async lease => {
     const check = () => requireLease(lease, config.lockPath), directory = await pending(config, id);
     const attempt = await checkedDirectory(directory, ["stages", stageId]);
+    const retry = await retryPublishedStage(config, { id, stageId, directory, attempt, check });
+    if (retry) return retry;
     let runtimeDirectory = join(directory, "runtime"), generationDirectory = join(attempt, "generation");
     let publicationCompleted = false, nginxTouched = false, oldManifest, oldValidation, finalRuntime, finalGeneration, publication;
     const nginx = deps.nginx ?? nginxOperations(config), move = deps.rename ?? rename;
@@ -199,6 +249,10 @@ export async function finalizeDeployment(config, { id, stageId }, deps = {}) {
       check(); await move(generationDirectory, finalGeneration); generationDirectory = finalGeneration;
       publication = await (deps.publish ?? publishGeneration)({ stageDirectory: generationDirectory, livePath: config.livePath, lockPath: config.lockPath, lease });
       publicationCompleted = true;
+      await immutable(join(attempt, "publication.json"), { version: 1, id, stageId, publicationCompleted,
+        preparedHash: prepared.preparedHash, uiSha: prepared.receipt.uiSha, serviceSha: prepared.receipt.serviceSha,
+        generationId: generated.generationId, runtimeDirectory, generationDirectory, previousLiveDirectory: publication.previousLiveDirectory,
+        manifestHash: await fileHash(join(generationDirectory, "manifest.json")), validationHash: await fileHash(join(generationDirectory, "validation.json")) });
       const selected = await captureBaseIdentity(config.livePath, check);
       if (selected.uiSha !== prepared.receipt.uiSha || selected.generationId !== generated.generationId || selected.runtimeDirectory !== runtimeDirectory || selected.publicDirectory !== join(generationDirectory, "public")) throw new Error("Published generation identity mismatch");
       const pruned = await (deps.prune ?? pruneManagedState)({ stateDirectory: config.stateDirectory, currentGeneration: generationDirectory, previousLiveDirectory: publication.previousLiveDirectory, lockPath: config.lockPath, lease });
@@ -231,7 +285,7 @@ export async function rollbackLegacy(config, { id, stageId }, deps = {}) {
     const check = () => requireLease(lease, config.lockPath), directory = await pending(config, id);
     const attempt = await checkedDirectory(directory, ["stages", uuid(stageId)]);
     const prepared = await readJson(join(directory, "prepared.json")), generated = await readJson(join(attempt, "generated.json"));
-    const published = await readJson(join(attempt, "finalize-status.json"));
+    const published = await optionalJson(join(attempt, "publication.json")) ?? await readJson(join(attempt, "finalize-status.json"));
     if (!sameBase(prepared.paths, paths(config)) || !published.publicationCompleted || generated.baseIdentity.kind !== "legacy") throw new Error("This deployment has no verified bootstrap backup");
     const backup = published.previousLiveDirectory;
     const prefix = `${resolve(config.livePath)}.previous-`;

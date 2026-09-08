@@ -160,6 +160,74 @@ test("post-publication cleanup failure reports failure without rolling back the 
   assert.equal(JSON.parse(await readFile(join(stage.attemptDirectory, "finalize-status.json"), "utf8")).publicationCompleted, true);
 });
 
+for (const cleanupFailure of [false, true]) {
+  test(`finalization retry preserves ${cleanupFailure ? "post-publication failure" : "successful publication"} and rollback provenance`, async t => {
+    const value = await preparedFixture(t), { config, deps } = value;
+    const previous = await realpath(config.livePath);
+    await unlink(config.livePath); await cp(previous, config.livePath, { recursive: true });
+    const nextId = "55555555-5555-4555-8555-555555555555";
+    await deployment.prepareDeployment(config, { id: nextId, uiSha: sha, serviceSha: sha }, deps);
+    const stage = await stageFixture(value, stageId, nextId);
+    if (cleanupFailure) deps.prune = async () => { throw new Error("original cleanup failure"); };
+    const first = await deployment.finalizeDeployment(config, { id: nextId, stageId }, deps);
+    assert.equal(first.status, cleanupFailure ? "failed" : "published");
+    assert.equal(first.publicationCompleted, true);
+    await access(first.previousLiveDirectory);
+    const originalStatus = await readFile(join(stage.attemptDirectory, "finalize-status.json"), "utf8");
+    const originalPublication = await readFile(join(stage.attemptDirectory, "publication.json"), "utf8");
+    assert.equal(JSON.parse(originalPublication).previousLiveDirectory, first.previousLiveDirectory);
+    const requests = config.requests(), installs = value.installs();
+    const second = await deployment.finalizeDeployment(config, { id: nextId, stageId }, deps);
+    assert.equal(second.publicationCompleted, true, "retry must acknowledge the actual selected publication");
+    assert.equal(second.status, first.status);
+    assert.equal(second.previousLiveDirectory, first.previousLiveDirectory);
+    assert.equal(second.runtimeDirectory, first.runtimeDirectory);
+    assert.equal(second.generationDirectory, first.generationDirectory);
+    assert.equal(second.currentlySelected, true);
+    if (cleanupFailure) assert.equal(second.error, "original cleanup failure");
+    assert.equal(await readFile(join(stage.attemptDirectory, "finalize-status.json"), "utf8"), originalStatus);
+    assert.equal(await readFile(join(stage.attemptDirectory, "publication.json"), "utf8"), originalPublication);
+    assert.equal(config.requests(), requests); assert.equal(value.installs(), installs);
+    if (process.platform === "linux") {
+      const rollback = await deployment.rollbackLegacy(config, { id: nextId, stageId }, deps);
+      assert.equal(rollback.status, "rolled-back");
+      assert.equal(await realpath(config.livePath), first.previousLiveDirectory);
+    }
+  });
+}
+
+test("retry of a published stage cannot claim success after a later daily generation supersedes it", async t => {
+  const value = await preparedFixture(t), { config, deps } = value;
+  const stage = await stageFixture(value);
+  const published = await deployment.finalizeDeployment(config, { id, stageId }, deps);
+  const originalStatus = await readFile(join(stage.attemptDirectory, "finalize-status.json"), "utf8");
+  await worker.refreshSeo({ ...config, runtimeDirectory: published.runtimeDirectory });
+  const current = await realpath(config.livePath), requests = config.requests();
+  const result = await deployment.finalizeDeployment(config, { id, stageId }, deps);
+  assert.equal(result.status, "superseded");
+  assert.equal(result.publicationCompleted, true);
+  assert.equal(result.currentlySelected, false);
+  assert.equal(result.previousLiveDirectory, published.previousLiveDirectory);
+  assert.equal(await realpath(config.livePath), current);
+  assert.equal(config.requests(), requests);
+  assert.equal(await readFile(join(stage.attemptDirectory, "finalize-status.json"), "utf8"), originalStatus);
+});
+
+test("a published retry verifies current output integrity without rewriting its successful provenance", async t => {
+  const value = await preparedFixture(t), { config, deps } = value;
+  const stage = await stageFixture(value);
+  const published = await deployment.finalizeDeployment(config, { id, stageId }, deps);
+  const originalStatus = await readFile(join(stage.attemptDirectory, "finalize-status.json"), "utf8");
+  const file = join(published.generationDirectory, "public/game/1/game.html"), originalHtml = await readFile(file, "utf8");
+  await writeFile(file, "corrupted selected HTML");
+  const failed = await deployment.finalizeDeployment(config, { id, stageId }, deps);
+  assert.equal(failed.status, "failed"); assert.equal(failed.publicationCompleted, true); assert.equal(failed.currentlySelected, true);
+  assert.match(failed.error, /verification failed/);
+  assert.equal(await readFile(join(stage.attemptDirectory, "finalize-status.json"), "utf8"), originalStatus);
+  await writeFile(file, originalHtml);
+  assert.equal((await deployment.finalizeDeployment(config, { id, stageId }, deps)).status, "published");
+});
+
 test("Linux bootstrap rollback verifies the preserved legacy tree and restores its Nginx config", { skip: process.platform !== "linux" }, async t => {
   const value = await preparedFixture(t), { config, deps } = value;
   const previous = await realpath(config.livePath);

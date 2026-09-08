@@ -74,6 +74,8 @@ Exit 75 means the lock was busy; 76 means the candidate was superseded. Neither 
 
 Failures before publication preserve the selected site. Finalization restores moved candidates to their own pending paths and the old Nginx configuration where possible; `finalize-status.json` reports actual runtime/generation locations and any rollback errors. Never assume a path moved back when that record says otherwise. A cleanup failure after publication is `failed` with `publicationCompleted:true`; the selected output is preserved. Inspect and resolve it before reporting success or enabling the timer.
 
+`publication.json` preserves immutable publication and rollback provenance before cleanup. Repeating Finalize verifies the selected identity and retained output, writes `finalize-retry-status.json`, and preserves the original finalization record. It reports superseded if another generation is selected and keeps an original cleanup failure as failed; it does not rerun publication or hide that failure.
+
 Successful publication retains the current and previous complete managed generations and referenced runtimes/preceding hashed assets. Pending deployments are outside these pruning roots. Failed stages and receipts remain private for audit; small daily receipts do not retain another generated site. Cleanup never touches unrelated paths or the bootstrap legacy backup. Preserve `/opt/ludora/ludora-ui-dist.before-seo-20260908T015037Z` separately.
 
 Disable the timer before rollback. For a previous managed generation, use its verified UUID:
