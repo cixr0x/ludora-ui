@@ -37,14 +37,16 @@ test("catalog hydration and bidirectional SPA navigation keep URLs, metadata and
     await checkPage("/categoria/7/estrategia", 48);
     await page.getByRole("link", { name: "Siguiente", exact: true }).first().click();
     await checkPage("/categoria/7/estrategia/pagina/2", 1);
-    await page.locator('nav[aria-label="Catálogo y categorías"] a[href="/categorias"]').click();
+    // These routes remain available for SPA entry; their SEO-only header links
+    // are intentionally hidden from the interactive navigation.
+    await page.evaluate(() => { history.pushState({ idx: 6 }, "", "/categorias"); window.dispatchEvent(new PopStateEvent("popstate")); });
     await checkPage("/categorias"); assert.equal(await page.title(), "Categorías de juegos de mesa | Ludo Radar");
     await page.locator('a[href="/"]').first().click(); await checkPage("/");
     await page.getByRole("link", { name: "Explorar catálogo", exact: true }).click();
     await page.waitForURL("**/search");
     await page.waitForFunction(() => document.querySelector('meta[name="robots"]').content === "noindex, follow");
     assert.equal(await page.locator('link[rel="canonical"]').getAttribute("href"), "https://www.ludoradar.mx/");
-    await page.locator('nav[aria-label="Catálogo y categorías"] a[href="/juegos-de-mesa"]').click();
+    await page.evaluate(() => { history.pushState({ idx: 9 }, "", "/juegos-de-mesa"); window.dispatchEvent(new PopStateEvent("popstate")); });
     await checkPage("/juegos-de-mesa", 48);
     assert.equal(await page.locator('meta[name="robots"]').getAttribute("content"), "index, follow");
     await page.evaluate(() => { history.pushState({ idx: 10 }, "", "/categoria/7/antigua/pagina/2"); window.dispatchEvent(new PopStateEvent("popstate")); });

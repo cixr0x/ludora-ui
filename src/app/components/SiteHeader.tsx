@@ -133,12 +133,12 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 bg-neutral-950/85 backdrop-blur-md border-b border-white/5">
-      <div className="flex flex-col gap-2 px-3 py-3 md:h-16 md:flex-row md:items-center md:justify-between md:gap-4 md:px-8 md:py-0">
-        <div className="flex w-full flex-none items-center md:w-auto">
+      <div className="flex flex-col gap-2 px-3 py-3 md:px-8 lg:min-h-16 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:py-2">
+        <div className="flex w-full min-w-0 items-center gap-3 lg:flex-1">
           <Link
             to="/"
             onClick={handleWordmarkClick}
-            className="ludora-wordmark text-xl inline-flex items-center gap-2 rounded-sm transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300 sm:text-2xl"
+            className="ludora-wordmark text-xl inline-flex flex-none items-center gap-2 rounded-sm transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300 sm:text-2xl"
           >
             <span>
               <span className="ludora-wordmark-accent">L</span>udo{" "}
@@ -151,6 +151,9 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
               className="h-7 w-7 flex-none object-contain sm:h-8 sm:w-8"
             />
           </Link>
+          <p className="min-w-0 flex-1 text-xs leading-snug text-neutral-300 sm:text-sm lg:max-w-sm">
+            Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México.
+          </p>
         </div>
 
         <div className="flex w-full min-w-0 items-center gap-2 sm:gap-3 md:w-auto">
@@ -236,7 +239,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
         </div>
       </div>
 
-      <nav aria-label="Catálogo y categorías" className="flex gap-5 border-t border-white/5 px-4 py-2 text-sm text-fuchsia-300 sm:px-8">
+      <nav hidden aria-label="Catálogo y categorías" className="hidden gap-5 border-t border-white/5 px-4 py-2 text-sm text-fuchsia-300 sm:px-8">
         <Link to="/juegos-de-mesa" className="hover:underline">Catálogo</Link>
         <Link to="/categorias" className="hover:underline">Categorías</Link>
       </nav>

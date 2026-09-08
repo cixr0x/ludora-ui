@@ -62,7 +62,7 @@ export function Home() {
 
       {/* Main content */}
       <main className="pt-4 pb-10 md:pt-8 md:pb-16">
-        <section className="px-3 pb-6 md:px-14 md:pb-8" aria-labelledby="homepage-title">
+        <section hidden className="px-3 pb-6 md:px-14 md:pb-8" aria-labelledby="homepage-title">
           <h1 id="homepage-title" className="text-2xl font-bold tracking-tight md:text-4xl">
             Juegos de mesa en México
           </h1>
