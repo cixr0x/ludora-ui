@@ -21,8 +21,17 @@ export function applyIndexingPolicy(document, indexingEnabled) {
 
 export function robotsDocument({ indexingEnabled, siteUrl }) {
   const sitemapUrl = new URL("sitemap.xml", siteRootUrl(siteUrl)).href;
-  const crawlRule = indexingEnabled ? "Disallow: /api/" : "Disallow: /";
-  return `User-agent: *\n${crawlRule}\nSitemap: ${sitemapUrl}\n`;
+  const crawlRules = indexingEnabled
+    ? [
+      "Disallow: /api/",
+      "Allow: /api/front-page$",
+      "Allow: /api/items/filter-options$",
+      // Robots.txt has no numeric character classes. Positive-ID prefixes also
+      // allow related/expansion reads with ?limit= while keeping named feeds blocked.
+      ...Array.from({ length: 9 }, (_, index) => `Allow: /api/items/${index + 1}`),
+    ]
+    : ["Disallow: /"];
+  return `User-agent: *\n${crawlRules.join("\n")}\nSitemap: ${sitemapUrl}\n`;
 }
 
 export function sitemapDocument({ canonicalPaths, siteUrl }) {

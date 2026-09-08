@@ -9,7 +9,8 @@ const root = document.getElementById("root")!;
 const prerenderData = readPrerenderData();
 const app = <App prerenderData={prerenderData} router={createBrowserRouter(routeDefinitions)} />;
 
-if ((prerenderData?.product || prerenderData?.homepage) && root.hasChildNodes()) {
+const hasMatchingPrerenderData = prerenderData?.product || (prerenderData?.homepage && window.location.pathname === "/");
+if (hasMatchingPrerenderData && root.hasChildNodes()) {
   hydrateRoot(root, app);
 } else {
   root.replaceChildren();
