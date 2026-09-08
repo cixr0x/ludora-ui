@@ -36,6 +36,7 @@ async function executeGeneration(config) {
     publish, reusePages = true } = config;
   requireLease(lease, lockPath);
   const started = performance.now();
+  const startedCpu = process.cpuUsage();
   const controller = new AbortController();
   const abort = () => controller.abort(new Error("SEO refresh interrupted"));
   const timer = setTimeout(() => controller.abort(new Error("SEO refresh deadline exceeded")), deadlineMs);
@@ -47,6 +48,12 @@ async function executeGeneration(config) {
   const generationId = config.generationId ?? randomUUID();
   const statusPath = config.statusPath ?? join(stateDirectory, "status.json");
   const status = async entry => { const value = { generationId, ...entry }; log(value); await writeJsonAtomic(statusPath, value); };
+  const phase = (name, event, details = {}) => {
+    const cpu = process.cpuUsage(startedCpu);
+    // Diagnostic output must not interrupt generation or its cleanup guarantees.
+    try { log({ status: "phase", generationId, phase: name, event,
+      elapsedMs: Math.round(performance.now() - started), cpuMs: Math.round((cpu.user + cpu.system) / 1000), ...details }); } catch {}
+  };
   try {
     await mkdir(join(stateDirectory, "generations"), { recursive: true });
     const release = await readVerifiedRuntime(runtimeDirectory);
@@ -56,6 +63,7 @@ async function executeGeneration(config) {
     const previous = await readLiveGeneration(livePath);
     const baseIdentity = publish ? undefined : await captureBaseIdentity(livePath, checkDeadline);
     const sourceStart = performance.now();
+    phase("fetch", "started");
     const homepageResponse = await fetchImpl(`${apiOrigin.replace(/\/+$/, "")}/api/front-page`, { signal: controller.signal });
     if (!homepageResponse.ok) throw new Error(`Homepage prerender request failed with ${homepageResponse.status}`);
     const homepageEnvelope = await homepageResponse.json();
@@ -63,10 +71,12 @@ async function executeGeneration(config) {
     exported = await fetchSeoExport({ apiOrigin, fetchImpl, spoolParent: join(stateDirectory, "work"), signal: controller.signal,
       onProgress: counts => { checkDeadline(); log({ status: "fetching", generationId, ...counts }); } });
     const fetchMs = Math.round(performance.now() - sourceStart);
+    phase("fetch", "complete", { fetchMs, ...exported.stats });
     const ids = new Set(exported.items.map(item => item.id));
     for (const featured of featuredGames) if (!ids.has(featured.id)) throw new Error(`Homepage references missing export item ${featured.id}`);
     checkDeadline();
     const renderStart = performance.now();
+    phase("render", "started");
     const catalogIndex = buildCatalogIndex(exported.items);
     const catalogMs = Math.round(performance.now() - renderStart);
     const publishedAt = now();
@@ -84,6 +94,7 @@ async function executeGeneration(config) {
         fingerprint: contentFingerprint({ model, siteUrl: release.siteUrl }) });
     }
     const prepareMs = Math.round(performance.now() - renderStart);
+    phase("render", "prepared", { catalogMs, prepareMs, totalPages: candidates.length });
     const reconciliation = reconcilePages({ previous: previous?.manifest, candidates, publishedAt, uiSha: release.uiSha });
     const { manifest, removedPaths } = reconciliation;
     const changedPaths = reusePages ? reconciliation.changedPaths : candidates.map(page => page.canonicalPath);
@@ -103,6 +114,7 @@ async function executeGeneration(config) {
     }
     const changed = new Set(changedPaths);
     const assetReferences = new Set();
+    let completedPages = 0, documentValidationMs = 0;
     for (const candidate of candidates) {
       checkDeadline();
       const file = canonicalFile(candidate.canonicalPath);
@@ -127,8 +139,16 @@ async function executeGeneration(config) {
         }
         await writeFile(output, document);
       }
+      const validationStarted = performance.now();
       await validateDocument(output, candidate.canonicalPath, release, assetReferences);
+      documentValidationMs += performance.now() - validationStarted;
+      completedPages++;
+      if (completedPages % 500 === 0 && completedPages < candidates.length) {
+        phase("render", "progress", { completedPages, totalPages: candidates.length, documentValidationMs: Math.round(documentValidationMs) });
+      }
     }
+    phase("render", "complete", { completedPages, totalPages: candidates.length, documentValidationMs: Math.round(documentValidationMs) });
+    phase("validation", "started");
     await writeFile(join(publicDirectory, "robots.txt"), robotsDocument({ indexingEnabled: release.indexingEnabled, siteUrl: release.siteUrl }));
     await writeFile(join(publicDirectory, "sitemap.xml"), sitemapDocument({
       pages: release.indexingEnabled ? Object.values(manifest.pages) : [], siteUrl: release.siteUrl,
@@ -142,6 +162,7 @@ async function executeGeneration(config) {
     const graphStart = performance.now();
     await validateGeneratedGraph(publicDirectory, candidates.map(page => page.canonicalPath), checkDeadline);
     const graphMs = Math.round(performance.now() - graphStart);
+    phase("validation", "graph-complete", { graphMs });
     await writeJsonAtomic(join(stageDirectory, "manifest.json"), manifest);
     const files = {};
     for (const file of await listFiles(publicDirectory)) { checkDeadline(); files[file] = await fileHash(join(publicDirectory, file)); }
@@ -149,6 +170,7 @@ async function executeGeneration(config) {
     await writeJsonAtomic(join(stageDirectory, "validation.json"), { version: 1, complete: exported.complete,
       manifestHash: await fileHash(join(stageDirectory, "manifest.json")), routesHash: await fileHash(join(stageDirectory, "routes.json")), files });
     checkDeadline();
+    phase("validation", "complete", { files: Object.keys(files).length });
     let publication, pruned;
     if (publish) {
       publication = await publishGeneration({ stageDirectory, livePath, lockPath, lease, checkDeadline });
@@ -171,9 +193,11 @@ async function executeGeneration(config) {
     catch (error) { cleanupErrors.push({ phase, error: error.message, code: error.code }); }
   };
   try {
+    phase("cleanup", "started");
     // Cleanup phases are independent: spool failure cannot skip failed-stage removal.
     if (exported) await clean("export-spool", () => exported.cleanup());
     if (stageDirectory && !published && (publish || primaryError || cleanupErrors.length)) await clean("failed-stage", () => rm(stageDirectory, { recursive: true, force: true }));
+    phase("cleanup", "complete", { cleanupMs: Math.round(performance.now() - cleanupStarted), cleanupErrors: cleanupErrors.length });
     if (!primaryError && controller.signal.aborted) primaryError = controller.signal.reason;
     if (primaryError || cleanupErrors.length) {
       const failure = primaryError ?? new Error(`SEO cleanup failed: ${cleanupErrors.map(entry => entry.error).join("; ")}`);

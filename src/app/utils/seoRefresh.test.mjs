@@ -140,6 +140,35 @@ test("changed data publishes new HTML without compilation and preserves unchange
   assert.ok(second.fetchMs >= 0 && second.renderMs >= 0);
 });
 
+test("worker logs timed phase boundaries and completed page counts before the final receipt", async t => {
+  const config = await environment(t);
+  const logs = [];
+  const result = await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl, log: entry => logs.push(entry) });
+  const phases = logs.filter(entry => entry.status === "phase");
+  assert.deepEqual(phases.map(entry => `${entry.phase}:${entry.event}`), [
+    "fetch:started", "fetch:complete", "render:started", "render:prepared", "render:complete",
+    "validation:started", "validation:graph-complete", "validation:complete", "cleanup:started", "cleanup:complete",
+  ]);
+  let lastElapsed = 0, lastCpu = 0;
+  for (const entry of phases) {
+    assert.equal(entry.generationId, result.generationId);
+    assert.ok(entry.elapsedMs >= lastElapsed && entry.cpuMs >= lastCpu);
+    lastElapsed = entry.elapsedMs; lastCpu = entry.cpuMs;
+  }
+  const rendered = phases.find(entry => entry.phase === "render" && entry.event === "complete");
+  assert.equal(rendered.completedPages, result.rendered);
+  assert.equal(rendered.totalPages, result.rendered);
+  assert.equal(phases.at(-1).cleanupErrors, 0);
+  assert.equal(logs.at(-1).status, "complete");
+  const selected = await realpath(config.livePath);
+  logs.length = 0;
+  await assert.rejects(refreshSeo({ ...config, log: entry => logs.push(entry), fetchImpl: async () => { throw new Error("phase fixture offline"); } }), /phase fixture offline/);
+  assert.equal(await realpath(config.livePath), selected);
+  assert.equal(logs.at(-1).status, "failed");
+  assert.equal(logs.some(entry => entry.phase === "fetch" && entry.event === "complete"), false);
+  assert.equal(logs.some(entry => entry.phase === "cleanup" && entry.event === "complete"), true);
+});
+
 test("failed export or renderer leaves live generation untouched and records failure", async t => {
   const config = await environment(t);
   await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl });
