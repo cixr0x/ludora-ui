@@ -1,6 +1,6 @@
 # Price comparison SEO design
 
-Status: proposed implementation design, prepared in response to the request to implement all five audited improvements and explain the plan. This document does not record a production change.
+Status: approved for implementation, with the user's correction to a 24-hour refresh interval for the small public VM and daily item updates. This document does not record a production change.
 
 ## Goal and verified baseline
 
@@ -121,9 +121,9 @@ The catalog supplies a complete fallback discovery path even for games without c
 
 Separate application compilation from HTML generation. Retain the compiled renderer outside the Nginx document root, versioned with its template, dependencies, and UI commit.
 
-Proposed initial refresh interval: 15 minutes, configurable after measuring one full export and rendering run on the public VM. This interval republishes already-collected catalog data; it does not cause stores to be scraped every 15 minutes.
+Approved refresh interval: 24 hours. This interval republishes already-collected catalog data; it does not change the once-daily item update schedule. Do not shorten the interval automatically.
 
-A single systemd timer invokes a bounded worker. The worker and deployment process share an exclusive lock. Set a 10-minute worker deadline; overlapping runs skip rather than pile up. Emit start/completion/failure, source counts, rendered/reused/removed page counts, duration, generation ID, and UI SHA to the journal and local status file. No recurring user-message automation is created.
+A single systemd timer invokes a bounded worker once every 24 hours. The worker and deployment process share an exclusive lock. Set a 10-minute worker deadline; overlapping runs skip rather than pile up. Use sequential export/rendering, Nice=10, CPUQuota=50% (half of one CPU), MemoryHigh=320M, MemoryMax=384M, and a 256 MB Node old-space limit. The verified public VM has 2 CPUs and approximately 1 GB RAM. Measure a complete run under these limits before enabling the timer; do not increase resource consumption automatically if it fails. Emit start/completion/failure, source counts, rendered/reused/removed page counts, duration, generation ID, and UI SHA to the journal and local status file. No recurring user-message automation is created.
 
 Fetch the complete bounded export first. Calculate a fingerprint of meaningful content for each page: game facts, eligible offer prices and availability, relevant store facts, and internal links. Preserve unchanged HTML and lastmod. Exclude export timestamps, polling timestamps, and unchanged source-check timestamps from the significant-change hash.
 

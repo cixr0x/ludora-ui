@@ -6,6 +6,8 @@ Goal: Deliver current comparison HTML, truthful pricing markup, crawlable catalo
 
 Architecture: Retain the Vite/React static UI and Express API. Add a versioned HTML renderer and a single incremental refresh worker on the public VM, with staged generation and atomic publication.
 
+Approval: The user approved the design with a 24-hour refresh interval because the public VM is small and items update once a day.
+
 Tech Stack: Existing Node.js, TypeScript, Vite, React, Express, PostgreSQL read queries, Nginx, systemd, Node test runner, Vitest, and browser validation tools.
 
 Spec: ../specs/2026-09-07-price-comparison-seo-design.md
@@ -174,7 +176,7 @@ assert.deepEqual(next.changedPaths, []);
 
 - [ ] Run RED, implement compilation/generation separation, and retain the renderer/template/dependencies outside the public root with a matching UI SHA.
 - [ ] Implement a complete staging directory and atomic live-generation switch. On Linux, use same-filesystem rename/symlink publication; test Windows behavior in a disposable workspace without composing destructive operations across shells.
-- [ ] Use a shared refresh/deployment lock. Default timer is 15 minutes; worker timeout is 10 minutes. Record failures and completion details in journal and a local status file. Do not enable the production timer yet.
+- [ ] Use a shared refresh/deployment lock. The approved timer interval is 24 hours; worker timeout is 10 minutes. Use sequential work, Nice=10, CPUQuota=50%, MemoryHigh=320M, MemoryMax=384M, and Node --max-old-space-size=256. Measure a full run under these limits on the approximately 1 GB VM; do not shorten the interval or raise consumption automatically. Record failures and completion details in journal and a local status file. Do not enable the production timer yet.
 - [ ] Run GREEN and the UI suite; prove a changed fixture updates HTML without recompiling assets. Record source-fetch and rendering costs.
 - [ ] Commit and obtain reviewer approval for failure handling, lock ownership, and publication boundaries.
 
