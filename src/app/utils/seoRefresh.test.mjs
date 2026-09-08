@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, mkdir, readFile, writeFile, rm, realpath, readdir } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile, rm, realpath, readdir, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
@@ -10,7 +10,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { fetchSeoExport } from "../../../scripts/seo/export.mjs";
 import { contentFingerprint, reconcilePages } from "../../../scripts/seo/manifest.mjs";
 import { withGenerationLock, publishGeneration, requireLease, fileHash } from "../../../scripts/seo/publish.mjs";
-import { refreshSeo, refreshCurrentGeneration, validateGeneratedGraph } from "../../../scripts/refresh-seo.mjs";
+import { refreshSeo, generateSeoStage, refreshCurrentGeneration, validateGeneratedGraph } from "../../../scripts/refresh-seo.mjs";
 
 const item = (id = 1, price = 350) => ({ id, canonical_name: `Game ${id}`, canonical_path: `/game/${id}/game-${id}`,
   categories: [], mechanics: [], families: [], designers: [], publishers: [], parent_items: [], related_items: [], expansion_items: [],
@@ -167,6 +167,86 @@ test("worker logs timed phase boundaries and completed page counts before the fi
   assert.equal(logs.at(-1).status, "failed");
   assert.equal(logs.some(entry => entry.phase === "fetch" && entry.event === "complete"), false);
   assert.equal(logs.some(entry => entry.phase === "cleanup" && entry.event === "complete"), true);
+});
+
+test("cold generation reads each HTML once and records the complete exact-byte inventory", async t => {
+  const config = await environment(t);
+  await writeFile(join(config.runtimeDirectory, "static", "icon.bin"), Buffer.from([0, 255, 128, 13, 10]));
+  const reads = new Map(), originalRead = filesystem.readFile;
+  let result;
+  await withFilesystemOverride("readFile", async (path, ...args) => {
+    const file = String(path).replaceAll("\\", "/");
+    if (file.includes("/generation/public/") && file.endsWith(".html")) reads.set(file, (reads.get(file) ?? 0) + 1);
+    return originalRead(path, ...args);
+  }, async () => {
+    result = await withGenerationLock(config.lockPath, lease => generateSeoStage({ ...config, lease,
+      stageDirectory: join(config.stateDirectory, "pending-deployments", "scan-fixture", "generation"),
+      reusePages: false, fetchImpl: feed([item(1), item(2)]).fetchImpl }));
+  });
+  assert.equal(result.status, "generated");
+  assert.equal(reads.size, result.rendered);
+  assert.ok([...reads.values()].every(count => count === 1), `HTML read counts: ${[...reads.values()]}`);
+  const validation = JSON.parse(await readFile(join(result.stageDirectory, "validation.json"), "utf8"));
+  assert.deepEqual(Object.keys(validation.files).sort(), ["assets/fixture.js", "icon.bin", "index.html", "categorias.html",
+    "juegos-de-mesa.html", "game/1/game-1.html", "game/2/game-2.html", "robots.txt", "sitemap.xml"].sort());
+  for (const [file, hash] of Object.entries(validation.files)) assert.equal(hash, await fileHash(join(result.stageDirectory, "public", file)), file);
+});
+
+test("a file inserted after document scanning is rejected by the final generation inventory", async t => {
+  const config = await environment(t);
+  await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl });
+  const previous = await realpath(config.livePath), originalRead = filesystem.readFile;
+  let inserted = false;
+  await withFilesystemOverride("readFile", async (path, ...args) => {
+    const bytes = await originalRead(path, ...args);
+    const file = String(path).replaceAll("\\", "/");
+    if (!inserted && file.includes("/public/game/1/game-1.html")) {
+      inserted = true;
+      await writeFile(join(String(path), "..", "unexpected.txt"), "unaccounted output");
+    }
+    return bytes;
+  }, async () => {
+    await assert.rejects(refreshSeo({ ...config, fetchImpl: feed([item(1, 400)]).fetchImpl }), /Unexpected generation file/);
+  });
+  assert.equal(inserted, true);
+  assert.equal(await realpath(config.livePath), previous);
+});
+
+test("independent publication rejects post-scan corruption, missing files and additions", async t => {
+  for (const mutation of ["corrupt-html", "remove-html", "extra-file", "corrupt-asset"]) await t.test(mutation, async t => {
+    const config = await environment(t);
+    await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl });
+    const previous = await realpath(config.livePath);
+    const stage = await withGenerationLock(config.lockPath, lease => generateSeoStage({ ...config, lease,
+      stageDirectory: join(config.stateDirectory, "pending-deployments", "scan-fixture", "generation"),
+      reusePages: false, fetchImpl: feed([item(1, 400)]).fetchImpl }));
+    const directory = join(stage.stageDirectory, "public");
+    if (mutation === "corrupt-html") await writeFile(join(directory, "game/1/game-1.html"), "changed after scan");
+    if (mutation === "remove-html") await rm(join(directory, "game/1/game-1.html"));
+    if (mutation === "extra-file") await writeFile(join(directory, "extra.txt"), "new after scan");
+    if (mutation === "corrupt-asset") await writeFile(join(directory, "assets/fixture.js"), "changed asset");
+    await assert.rejects(publishGeneration({ ...config, stageDirectory: stage.stageDirectory }), /changed|ENOENT|Unvalidated generation file/);
+    assert.equal(await realpath(config.livePath), previous);
+    assert.match(await readFile(join(config.livePath, "game/1/game-1.html"), "utf8"), /price 350/);
+  });
+});
+
+test("the final inventory rejects a symbolic directory inserted after scanning", async t => {
+  const config = await environment(t);
+  const originalRead = filesystem.readFile;
+  let inserted = false;
+  await withFilesystemOverride("readFile", async (path, ...args) => {
+    const bytes = await originalRead(path, ...args);
+    if (!inserted && String(path).replaceAll("\\", "/").includes("/public/game/1/game-1.html")) {
+      inserted = true;
+      await symlink(join(config.runtimeDirectory, "static", "assets"), join(String(path), "..", "linked"), "junction");
+    }
+    return bytes;
+  }, async () => {
+    await assert.rejects(refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl }), /symbolic link/);
+  });
+  assert.equal(inserted, true);
+  await assert.rejects(realpath(config.livePath), { code: "ENOENT" });
 });
 
 test("failed export or renderer leaves live generation untouched and records failure", async t => {

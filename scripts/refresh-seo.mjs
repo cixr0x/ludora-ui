@@ -12,6 +12,7 @@ import { captureBaseIdentity } from "./seo/base.mjs";
 import { checkedDirectory } from "./seo/paths.mjs";
 import { processEvidence } from "./seo/process.mjs";
 import { refreshCurrentGeneration } from "./seo/current.mjs";
+import { createDocumentScan } from "./seo/documentScan.mjs";
 export { refreshCurrentGeneration } from "./seo/current.mjs";
 
 export async function refreshSeo(config) {
@@ -114,6 +115,10 @@ async function executeGeneration(config) {
     }
     const changed = new Set(changedPaths);
     const assetReferences = new Set();
+    const canonicalPaths = candidates.map(page => page.canonicalPath);
+    const scan = createDocumentScan({ canonicalPaths, release, assetReferences });
+    const expectedFiles = new Set([...(await listFiles(publicDirectory, "", checkDeadline)),
+      ...canonicalPaths.map(canonicalFile), "robots.txt", "sitemap.xml"]);
     let completedPages = 0, documentValidationMs = 0;
     for (const candidate of candidates) {
       checkDeadline();
@@ -140,7 +145,7 @@ async function executeGeneration(config) {
         await writeFile(output, document);
       }
       const validationStarted = performance.now();
-      await validateDocument(output, candidate.canonicalPath, release, assetReferences);
+      await scan.scan(output, candidate.canonicalPath);
       documentValidationMs += performance.now() - validationStarted;
       completedPages++;
       if (completedPages % 500 === 0 && completedPages < candidates.length) {
@@ -160,12 +165,17 @@ async function executeGeneration(config) {
         { canonicalPath: categoryPath(category), pageCount: Math.ceil(category.items.length / CATALOG_PAGE_SIZE) }])) };
     await writeJsonAtomic(join(stageDirectory, "routes.json"), routes);
     const graphStart = performance.now();
-    await validateGeneratedGraph(publicDirectory, candidates.map(page => page.canonicalPath), checkDeadline);
+    const graph = scan.validateGraph(checkDeadline);
     const graphMs = Math.round(performance.now() - graphStart);
-    phase("validation", "graph-complete", { graphMs });
+    phase("validation", "graph-complete", { graphMs, ...graph });
     await writeJsonAtomic(join(stageDirectory, "manifest.json"), manifest);
-    const files = {};
-    for (const file of await listFiles(publicDirectory)) { checkDeadline(); files[file] = await fileHash(join(publicDirectory, file)); }
+    const files = scan.files;
+    for (const file of await listFiles(publicDirectory, "", checkDeadline)) {
+      checkDeadline();
+      if (!expectedFiles.delete(file)) throw new Error(`Unexpected generation file: ${file}`);
+      if (!Object.hasOwn(files, file)) files[file] = await fileHash(join(publicDirectory, file));
+    }
+    if (expectedFiles.size) throw new Error(`Missing generation file: ${expectedFiles.values().next().value}`);
     for (const file of assetReferences) if (!Object.hasOwn(files, file)) throw new Error(`Rendered document references a missing asset: ${file}`);
     await writeJsonAtomic(join(stageDirectory, "validation.json"), { version: 1, complete: exported.complete,
       manifestHash: await fileHash(join(stageDirectory, "manifest.json")), routesHash: await fileHash(join(stageDirectory, "routes.json")), files });
@@ -230,23 +240,15 @@ export async function validateGeneratedGraph(publicDirectory, canonicalPaths, ch
   for (const path of paths) if (!reached.has(path)) throw new Error(`Unreachable generated page ${path}`);
 }
 
-async function validateDocument(file, canonicalPath, release, assetReferences) {
-  const document = await readFile(file, "utf8");
-  const canonical = new URL(canonicalPath, release.siteUrl).href;
-  if (!document.includes(`rel="canonical" href="${canonical}"`) || !document.includes('<div id="root">')) throw new Error(`Invalid rendered canonical/root: ${canonicalPath}`);
-  const policy = release.indexingEnabled ? "index, follow" : "noindex, nofollow";
-  if (!document.includes(`<meta name="robots" content="${policy}"`)) throw new Error(`Invalid indexing policy: ${canonicalPath}`);
-  for (const match of document.matchAll(/<script[^>]+type="application\/(?:ld\+)?json"[^>]*>([\s\S]*?)<\/script>/g)) JSON.parse(match[1]);
-  for (const match of document.matchAll(/(?:src|href)="\/(assets\/[^"?#]+)(?:[?#][^"]*)?"/g)) assetReferences.add(decodeURIComponent(match[1]));
-}
-
-async function listFiles(directory, prefix = "") {
+async function listFiles(directory, prefix = "", checkDeadline = () => {}) {
   const files = [];
   for (const entry of await readdir(join(directory, prefix), { withFileTypes: true })) {
+    checkDeadline();
     const path = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isSymbolicLink()) throw new Error("Generation contains a symbolic link");
-    if (entry.isDirectory()) files.push(...await listFiles(directory, path));
-    else files.push(path);
+    if (entry.isDirectory()) files.push(...await listFiles(directory, path, checkDeadline));
+    else if (entry.isFile()) files.push(path);
+    else throw new Error(`Unexpected generation file type: ${path}`);
   }
   return files;
 }
