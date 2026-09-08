@@ -1,6 +1,7 @@
 export function formatStorePrice(value, currency = "MXN") {
   const numericPrice = Number(value);
   if (!Number.isFinite(numericPrice) || numericPrice === 0) return "Consultar";
+  if (typeof currency !== "string" || !currency.trim()) return "Consultar";
 
   const normalizedCurrency =
     typeof currency === "string" && currency.trim() ? currency.trim().toUpperCase() : "MXN";

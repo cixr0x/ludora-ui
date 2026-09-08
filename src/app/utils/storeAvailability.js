@@ -19,16 +19,19 @@ export function storeAvailabilityState(availability, storeActive = true) {
     return "out_of_stock";
   }
 
-  return "available";
+  if (["available", "in_stock", "instock", "disponible", "low_stock", "pocas_unidades"].includes(normalized)) return "available";
+  return "unknown";
 }
 
 export function storeAvailabilityLabel(status) {
+  if (status === "unknown") return "Disponibilidad por confirmar";
   if (status === "unavailable") return "No disponible";
   if (status === "out_of_stock") return "Agotado";
   return "";
 }
 
 export function storeAvailabilityRank(status) {
+  if (status === "unknown") return 1.5;
   if (status === "unavailable") return 2;
   if (status === "out_of_stock") return 1;
   return 0;

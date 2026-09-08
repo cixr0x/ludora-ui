@@ -23,12 +23,16 @@ export interface ApiOffer {
   image_url?: string;
   price?: string | number | null;
   raw_price?: string;
-  currency?: string;
+  currency?: string | null;
   availability?: string;
   store_active?: boolean;
   listing_status?: string;
   is_bundle?: boolean;
-  last_seen_at?: string;
+  last_seen_at?: string | null;
+  last_updated?: string | null;
+  refreshed_date?: string | null;
+  store_updated_at?: string | null;
+  language?: string | null;
 }
 
 export interface ApiTutorial {
@@ -75,6 +79,9 @@ export interface ApiItem {
   parent_items?: ApiItemReference[];
   tutorials?: ApiTutorial[];
   offers?: ApiOffer[];
+  related_items?: ApiRelatedItem[];
+  expansion_items?: ApiRelatedItem[];
+  updated_at?: string | null;
   semantic_distance?: number | string | null;
 }
 

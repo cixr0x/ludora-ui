@@ -321,12 +321,22 @@ function descriptionParagraphs(item: ApiItem): string[] {
 
 function mapOffer(offer: ApiOffer, game: Game): StoreEntry {
   const priceValue = numericValue(offer.price, 0);
-  const currency = offer.currency || "MXN";
+  const currency = typeof offer.currency === "string" ? offer.currency.trim().toUpperCase() : "";
   const availabilityStatus = storeAvailabilityState(offer.availability, offer.store_active);
-  const stockLevel = availabilityStatus === "available" ? stockLevelFromAvailability(offer.availability) : "out";
+  const stockLevel = availabilityStatus === "available" ? stockLevelFromAvailability(offer.availability)
+    : availabilityStatus === "unknown" ? "unknown" : "out";
 
   return {
     id: offer.id,
+    storeId: positiveInteger(offer.store_id),
+    storeActive: offer.store_active,
+    listingStatus: offer.listing_status,
+    language: preferredText(offer.language) || null,
+    lastSeenAt: offer.last_seen_at ?? null,
+    lastUpdated: offer.last_updated ?? null,
+    refreshedDate: offer.refreshed_date ?? null,
+    storeUpdatedAt: offer.store_updated_at ?? null,
+    listingUrl: storeOfferUrl({ source_url: offer.source_url, source_listing_url: offer.source_listing_url }) ?? null,
     name: storeDisplayName(offer.store_name, offer.store_platform),
     url: storeOfferUrl(offer),
     country: offer.store_country || "MX",
@@ -335,10 +345,10 @@ function mapOffer(offer: ApiOffer, game: Game): StoreEntry {
     price: formatStorePrice(priceValue, currency),
     priceValue,
     currency,
-    inStock: stockLevel !== "out",
+    inStock: availabilityStatus === "available",
     stockLevel,
     availabilityStatus,
-    isBundle: Boolean(offer.is_bundle),
+    isBundle: typeof offer.is_bundle === "boolean" ? offer.is_bundle : undefined,
     fulfillment: "shipping",
     storeRating: 0,
     reviewCount: 0,

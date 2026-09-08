@@ -15,10 +15,12 @@ test("active out-of-stock values are normalized for the store listing", () => {
   assert.equal(storeAvailabilityLabel("out_of_stock"), "Agotado");
 });
 
-test("unknown and available values remain available while the listing is active", () => {
+test("only explicit available values establish stock while unknown remains unknown", () => {
   assert.equal(storeAvailabilityState("available", true), "available");
-  assert.equal(storeAvailabilityState("unknown", true), "available");
-  assert.equal(storeAvailabilityState(undefined, undefined), "available");
+  assert.equal(storeAvailabilityState("unknown", true), "unknown");
+  assert.equal(storeAvailabilityState(undefined, undefined), "unknown");
+  assert.equal(storeAvailabilityState("preorder", true), "unknown");
+  assert.equal(storeAvailabilityLabel("unknown"), "Disponibilidad por confirmar");
   assert.equal(storeAvailabilityLabel("available"), "");
 });
 

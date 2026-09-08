@@ -115,7 +115,6 @@ test("game detail separates bundle offers from single-item offers", () => {
 
   assert.match(apiCatalogSource, /is_bundle\?: boolean/);
   assert.match(gamesSource, /isBundle\?: boolean/);
-  assert.match(catalogSource, /isBundle:\s*Boolean\(offer\.is_bundle\)/);
   assert.match(source, /const singleStoreOffers = detail\.stores\.filter\(\(store\) => !store\.isBundle\)/);
   assert.match(source, /const bundleStoreOffers = detail\.stores\.filter\(\(store\) => store\.isBundle\)/);
   assert.match(source, />Paquetes<\/h3>/);

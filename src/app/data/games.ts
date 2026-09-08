@@ -23,6 +23,15 @@ export interface GameReference {
 
 export interface StoreEntry {
   id: number;
+  storeId?: number;
+  storeActive?: boolean;
+  listingStatus?: string;
+  language?: string | null;
+  lastSeenAt?: string | null;
+  lastUpdated?: string | null;
+  refreshedDate?: string | null;
+  storeUpdatedAt?: string | null;
+  listingUrl?: string | null;
   name: string;
   url?: string;
   country: string;
@@ -32,8 +41,8 @@ export interface StoreEntry {
   priceValue: number;
   currency: string;
   inStock: boolean;
-  stockLevel: "high" | "low" | "out";
-  availabilityStatus?: "available" | "out_of_stock" | "unavailable";
+  stockLevel: "high" | "low" | "out" | "unknown";
+  availabilityStatus?: "available" | "out_of_stock" | "unavailable" | "unknown";
   isBundle?: boolean;
   fulfillment: "shipping" | "pickup" | "both";
   storeRating: number;
