@@ -68,7 +68,7 @@ export function catalogPageModel(index, descriptor) {
   }
   return { version: 1, kind, canonicalPath: pathForPage(page), ...pagination,
     items: pagination.items.map(item => ({ id: item.id, name: item.name, canonicalPath: item.canonicalPath,
-      image: item.image, minimumPrice: item.minimumPrice })),
+      image: item.image, ...(category ? {} : { minimumPrice: item.minimumPrice }) })),
     category: category ? { id: category.id, name: category.name } : null,
     pageLinks };
 }
@@ -108,7 +108,7 @@ export function parseCatalogDocument(html, canonicalPath) {
       positive(item.id);
       if (typeof item.name !== "string" || !item.name.trim() || typeof item.image !== "string" ||
         productPath(item.id, item.name) !== item.canonicalPath ||
-        (item.minimumPrice !== null && (typeof item.minimumPrice !== "number" || !Number.isFinite(item.minimumPrice) || item.minimumPrice <= 0))) {
+        (model.kind === "catalog" && item.minimumPrice !== null && (typeof item.minimumPrice !== "number" || !Number.isFinite(item.minimumPrice) || item.minimumPrice <= 0))) {
         throw new Error("Invalid compact catalog card");
       }
     }

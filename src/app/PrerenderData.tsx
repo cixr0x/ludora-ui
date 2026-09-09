@@ -13,7 +13,7 @@ export interface CatalogCard {
   name: string;
   canonicalPath: string;
   image: string;
-  minimumPrice: number | null;
+  minimumPrice?: number | null;
 }
 export interface CatalogPageData {
   version: number;

@@ -24,7 +24,8 @@ test("catalog hydration and bidirectional SPA navigation keep URLs, metadata and
       await page.waitForURL(`http://127.0.0.1:5175${path}`);
       await page.waitForFunction(expected => document.querySelector('link[rel="canonical"]')?.href === `https://www.ludoradar.mx${expected}`, path);
       if (count !== undefined) {
-        await page.waitForFunction(expected => document.querySelectorAll('ul[aria-label="Juegos del catálogo"] > li').length === expected, count);
+        const selector = path.startsWith("/categoria/") ? '[aria-label="Resultados de juegos"] > a' : 'ul[aria-label="Juegos del catálogo"] > li';
+        await page.waitForFunction(({ selector, count }) => document.querySelectorAll(selector).length === count, { selector, count });
       }
       assert.equal(await page.locator("#product-structured-data").count(), 0);
     };

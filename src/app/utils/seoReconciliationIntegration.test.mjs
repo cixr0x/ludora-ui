@@ -96,12 +96,12 @@ test("compiled publications reconcile significant changes, removals and exact si
     previous = current;
 
     records[0].offers = [{ ...offer, price: 425 }];
-    previous = await successful([game1, catalog, category], ["/", game3, "/categorias"]);
+    previous = await successful([game1, catalog], ["/", game3, "/categorias", category]);
     assert.match(visibleText(await documentAt(origin, catalog)), /Desde \$425\.00 MXN, sin envío/);
     assert.equal(jsonScript(await documentAt(origin, game1), "product-structured-data")["@graph"][0].offers[0].price, 425);
 
     records[0].offers[0].availability = "out_of_stock";
-    previous = await successful([game1, catalog, category], ["/", game3, "/categorias"]);
+    previous = await successful([game1, catalog], ["/", game3, "/categorias", category]);
     assert.doesNotMatch(visibleText(await documentAt(origin, catalog)), /Desde \$425/);
     assert.equal(jsonScript(await documentAt(origin, game1), "product-structured-data")["@graph"][0].offers[0].availability, "https://schema.org/OutOfStock");
 

@@ -30,7 +30,8 @@ test("compact indexes include uncategorized games and only nonempty categories",
   assert.equal(page.totalItems, 49);
   const category = catalogPageModel(index, { kind: "category", categoryId: 7, page: 1 });
   assert.equal(category.totalItems, 48);
-  assert.equal(category.items[0].minimumPrice, 350);
+  assert.equal(category.items[0].minimumPrice, undefined, "category payloads omit prices that Explore does not display");
+  assert.equal(catalogPageModel(index, { kind: "catalog", page: 1 }).items[0].minimumPrice, 350);
   assert.equal(category.items[0].offers, undefined);
   assert.throws(() => catalogPageModel(index, { kind: "category", categoryId: 7, page: 2 }));
 });

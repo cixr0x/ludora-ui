@@ -65,6 +65,19 @@ export function buildExploreSearchPath(value) {
   return `/search?${params.toString()}`;
 }
 
+export function parseExploreControlParams(params) {
+  const players = Number(params.get("players"));
+  const minimum = Number(params.get("complexity_min"));
+  const maximum = Number(params.get("complexity_max"));
+  const selected = new Set((params.get("playtimes") ?? "").split(","));
+  return {
+    players: Number.isInteger(players) && players >= 1 && players <= 6 ? players : null,
+    playtimes: ["short", "medium", "long"].filter(key => selected.has(key)),
+    complexity: Number.isInteger(minimum) && Number.isInteger(maximum) && minimum >= 1 && maximum <= 5 && minimum <= maximum
+      ? [minimum, maximum] : [1, 5],
+  };
+}
+
 export function parsePositiveIntegerSetParam(value) {
   return new Set(parsePositiveIntegerList(value));
 }

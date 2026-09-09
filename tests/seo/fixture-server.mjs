@@ -61,7 +61,8 @@ export async function startFixtureServer({ catalog = false } = {}) {
       if (req.url === "/categoria/7/antigua/pagina/2") {
         res.writeHead(301, { Location: "/categoria/7/estrategia/pagina/2" }); res.end(); return;
       }
-      const document = documents.get(req.url) ?? (["/search", "/privacidad", "/terminos"].includes(req.url) ? documents.get("/") : undefined);
+      const pathname = new URL(req.url, "http://localhost").pathname;
+      const document = documents.get(pathname) ?? (["/search", "/privacidad", "/terminos"].includes(pathname) ? documents.get("/") : undefined);
       if (document) {
         res.writeHead(200, { "Content-Type": "text/html" }); res.end(await vite.transformIndexHtml(req.url, document));
       } else vite.middlewares(req, res, () => { res.writeHead(404); res.end(); });

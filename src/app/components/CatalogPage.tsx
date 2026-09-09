@@ -7,6 +7,7 @@ import { applyPageMetadata, resetProductMetadata } from "./ProductMetadata";
 import { CatalogPagination } from "./CatalogPagination";
 import { SiteHeader } from "./SiteHeader";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { Search } from "../pages/Search";
 
 function CatalogMetadata({ model }: { model: CatalogPageData }) {
   const { search } = useLocation();
@@ -47,6 +48,10 @@ export function CatalogPage() {
   }, [failedPath, location.pathname]);
 
   const metadata = current ? catalogSeoMetadata(current) : null;
+  if (current?.kind === "category") return <>
+    <CatalogMetadata model={current} />
+    <Search key={current.canonicalPath} categoryPage={current} />
+  </>;
   return <div className="min-h-screen bg-neutral-950 text-white">
     <SiteHeader />
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-8">

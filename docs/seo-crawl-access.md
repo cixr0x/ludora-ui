@@ -27,6 +27,17 @@ catalogs hydrate only matching snapshots. Generated catalog navigation reads ine
 same-origin HTML payloads without executing fetched scripts, follows published
 redirects, and updates URL/metadata together. Search and legal routes stay noindex.
 
+Category landing pages reuse the Explore interface with their route category
+selected. They remain HTTP 200, indexable and self-canonical, including pagination;
+the category directory and sitemap entries remain published. Their initial HTML
+contains the exact 48-game slice and real product/pagination anchors, with Explore's
+image/name card design. Hydration preserves that slice until a filter is edited.
+Changing/removing the category or adding filters opens `/search?...`, which remains
+`noindex, follow`. Player, playtime and complexity selections survive that transition
+and reload through `players`, `playtimes` and `complexity_min`/`complexity_max` URL
+parameters. Product pages and the all-games catalog retain price-comparison content;
+undisplayed price changes do not advance category-page `lastmod`.
+
 Private generation route registries drive canonical aliases. A newer database name
 cannot redirect to an unpublished path; malformed, absent and out-of-range targets
 return true 404 responses. The daily worker updates complete generations atomically

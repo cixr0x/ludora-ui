@@ -8,6 +8,7 @@ import {
   buildExploreTaxonomyPath,
   hasMoreCatalogResults,
   parsePositiveIntegerSetParam,
+  parseExploreControlParams,
   setPositiveIntegerSetParam,
   shouldShowFilterRemoveIcon,
   sortTaxonomyOptionsByActive,
@@ -152,4 +153,14 @@ test("shouldShowFilterRemoveIcon only marks active removable filters", () => {
   assert.equal(shouldShowFilterRemoveIcon({ active: true, removable: true }), true);
   assert.equal(shouldShowFilterRemoveIcon({ active: false, removable: true }), false);
   assert.equal(shouldShowFilterRemoveIcon({ active: true, removable: false }), false);
+});
+
+test("Explore control URL state restores supported filters and rejects malformed ranges", () => {
+  assert.deepEqual(parseExploreControlParams(new URLSearchParams("players=3&playtimes=short,long&complexity_min=2&complexity_max=4")),
+    { players: 3, playtimes: ["short", "long"], complexity: [2, 4] });
+  for (const query of ["", "players=0&playtimes=unknown&complexity_min=4&complexity_max=2", "players=1.5&complexity_min=NaN&complexity_max=6"]) {
+    assert.deepEqual(parseExploreControlParams(new URLSearchParams(query)), { players: null, playtimes: [], complexity: [1, 5] });
+  }
+  assert.deepEqual(parseExploreControlParams(new URLSearchParams("playtimes=long,short,long,invalid")),
+    { players: null, playtimes: ["short", "long"], complexity: [1, 5] });
 });

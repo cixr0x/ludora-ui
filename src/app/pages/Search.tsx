@@ -15,11 +15,15 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { SiteHeader } from "../components/SiteHeader";
 import { t } from "../data/translations";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
+import type { CatalogPageData } from "../PrerenderData";
+import { CatalogPagination } from "../components/CatalogPagination";
+import { catalogSeoMetadata } from "../utils/catalogSeo.js";
 import { EXPANSION_BADGE_CORNER_CLASS } from "../utils/expansionDisplay.js";
 import {
   appendUniqueCatalogResults,
   hasMoreCatalogResults,
   parsePositiveIntegerSetParam,
+  parseExploreControlParams,
   setPositiveIntegerSetParam,
   shouldShowFilterRemoveIcon,
   sortTaxonomyOptionsByActive,
@@ -66,6 +70,7 @@ interface CatalogSearchRequest {
 function useCatalogSearchGames(
   request: CatalogSearchRequest,
   semanticGames: FilterableSemanticResult[] | null,
+  categoryPage?: CatalogPageData,
 ): {
   filterOptions: CatalogFilterOptions;
   games: CatalogSearchResult[];
@@ -75,7 +80,7 @@ function useCatalogSearchGames(
   loadMore: () => void;
 } {
   const [games, setGames] = useState<CatalogSearchResult[]>([]);
-  const [filterOptions, setFilterOptions] = useState<CatalogFilterOptions>({ categories: [], mechanics: [] });
+  const [filterOptions, setFilterOptions] = useState<CatalogFilterOptions>({ categories: categoryPage?.category ? [categoryPage.category] : [], mechanics: [] });
   const hasFilterOptionsRef = useRef(false);
   const isLoadingFilterOptionsRef = useRef(false);
   const loadSequenceRef = useRef(0);
@@ -95,7 +100,8 @@ function useCatalogSearchGames(
     loadCatalogFilterOptions()
       .then((options) => {
         if (!isActive || hasFilterOptionsRef.current) return;
-        setFilterOptions(options);
+        setFilterOptions(categoryPage?.category && !options.categories.some(category => category.id === categoryPage.category?.id)
+          ? { ...options, categories: [categoryPage.category, ...options.categories] } : options);
         hasFilterOptionsRef.current = true;
       })
       .finally(() => {
@@ -108,6 +114,7 @@ function useCatalogSearchGames(
   }, []);
 
   useEffect(() => {
+    if (categoryPage) return;
     if (semanticGames) {
       loadSequenceRef.current += 1;
       setIsLoading(false);
@@ -152,7 +159,7 @@ function useCatalogSearchGames(
       isActive = false;
       window.clearTimeout(timeout);
     };
-  }, [request, semanticGames]);
+  }, [request, semanticGames, categoryPage]);
 
   const loadMore = useCallback(() => {
     if (semanticGames || isLoading || isLoadingMore || !hasMore) return;
@@ -181,7 +188,7 @@ function useCatalogSearchGames(
       });
   }, [hasMore, isLoading, isLoadingMore, nextOffset, request, semanticGames]);
 
-  return { filterOptions, games, hasMore, isLoading, isLoadingMore, loadMore };
+  return { filterOptions, games, hasMore: categoryPage ? false : hasMore, isLoading: categoryPage ? false : isLoading, isLoadingMore, loadMore };
 }
 
 function sameNumberSet(left: Set<number>, right: Set<number>): boolean {
@@ -254,9 +261,27 @@ function Toggle({
   );
 }
 
-export function Search() {
+export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}) {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [routeParams, setRouteParams] = useSearchParams();
+  const searchParams = useMemo(() => categoryPage?.category
+    ? new URLSearchParams({ category_ids: String(categoryPage.category.id) }) : routeParams, [categoryPage, routeParams]);
+  const setSearchParams = useCallback((update: URLSearchParams | ((params: URLSearchParams) => URLSearchParams), options?: { replace?: boolean }) => {
+    const next = typeof update === "function" ? update(new URLSearchParams(searchParams)) : update;
+    if (categoryPage) {
+      clearLudoscopioSessionCache();
+      navigate(`/search${next.size ? `?${next}` : ""}`);
+    }
+    else setRouteParams(next, options);
+  }, [categoryPage, navigate, searchParams, setRouteParams]);
+  useEffect(() => {
+    if (!categoryPage || !routeParams.size) return;
+    const next = new URLSearchParams(searchParams);
+    for (const [key, value] of routeParams) next.set(key, value);
+    clearLudoscopioSessionCache();
+    navigate(`/search?${next}`, { replace: true });
+  }, [categoryPage, routeParams, searchParams, navigate]);
+  const controls = useMemo(() => parseExploreControlParams(searchParams), [searchParams]);
   const requestedTextQuery = searchParams.get("q")?.trim() ?? "";
   const [query, setQuery] = useState(requestedTextQuery);
   const [activeCategories, setActiveCategories] = useState<Set<number>>(() =>
@@ -267,10 +292,10 @@ export function Search() {
   );
   const [categoriesCollapsed, setCategoriesCollapsed] = useState(true);
   const [mechanicsCollapsed, setMechanicsCollapsed] = useState(true);
-  const [players, setPlayers] = useState<number | null>(null);
-  const [playtimes, setPlaytimes] = useState<Set<PlaytimeKey>>(new Set());
-  const [complexity, setComplexity] = useState<[number, number]>([1, 5]);
-  const [cachedLudoscopioSession] = useState(() => readLudoscopioSessionCache());
+  const [players, setPlayers] = useState<number | null>(controls.players);
+  const [playtimes, setPlaytimes] = useState<Set<PlaytimeKey>>(() => new Set(controls.playtimes as PlaytimeKey[]));
+  const [complexity, setComplexity] = useState<[number, number]>(controls.complexity as [number, number]);
+  const [cachedLudoscopioSession] = useState(() => categoryPage ? null : readLudoscopioSessionCache());
   const [semanticQuery, setSemanticQuery] = useState(() => cachedLudoscopioSession?.prompt ?? "");
   const [semanticGames, setSemanticGames] = useState<FilterableSemanticResult[] | null>(
     () => cachedLudoscopioSession?.results ?? null,
@@ -297,6 +322,7 @@ export function Search() {
   const { filterOptions, games, hasMore, isLoading, isLoadingMore, loadMore } = useCatalogSearchGames(
     searchRequest,
     semanticGames,
+    categoryPage,
   );
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
@@ -318,10 +344,30 @@ export function Search() {
     () => allMechanics.filter((mechanic) => activeMechanics.has(mechanic.id)),
     [activeMechanics, allMechanics],
   );
-  const toggle = <T,>(set: Set<T>, value: T, setter: (s: Set<T>) => void) => {
-    const next = new Set(set);
+  const updateControl = (values: Record<string, string | null>) => {
+    setSearchParams(current => {
+      for (const [key, value] of Object.entries(values)) {
+        if (value === null) current.delete(key); else current.set(key, value);
+      }
+      return current;
+    }, { replace: true });
+  };
+  const changePlayers = (value: number) => {
+    const next = players === value ? null : value;
+    setPlayers(next); updateControl({ players: next === null ? null : String(next) });
+  };
+  const changePlaytime = (value: PlaytimeKey) => {
+    const next = new Set(playtimes);
     if (next.has(value)) next.delete(value); else next.add(value);
-    setter(next);
+    setPlaytimes(next);
+    updateControl({ playtimes: next.size ? PLAYTIME_OPTIONS.filter(option => next.has(option.key)).map(option => option.key).join(",") : null });
+  };
+  const changeComplexity = (value: number) => {
+    const next: [number, number] = complexity[0] === value && complexity[1] === value ? [1, 5]
+      : value < complexity[0] ? [value, complexity[1]] : value > complexity[1] ? [complexity[0], value] : [value, value];
+    setComplexity(next);
+    updateControl({ complexity_min: next[0] === 1 && next[1] === 5 ? null : String(next[0]),
+      complexity_max: next[0] === 1 && next[1] === 5 ? null : String(next[1]) });
   };
 
   const toggleTaxonomy = (
@@ -339,9 +385,10 @@ export function Search() {
     );
   };
 
-  const results = useMemo(
-    () => (semanticGames ? filterSemanticSearchResults(semanticGames, searchRequest) : games),
-    [games, searchRequest, semanticGames],
+  const results = useMemo<Array<Game & { canonicalPath?: string }>>(
+    () => categoryPage ? (categoryPage.items ?? []).map(item => ({ ...item, genres: [] }))
+      : (semanticGames ? filterSemanticSearchResults(semanticGames, searchRequest) : games),
+    [categoryPage, games, searchRequest, semanticGames],
   );
 
   const activeFilterCount =
@@ -369,6 +416,7 @@ export function Search() {
     nextParams.delete("q");
     nextParams.delete("category_ids");
     nextParams.delete("mechanic_ids");
+    for (const key of ["players", "playtimes", "complexity_min", "complexity_max"]) nextParams.delete(key);
     setSearchParams(nextParams, { replace: true });
   };
 
@@ -386,6 +434,11 @@ export function Search() {
   const handleLudoscopioSearch = useCallback(async (value: string) => {
     const prompt = value.trim();
     if (!prompt || isSemanticLoading) return;
+    if (categoryPage) {
+      clearLudoscopioSessionCache();
+      navigate(`/search?${new URLSearchParams({ ludoscopio: prompt })}`);
+      return;
+    }
 
     setIsSemanticLoading(true);
     try {
@@ -397,7 +450,7 @@ export function Search() {
       setQuery("");
       setSearchParams((currentParams) => {
         const nextParams = new URLSearchParams(currentParams);
-        nextParams.delete("q");
+        for (const key of ["q", "category_ids", "mechanic_ids", "players", "playtimes", "complexity_min", "complexity_max", "ludoscopio", "ludoscopioPrompt"]) nextParams.delete(key);
         return nextParams;
       }, { replace: true });
       setActiveCategories(new Set());
@@ -408,13 +461,19 @@ export function Search() {
     } finally {
       setIsSemanticLoading(false);
     }
-  }, [isSemanticLoading, setSearchParams]);
+  }, [categoryPage, isSemanticLoading, navigate, setSearchParams]);
 
   const shouldOpenLudoscopio = searchParams.get("ludoscopio") === "open";
 
   useEffect(() => {
     setQuery(requestedTextQuery);
   }, [requestedTextQuery]);
+
+  useEffect(() => {
+    setPlayers(controls.players);
+    setPlaytimes(new Set(controls.playtimes as PlaytimeKey[]));
+    setComplexity(controls.complexity as [number, number]);
+  }, [controls]);
 
   useEffect(() => {
     const nextCategories = parsePositiveIntegerSetParam(searchParams.get("category_ids"));
@@ -465,7 +524,7 @@ export function Search() {
     >
       <SiteHeader
         contextBar={
-          <div className="flex h-12 items-center gap-4 border-t border-white/5 px-4 sm:px-8">
+          <div className="flex min-h-12 flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/5 px-4 py-2 sm:px-8">
             <button
               onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate("/"))}
               className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors"
@@ -492,7 +551,7 @@ export function Search() {
         }
       />
 
-      <div className="w-full px-4 py-8 sm:px-6 lg:px-8 grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <main className="w-full px-4 py-8 sm:px-6 lg:px-8 grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)]">
         {/* Filters sidebar */}
         <aside className="space-y-6">
           {/* Search box */}
@@ -527,7 +586,7 @@ export function Search() {
               {PLAYER_OPTIONS.map((n) => (
                 <button
                   key={n}
-                  onClick={() => setPlayers(players === n ? null : n)}
+                  onClick={() => changePlayers(n)}
                   className={`w-9 h-9 rounded-full text-sm border transition-colors ${
                     players === n
                       ? "bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40"
@@ -549,7 +608,7 @@ export function Search() {
                   key={opt.key}
                   label={opt.label}
                   active={playtimes.has(opt.key)}
-                  onClick={() => toggle(playtimes, opt.key, setPlaytimes)}
+                  onClick={() => changePlaytime(opt.key)}
                 />
               ))}
             </div>
@@ -569,17 +628,7 @@ export function Search() {
                 return (
                   <button
                     key={n}
-                    onClick={() => {
-                      if (complexity[0] === n && complexity[1] === n) {
-                        setComplexity([1, 5]);
-                      } else if (n < complexity[0]) {
-                        setComplexity([n, complexity[1]]);
-                      } else if (n > complexity[1]) {
-                        setComplexity([complexity[0], n]);
-                      } else {
-                        setComplexity([n, n]);
-                      }
-                    }}
+                    onClick={() => changeComplexity(n)}
                     className={`flex-1 py-1.5 rounded-md text-sm border transition-colors ${
                       inRange
                         ? "bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40"
@@ -681,6 +730,10 @@ export function Search() {
 
         {/* Results */}
         <section className="min-w-0">
+          {categoryPage && <div className="mb-6">
+            <h1 className="text-2xl font-bold md:text-3xl">{catalogSeoMetadata(categoryPage).heading}</h1>
+            <p className="mt-3 max-w-3xl text-neutral-300">{catalogSeoMetadata(categoryPage).description}</p>
+          </div>}
           {(activeCategoryOptions.length > 0 || activeMechanicOptions.length > 0) && (
             <div
               aria-label="Filtros de categoría y mecánica activos"
@@ -739,16 +792,17 @@ export function Search() {
             </div>
           ) : (
             <>
-              <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
+              {categoryPage && <CatalogPagination model={categoryPage} />}
+              <div aria-label="Resultados de juegos" className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
                 {results.map((game) => (
-                  <Link key={game.id} to={productPath(game.id, game.name)} className="group flex flex-col">
+                  <Link key={game.id} to={game.canonicalPath ?? productPath(game.id, game.name)} className="group flex flex-col">
                     <div className="relative flex items-center justify-center rounded-md overflow-hidden mb-1.5" style={{ aspectRatio: "1" }}>
                       <div className="relative inline-flex max-h-full max-w-full">
-                        <ImageWithFallback
+                        {game.image ? <ImageWithFallback
                           src={game.image}
                           alt={game.name}
                           className="block max-h-full max-w-full object-contain"
-                        />
+                        /> : <div aria-hidden="true" className="flex h-36 w-36 max-w-full items-center justify-center rounded bg-neutral-800 text-xs text-neutral-500">Imagen no disponible</div>}
                         {game.isExpansion && <ExpansionBadge className={EXPANSION_BADGE_CORNER_CLASS} />}
                       </div>
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
@@ -762,7 +816,8 @@ export function Search() {
                   </Link>
                 ))}
               </div>
-              {!semanticGames && (
+              {categoryPage && <CatalogPagination model={categoryPage} />}
+              {!categoryPage && !semanticGames && (
                 <div
                   ref={loadMoreRef}
                   aria-live="polite"
@@ -780,7 +835,7 @@ export function Search() {
             </>
           )}
         </section>
-      </div>
+      </main>
     </div>
   );
 }
