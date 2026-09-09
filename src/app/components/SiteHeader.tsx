@@ -5,7 +5,8 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { loadCatalogFilterOptions, loadCatalogSearchResults } from "../data/catalog";
 import type { Game } from "../data/games";
 import { t } from "../data/translations";
-import { buildExploreSearchPath, buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
+import { buildExploreSearchPath } from "../utils/catalogSearch.js";
+import { categoryPath } from "../utils/catalogSeo.js";
 import { HOME_SEARCH_DEBOUNCE_MS, HOME_SEARCH_LIMIT, homeSearchQuery } from "../utils/homeSearch.js";
 import { clearLudoscopioSessionCache } from "../utils/ludoscopioSessionCache.js";
 import { productPath } from "../utils/productRoutes.js";
@@ -70,14 +71,14 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
       .then((options) => {
         if (!isActive) return;
         const items = options.categories.map((category) => {
-          const to = buildExploreTaxonomyPath("category", category.id);
+          const to = categoryPath(category);
           return {
             key: `category:${category.id}`,
             label: category.name,
             to,
           };
         });
-        setCategoryStripItems(items.filter((item) => item.to !== "/search"));
+        setCategoryStripItems(items);
       })
       .catch(() => {
         if (isActive) setCategoryStripItems([]);

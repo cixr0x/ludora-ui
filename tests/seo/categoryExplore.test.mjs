@@ -7,6 +7,48 @@ import { startFixtureServer } from "./fixture-server.mjs";
 const origin = "http://127.0.0.1:5175";
 const category = "/categoria/7/estrategia";
 
+test("visible homepage category navigation enters the canonical landing before filter edits enter Search", { timeout: 60000 }, async t => {
+  const server = await startFixtureServer({ catalog: true });
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    for (const [name, width, height] of [["desktop", 1280, 900], ["mobile", 390, 844]]) {
+      await t.test(name, async () => {
+        const page = await browser.newPage({ viewport: { width, height } }), errors = [];
+        page.on("pageerror", error => errors.push(error.message));
+        page.on("console", message => { if (["warning", "error"].includes(message.type())) errors.push(message.text()); });
+        try {
+          await page.route("**/api/items/filter-options", route => route.fulfill({ json: { data: {
+            categories: [{ id: 7, name: "Estrategia" }], mechanics: [],
+          } } }));
+          await page.goto(origin); await page.waitForLoadState("networkidle");
+          const link = page.getByRole("banner").getByRole("link", { name: "Estrategia", exact: true });
+          assert.equal(await link.isVisible(), true);
+          t.diagnostic(`${name} visible category href: ${await link.getAttribute("href")}`);
+          await link.click(); await page.waitForLoadState("networkidle");
+          assert.equal(new URL(page.url()).pathname, category);
+          assert.equal(new URL(page.url()).search, "");
+          assert.equal(await page.getByRole("heading", { level: 1 }).textContent(), "Juegos de mesa de Estrategia");
+          assert.equal(await page.getByPlaceholder("Nombre, temática, mecánica…").count(), 1);
+          assert.equal(await page.getByRole("button", { name: "Estrategia, desactivar filtro", exact: true }).count(), 1);
+          assert.equal(await page.locator('[aria-label="Resultados de juegos"] > a').count(), 48);
+          assert.equal(await page.locator('link[rel="canonical"]').getAttribute("href"), `https://www.ludoradar.mx${category}`);
+          assert.equal(await page.locator('meta[name="robots"]').getAttribute("content"), "index, follow");
+          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+          await mkdir("output/playwright/header-category-entry", { recursive: true });
+          await page.screenshot({ path: `output/playwright/header-category-entry/${name}.png` });
+          await page.locator("aside").getByRole("button", { name: "3", exact: true }).first().click();
+          await page.waitForURL(url => url.pathname === "/search");
+          assert.deepEqual(Object.fromEntries(new URL(page.url()).searchParams), { category_ids: "7", players: "3" });
+          await page.waitForFunction(() => document.querySelector('meta[name="robots"]').content === "noindex, follow");
+          await page.reload(); await page.waitForLoadState("networkidle");
+          assert.deepEqual(Object.fromEntries(new URL(page.url()).searchParams), { category_ids: "7", players: "3" });
+          assert.deepEqual(errors, []);
+        } finally { await page.close(); }
+      });
+    }
+  } finally { await browser.close(); await server.close(); }
+});
+
 test("sequential keyboard input keeps the full query, focus and caret across the category handoff", { timeout: 60000 }, async t => {
   const server = await startFixtureServer({ catalog: true });
   const browser = await chromium.launch({ channel: "chrome", headless: true });
