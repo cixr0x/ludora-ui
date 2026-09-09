@@ -27,10 +27,11 @@ test("visible homepage category navigation enters the canonical landing before f
           await link.click(); await page.waitForLoadState("networkidle");
           assert.equal(new URL(page.url()).pathname, category);
           assert.equal(new URL(page.url()).search, "");
-          assert.equal(await page.getByRole("heading", { level: 1 }).textContent(), "Juegos de mesa de Estrategia");
+          assert.equal(await page.locator("h1").textContent(), "Juegos de mesa de Estrategia");
+          assert.equal(await page.locator("h1").isVisible(), false);
           assert.equal(await page.getByPlaceholder("Nombre, temática, mecánica…").count(), 1);
           assert.equal(await page.getByRole("button", { name: "Estrategia, desactivar filtro", exact: true }).count(), 1);
-          assert.equal(await page.locator('[aria-label="Resultados de juegos"] > a').count(), 48);
+          assert.equal(await page.locator('[aria-label="Resultados de juegos"] > a').count(), 49);
           assert.equal(await page.locator('link[rel="canonical"]').getAttribute("href"), `https://www.ludoradar.mx${category}`);
           assert.equal(await page.locator('meta[name="robots"]').getAttribute("content"), "index, follow");
           assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
@@ -124,7 +125,7 @@ test("LudoRadar submission from a category enters Search and consumes its prompt
   } finally { await browser.close(); await server.close(); }
 });
 
-test("category publications render Explore controls and their exact crawlable slice before and after hydration", { timeout: 60000 }, async () => {
+test("category publications hydrate crawlable initial slices before adopting ordinary Search results", { timeout: 60000 }, async () => {
   const server = await startFixtureServer({ catalog: true });
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   try {
@@ -132,16 +133,19 @@ test("category publications render Explore controls and their exact crawlable sl
     const staticPage = await noJs.newPage();
     assert.equal((await staticPage.goto(`${origin}${category}`)).status(), 200);
     assert.equal(await staticPage.getByPlaceholder("Nombre, temática, mecánica…").count(), 1, "published category must use Explore's search control");
-    assert.equal(await staticPage.getByRole("button", { name: "Estrategia, desactivar filtro", exact: true }).count(), 1);
-    assert.equal(await staticPage.locator('[aria-label="Resultados de juegos"] > a').count(), 48);
+    assert.equal(await staticPage.getByText("Cargando catálogo...", { exact: true }).count(), 1);
+    assert.equal(await staticPage.locator('main [hidden] a[href^="/game/"]').count(), 48);
     assert.equal(await staticPage.locator('ul[aria-label="Juegos del catálogo"]').count(), 0, "separate category catalog presentation is removed");
-    assert.equal(await staticPage.getByRole("heading", { level: 1 }).textContent(), "Juegos de mesa de Estrategia");
+    assert.equal(await staticPage.locator("h1").textContent(), "Juegos de mesa de Estrategia");
+    assert.equal(await staticPage.locator("h1").isVisible(), false);
     assert.match(await staticPage.locator("main").textContent(), /Explora 49 juegos de mesa de Estrategia/);
-    assert.doesNotMatch(await staticPage.locator('[aria-label="Resultados de juegos"]').textContent(), /Desde \$|Sin precio disponible|MXN, sin envío/, "category cards retain Explore's image/name design without catalog price lines");
-    await staticPage.getByRole("link", { name: "Siguiente", exact: true }).first().click();
+    assert.doesNotMatch(await staticPage.locator('main [hidden]').textContent(), /Desde \$|Sin precio disponible|MXN, sin envío/, "hidden category SEO content does not add catalog price lines");
+    const nextPath = await staticPage.locator('[aria-label="Paginación del catálogo"] a').last().getAttribute("href");
+    assert.equal(await staticPage.locator('[aria-label="Paginación del catálogo"]').isVisible(), false);
+    await staticPage.goto(origin + nextPath);
     assert.equal(new URL(staticPage.url()).pathname, `${category}/pagina/2`);
-    assert.equal(await staticPage.locator('[aria-label="Resultados de juegos"] > a').count(), 1);
-    assert.equal(await staticPage.locator('[aria-label="Resultados de juegos"] > a').first().getAttribute("href"), "/game/49/juego-49");
+    assert.equal(await staticPage.locator('main [hidden] a[href^="/game/"]').count(), 1);
+    assert.equal(await staticPage.locator('main [hidden] a[href^="/game/"]').first().getAttribute("href"), "/game/49/juego-49");
     assert.equal(await staticPage.locator('link[rel="canonical"]').getAttribute("href"), `https://www.ludoradar.mx${category}/pagina/2`);
     assert.equal(await staticPage.locator('meta[name="robots"]').getAttribute("content"), "index, follow");
     await noJs.close();
@@ -154,12 +158,13 @@ test("category publications render Explore controls and their exact crawlable sl
     let release; const gate = new Promise(resolve => { release = resolve; });
     await page.route("**/src/main.tsx", async route => { await gate; await route.continue(); });
     await page.goto(`${origin}${category}`, { waitUntil: "commit" });
-    await page.locator('[aria-label="Resultados de juegos"]').waitFor();
+    await page.locator('main [hidden] a[href^="/game/"]').first().waitFor({ state: "attached" });
     await page.evaluate(() => { window.categoryRoot = document.querySelector("#root").firstChild; });
     release(); await page.waitForLoadState("networkidle");
     assert.equal(await page.evaluate(() => window.categoryRoot === document.querySelector("#root").firstChild), true);
-    assert.equal(await page.locator('[aria-label="Resultados de juegos"] > a').count(), 48);
-    assert.deepEqual(requests, [], "landing page must keep its published slice rather than replace it with live search");
+    assert.equal(await page.locator('[aria-label="Resultados de juegos"] > a').count(), 49);
+    assert.ok(requests.length > 0, "hydrated categories use ordinary live Search results");
+    assert.equal(requests.every(url => new URL(url).searchParams.get("category_ids") === "7" && new URL(url).searchParams.get("limit") === "60"), true);
     assert.equal(await page.getByText("cached unrelated search", { exact: false }).count(), 0);
     await mkdir("output/playwright/category-explore", { recursive: true });
     for (const [name, width, height] of [["desktop", 1280, 900], ["mobile", 390, 844]]) {
@@ -170,9 +175,9 @@ test("category publications render Explore controls and their exact crawlable sl
       assert.ok(textBox.y >= rowBox.y && textBox.y + textBox.height <= rowBox.y + rowBox.height, `${name}: context text fits its wrapping row`);
       await page.screenshot({ path: `output/playwright/category-explore/${name}.png` });
     }
-    await page.getByRole("link", { name: "Siguiente", exact: true }).first().click();
+    await page.goto(`${origin}${category}/pagina/2`);
     await page.waitForURL(`${origin}${category}/pagina/2`);
-    await page.waitForFunction(() => document.querySelectorAll('[aria-label="Resultados de juegos"] > a').length === 1);
+    await page.waitForFunction(() => document.querySelectorAll('[aria-label="Resultados de juegos"] > a').length === 49);
     assert.match(await page.title(), /Estrategia.*página 2/);
     assert.equal(await page.locator('meta[name="robots"]').getAttribute("content"), "index, follow");
     assert.deepEqual(errors, []);

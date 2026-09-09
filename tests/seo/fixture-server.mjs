@@ -50,7 +50,17 @@ export async function startFixtureServer({ catalog = false } = {}) {
     if (req.url?.startsWith("/api/")) {
       res.writeHead(200, { "Content-Type": "application/json" });
       const id = req.url.match(/^\/api\/items\/(\d+)$/)?.[1];
-      const data = id ? records.find(record => record.id === Number(id)) : [];
+      let data = id ? records.find(record => record.id === Number(id)) : [];
+      if (catalog && req.url === "/api/items/filter-options") data = {
+        categories: [...new Map(records.flatMap(record => record.categories.map(category => [category.id, category]))).values()], mechanics: [],
+      };
+      if (req.url.startsWith("/api/items/search-results?")) {
+        const params = new URL(req.url, "http://localhost").searchParams;
+        const categoryIds = (params.get("category_ids") ?? "").split(",").filter(Boolean).map(Number);
+        const matches = records.filter(record => categoryIds.every(id => record.categories.some(category => category.id === id)));
+        const offset = Number(params.get("offset") ?? 0), limit = Number(params.get("limit") ?? 60);
+        data = matches.slice(offset, offset + limit);
+      }
       res.end(JSON.stringify({ data }));
     } else if (catalog) {
       const gameId = req.url?.match(/^\/game\/([1-9][0-9]*)(?:\/[a-z0-9-]+)?\/?$/)?.[1];

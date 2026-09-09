@@ -35,9 +35,12 @@ test("catalog hydration and bidirectional SPA navigation keep URLs, metadata and
     await page.locator('ul[aria-label="Juegos del catálogo"] a').first().click();
     await page.waitForURL("**/game/49/juego-49"); await page.locator("#store-offers").waitFor();
     await page.locator('a[href="/categoria/7/estrategia"]').click();
-    await checkPage("/categoria/7/estrategia", 48);
-    await page.getByRole("link", { name: "Siguiente", exact: true }).first().click();
-    await checkPage("/categoria/7/estrategia/pagina/2", 1);
+    await checkPage("/categoria/7/estrategia", 49);
+    const nextPath = await page.locator('[aria-label="Paginación del catálogo"] a').last().getAttribute("href");
+    assert.equal(nextPath, "/categoria/7/estrategia/pagina/2");
+    assert.equal(await page.locator('[aria-label="Paginación del catálogo"]').isVisible(), false);
+    await page.evaluate(path => { history.pushState({ idx: 5 }, "", path); window.dispatchEvent(new PopStateEvent("popstate")); }, nextPath);
+    await checkPage("/categoria/7/estrategia/pagina/2", 49);
     // These routes remain available for SPA entry; their SEO-only header links
     // are intentionally hidden from the interactive navigation.
     await page.evaluate(() => { history.pushState({ idx: 6 }, "", "/categorias"); window.dispatchEvent(new PopStateEvent("popstate")); });
@@ -51,7 +54,7 @@ test("catalog hydration and bidirectional SPA navigation keep URLs, metadata and
     await checkPage("/juegos-de-mesa", 48);
     assert.equal(await page.locator('meta[name="robots"]').getAttribute("content"), "index, follow");
     await page.evaluate(() => { history.pushState({ idx: 10 }, "", "/categoria/7/antigua/pagina/2"); window.dispatchEvent(new PopStateEvent("popstate")); });
-    await checkPage("/categoria/7/estrategia/pagina/2", 1);
+    await checkPage("/categoria/7/estrategia/pagina/2", 49);
     assert.match(await page.title(), /Estrategia.*página 2/);
     assert.equal(await page.evaluate(() => window.fetchedHtmlExecutions), 1, "fetched document scripts must never execute");
     assert.deepEqual(errors, []);

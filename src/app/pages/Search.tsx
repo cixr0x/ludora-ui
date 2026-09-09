@@ -77,7 +77,6 @@ interface QueryInputHandoff {
 function useCatalogSearchGames(
   request: CatalogSearchRequest,
   semanticGames: FilterableSemanticResult[] | null,
-  categoryPage?: CatalogPageData,
 ): {
   filterOptions: CatalogFilterOptions;
   games: CatalogSearchResult[];
@@ -87,7 +86,7 @@ function useCatalogSearchGames(
   loadMore: () => void;
 } {
   const [games, setGames] = useState<CatalogSearchResult[]>([]);
-  const [filterOptions, setFilterOptions] = useState<CatalogFilterOptions>({ categories: categoryPage?.category ? [categoryPage.category] : [], mechanics: [] });
+  const [filterOptions, setFilterOptions] = useState<CatalogFilterOptions>({ categories: [], mechanics: [] });
   const hasFilterOptionsRef = useRef(false);
   const isLoadingFilterOptionsRef = useRef(false);
   const loadSequenceRef = useRef(0);
@@ -107,8 +106,7 @@ function useCatalogSearchGames(
     loadCatalogFilterOptions()
       .then((options) => {
         if (!isActive || hasFilterOptionsRef.current) return;
-        setFilterOptions(categoryPage?.category && !options.categories.some(category => category.id === categoryPage.category?.id)
-          ? { ...options, categories: [categoryPage.category, ...options.categories] } : options);
+        setFilterOptions(options);
         hasFilterOptionsRef.current = true;
       })
       .finally(() => {
@@ -121,7 +119,6 @@ function useCatalogSearchGames(
   }, []);
 
   useEffect(() => {
-    if (categoryPage) return;
     if (semanticGames) {
       loadSequenceRef.current += 1;
       setIsLoading(false);
@@ -166,7 +163,7 @@ function useCatalogSearchGames(
       isActive = false;
       window.clearTimeout(timeout);
     };
-  }, [request, semanticGames, categoryPage]);
+  }, [request, semanticGames]);
 
   const loadMore = useCallback(() => {
     if (semanticGames || isLoading || isLoadingMore || !hasMore) return;
@@ -195,7 +192,7 @@ function useCatalogSearchGames(
       });
   }, [hasMore, isLoading, isLoadingMore, nextOffset, request, semanticGames]);
 
-  return { filterOptions, games, hasMore: categoryPage ? false : hasMore, isLoading: categoryPage ? false : isLoading, isLoadingMore, loadMore };
+  return { filterOptions, games, hasMore, isLoading, isLoadingMore, loadMore };
 }
 
 function sameNumberSet(left: Set<number>, right: Set<number>): boolean {
@@ -341,7 +338,6 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
   const { filterOptions, games, hasMore, isLoading, isLoadingMore, loadMore } = useCatalogSearchGames(
     searchRequest,
     semanticGames,
-    categoryPage,
   );
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
@@ -405,9 +401,8 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
   };
 
   const results = useMemo<Array<Game & { canonicalPath?: string }>>(
-    () => categoryPage ? (categoryPage.items ?? []).map(item => ({ ...item, genres: [] }))
-      : (semanticGames ? filterSemanticSearchResults(semanticGames, searchRequest) : games),
-    [categoryPage, games, searchRequest, semanticGames],
+    () => semanticGames ? filterSemanticSearchResults(semanticGames, searchRequest) : games,
+    [games, searchRequest, semanticGames],
   );
 
   const activeFilterCount =
@@ -761,9 +756,15 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
 
         {/* Results */}
         <section className="min-w-0">
-          {categoryPage && <div className="mb-6">
+          {categoryPage && <div hidden className="hidden">
             <h1 className="text-2xl font-bold md:text-3xl">{catalogSeoMetadata(categoryPage).heading}</h1>
             <p className="mt-3 max-w-3xl text-neutral-300">{catalogSeoMetadata(categoryPage).description}</p>
+            <ul>
+              {categoryPage.items?.map(game => <li key={game.id}>
+                <Link to={game.canonicalPath}>{game.name}</Link>
+              </li>)}
+            </ul>
+            <CatalogPagination model={categoryPage} />
           </div>}
           {(activeCategoryOptions.length > 0 || activeMechanicOptions.length > 0) && (
             <div
@@ -823,7 +824,6 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
             </div>
           ) : (
             <>
-              {categoryPage && <CatalogPagination model={categoryPage} />}
               <div aria-label="Resultados de juegos" className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
                 {results.map((game) => (
                   <Link key={game.id} to={game.canonicalPath ?? productPath(game.id, game.name)} className="group flex flex-col">
@@ -847,8 +847,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
                   </Link>
                 ))}
               </div>
-              {categoryPage && <CatalogPagination model={categoryPage} />}
-              {!categoryPage && !semanticGames && (
+              {!semanticGames && (
                 <div
                   ref={loadMoreRef}
                   aria-live="polite"

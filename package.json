@@ -10,7 +10,7 @@
     "dev": "vite",
     "dev:codex": "vite --host 127.0.0.1 --port 5175 --strictPort",
     "test": "node --test --test-concurrency=1 src/app/utils/*.test.mjs",
-    "test:seo:browser": "node --test --test-concurrency=1 tests/seo/productHydration.test.mjs tests/seo/catalogNavigation.test.mjs tests/seo/headerVisibility.test.mjs tests/seo/categoryExplore.test.mjs",
+    "test:seo:browser": "node --test --test-concurrency=1 tests/seo/productHydration.test.mjs tests/seo/catalogNavigation.test.mjs tests/seo/headerVisibility.test.mjs tests/seo/categoryExplore.test.mjs tests/seo/categorySearchParity.test.mjs",
     "test:visual": "playwright test"
   },
   "dependencies": {
