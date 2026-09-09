@@ -48,7 +48,9 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
     const workerHash = await fileHash(join(manifest.runtimeDirectory, "refresh-worker.mjs"));
     const initialHtml = await readFile(join(initialPublic, "game/1/fixture-game.html"), "utf8");
     assert.match(initialHtml, /Before refresh/);
-    assert.match(visibleText(initialHtml), /Desde \$350\.00 MXN, sin envío/);
+    assert.match(visibleText(initialHtml), /Precios de “Fixture Game” en tiendas de México/);
+    assert.match(visibleText(initialHtml), /\$350\.00 MXN/);
+    assert.doesNotMatch(visibleText(initialHtml), /Desde \$350\.00 MXN, sin envío/);
     assert.equal(jsonScript(initialHtml, "product-structured-data")["@graph"][0].offers[0].price, 350);
     description = "After refresh";
     price = 425;
@@ -58,7 +60,8 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
     assert.notEqual(nextPublic, initialPublic);
     const document = await readFile(join(nextPublic, "game/1/fixture-game.html"), "utf8");
     assert.match(document, /After refresh/);
-    assert.match(visibleText(document), /Desde \$425\.00 MXN, sin envío/);
+    assert.match(visibleText(document), /\$425\.00 MXN/);
+    assert.doesNotMatch(visibleText(document), /Desde \$425\.00 MXN, sin envío/);
     assert.equal(jsonScript(document, "product-structured-data")["@graph"][0].offers[0].price, 425);
     assert.match(document, /noindex, nofollow/);
     assert.doesNotMatch(await readFile(join(nextPublic, "sitemap.xml"), "utf8"), /<url>/, "blocked builds have no indexable sitemap entries");

@@ -19,14 +19,23 @@ test("actual product SSR keeps comparison facts, embedded data and individual of
     await t.test("approved 350 MXN offer and exported relationships are present before JavaScript", () => {
       const html = render([offer]);
       const text = visibleText(html);
-      assert.match(text, /Precios de Dixit en tiendas de México/);
+      assert.match(text, /Precios de “Dixit” en tiendas de México/);
       assert.match(text, /Tienda Mesa/);
-      assert.match(text, /Desde \$350\.00 MXN, sin envío/);
+      assert.match(text, /\$350\.00 MXN/);
+      assert.doesNotMatch(text, /Desde \$350\.00 MXN, sin envío/);
       assert.match(html, /href="https:\/\/tienda.example\/dixit"/);
       assert.match(html, /href="\/game\/852\/juego-relacionado"/);
       assert.match(html, /href="\/game\/853\/expansion-de-dixit"/);
       assert.match(text, /Comparación publicada:/);
       assert.match(html, /<time dateTime="2026-09-08T06:00:00.000Z">/);
+      assert.match(
+        text,
+        /La versión, edición o idioma disponible puede variar según la tienda\.\s*Comparación publicada:[\s\S]*Los precios y la disponibilidad pueden cambiar\. Confírmalos en la tienda\./,
+      );
+      assert.match(html, /class="[^"]*rounded[^"]*border-green-500[^"]*bg-green-500[^"]*text-green-300[^"]*">Disponible<\/span>/);
+      assert.match(html, /class="[^"]*rounded[^"]*">ES<\/span>/);
+      assert.doesNotMatch(html, /class="[^"]*rounded-full[^"]*">ES<\/span>/);
+      assert.doesNotMatch(text, /Idioma: Español|Idioma por confirmar/);
       assert.doesNotMatch(text, /Última comprobación|Precio verificado/);
       const embedded = jsonScript(html, "ludo-radar-prerender-data").product;
       assert.equal(embedded.stores[0].priceValue, 350);
@@ -40,9 +49,9 @@ test("actual product SSR keeps comparison facts, embedded data and individual of
     });
 
     const cases = [
-      { name: "zero offers", offers: [], text: /No hay ofertas registradas para este juego/, schema: [] },
-      { name: "inactive store", change: { store_active: false }, text: /No disponible/, schema: [] },
-      { name: "out of stock", change: { availability: "out_of_stock" }, text: /Agotado/, schema: ["OutOfStock"] },
+      { name: "zero offers", offers: [], text: /No hay ofertas registradas para este juego/, badge: null, schema: [] },
+      { name: "inactive store", change: { store_active: false }, text: /No disponible/, badge: /class="[^"]*border-red-500[^"]*bg-red-500[^"]*text-red-300[^"]*">No disponible<\/span>/, schema: [] },
+      { name: "out of stock", change: { availability: "out_of_stock" }, text: /Agotado/, badge: /class="[^"]*border-yellow-500[^"]*bg-yellow-500[^"]*text-yellow-300[^"]*">Agotado<\/span>/, schema: ["OutOfStock"] },
       { name: "unknown availability and language", change: { availability: "unknown", language: null }, text: /Disponibilidad por confirmar/, schema: [null] },
       { name: "zero price", change: { price: 0 }, text: /Consultar/, schema: [] },
       { name: "negative price", change: { price: -10 }, text: /Consultar/, schema: [] },
@@ -57,7 +66,10 @@ test("actual product SSR keeps comparison facts, embedded data and individual of
       const html = render(fixture.offers ?? [{ ...offer, ...fixture.change }]);
       const text = visibleText(html);
       assert.match(text, fixture.text);
-      if (fixture.name === "unknown availability and language") assert.match(text, /Idioma por confirmar/);
+      if (fixture.badge) assert.match(html, fixture.badge);
+      if (fixture.name === "unknown availability and language") {
+        assert.doesNotMatch(text, /Idioma por confirmar|\bES\b|\bEN\b/);
+      }
       assert.doesNotMatch(text, /Desde \$/);
       const offers = jsonScript(html, "product-structured-data")["@graph"][0].offers ?? [];
       assert.deepEqual(offers.map(entry => entry.availability?.replace("https://schema.org/", "") ?? null), fixture.schema);
@@ -86,6 +98,8 @@ test("actual product SSR keeps comparison facts, embedded data and individual of
       assert.ok(visibleText(html).includes(title));
       assert.ok(!html.includes("<script>alert(1)</script>"));
       assert.match(visibleText(html), /La versión, edición o idioma disponible puede variar/);
+      assert.match(html, /class="[^"]*rounded[^"]*">EN<\/span>/);
+      assert.doesNotMatch(visibleText(html), /Idioma: Inglés/);
     });
   } finally { console.error = originalError; await vite.close(); }
 });

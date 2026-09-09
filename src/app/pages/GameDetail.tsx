@@ -17,7 +17,7 @@ import { buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
 import { usePrerenderedProduct } from "../PrerenderData";
 import { ProductMetadata, applyPageMetadata } from "../components/ProductMetadata";
 import { productPath } from "../utils/productRoutes.js";
-import { pricingOffers, visibleStoreOffers } from "../utils/offerSeo.js";
+import { visibleStoreOffers } from "../utils/offerSeo.js";
 import { formatStorePrice } from "../utils/priceFormat.js";
 import { categoryPath } from "../utils/catalogSeo.js";
 
@@ -172,7 +172,7 @@ function StoreCard({ store }: { store: StoreEntry }) {
   const availabilityLabel = availabilityStatus === "available" ? "Disponible" : storeAvailabilityLabel(availabilityStatus);
   const price = Number.isFinite(store.priceValue) && store.priceValue > 0 && store.currency
     ? `${formatStorePrice(store.priceValue, store.currency)} ${store.currency}` : "Consultar";
-  const language = store.language === "es" ? "Español" : store.language === "en" ? "Inglés" : store.language;
+  const languageBadge = store.language === "es" ? "ES" : store.language === "en" ? "EN" : undefined;
   const content = (
     <>
       <div className="flex-none w-12 h-12 rounded-md overflow-hidden">
@@ -185,7 +185,11 @@ function StoreCard({ store }: { store: StoreEntry }) {
       <div className="flex-1 min-w-0">
         <p className="text-white text-sm truncate">{store.name}</p>
         <p className="text-neutral-500 text-xs truncate">{store.gameTitle}</p>
-        <p className="text-neutral-400 text-xs">{language ? `Idioma: ${language}` : "Idioma por confirmar"}</p>
+        {languageBadge && (
+          <span className="mt-1 inline-flex rounded border border-neutral-700 bg-neutral-800 px-1.5 py-0.5 text-[10px] font-medium leading-none text-neutral-300">
+            {languageBadge}
+          </span>
+        )}
       </div>
       <div className="flex-none flex flex-col items-end gap-1">
         {availabilityLabel && (
@@ -193,7 +197,9 @@ function StoreCard({ store }: { store: StoreEntry }) {
             className={`rounded-full border px-2 py-0.5 text-[11px] ${
               availabilityStatus === "unavailable"
                 ? "border-red-500/40 bg-red-500/10 text-red-300"
-                : "border-yellow-500/40 bg-yellow-500/10 text-yellow-300"
+                : availabilityStatus === "available"
+                  ? "border-green-500/40 bg-green-500/10 text-green-300"
+                  : "border-yellow-500/40 bg-yellow-500/10 text-yellow-300"
             }`}
           >
             {availabilityLabel}
@@ -471,8 +477,6 @@ export function GameDetail() {
   const hasLinkedStoreOffers = hasStoreOfferLinks(visibleOffers);
   const singleStoreOffers = visibleOffers.filter((store) => !store.isBundle);
   const bundleStoreOffers = visibleOffers.filter((store) => store.isBundle);
-  const availableOffers = pricingOffers(visibleOffers) as StoreEntry[];
-  const minimumPrice = availableOffers.length ? Math.min(...availableOffers.map(store => store.priceValue)) : undefined;
   const publishedAt = prerenderedDetail?.comparisonPublishedAt;
   const publicationDate = publishedAt && Number.isFinite(Date.parse(publishedAt)) ? new Date(publishedAt) : undefined;
   const scrollToStores = () => {
@@ -746,16 +750,12 @@ export function GameDetail() {
 
         {/* ── Stores ───────────────────────────────────────────────────── */}
         <div ref={storesSectionRef} id="store-offers" style={{ scrollMarginTop: 80 }}>
-          <h2 className="text-white mb-1">Precios de {detail.name} en tiendas de México</h2>
-          <p className="mb-2 text-sm text-neutral-300">
-            {minimumPrice !== undefined ? `Desde ${formatStorePrice(minimumPrice, "MXN")} MXN, sin envío.`
-              : visibleOffers.length ? "No hay precios disponibles confirmados en MXN para comparar."
-              : "No hay ofertas registradas para este juego."}
-          </p>
-          <p className="mb-4 text-xs text-neutral-500">
-            La versión, edición o idioma disponible puede variar según la tienda.
-          </p>
+          <h2 className="text-white mb-1">Precios de “{detail.name}” en tiendas de México</h2>
+          {!visibleOffers.length && (
+            <p className="mb-2 text-sm text-neutral-300">No hay ofertas registradas para este juego.</p>
+          )}
           <p className="mb-4 text-xs text-neutral-400">
+            La versión, edición o idioma disponible puede variar según la tienda.{" "}
             {publicationDate && <>Comparación publicada: <time dateTime={publicationDate.toISOString()}>
               {publicationDate.toISOString().slice(0, 16).replace("T", " ")} UTC
             </time>. </>}
