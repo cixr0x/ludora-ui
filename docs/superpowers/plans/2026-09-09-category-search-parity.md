@@ -13,3 +13,9 @@ Approved scope: category URLs use the ordinary Explore/Search live results and i
 - [x] Reproduce the category/Search divergence with a fully valid saved semantic result, including desktop/mobile category ID 33, and capture RED before production edits.
 - [x] Ignore stale semantic cache for ordinary explicit category-filter entries on both routes. Preserve the saved session itself, unfiltered Search/back restoration and explicit Ludoscopio prompts.
 - [x] Run focused parity/session-cache checks and appropriate complete verification; commit the bounded correction and report exact SHA/evidence for rereview.
+
+## Navigation-history semantic-session follow-up
+
+- [x] Reproduce the saved-session difference through the actual header Explore link from query, slug and page-two category entries on desktop/mobile, then compare product/Back and reload.
+- [x] Resolve the session for each navigation entry instead of only on mount. Preserve explicit ordinary filter edits and semantic filter edits through navigation state, without remounting Search or changing input handoff.
+- [x] Prove direct restoration, explicit prompts, filter exits, typing/composition, hydration and full UI/browser/build checks; commit and report RED/GREEN evidence.

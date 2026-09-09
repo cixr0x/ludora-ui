@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdir } from "node:fs/promises";
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 import { startFixtureServer } from "./fixture-server.mjs";
 
 const origin = "http://127.0.0.1:5175";
@@ -31,7 +31,7 @@ test("visible homepage category navigation enters the canonical landing before f
           assert.equal(await page.locator("h1").isVisible(), false);
           assert.equal(await page.getByPlaceholder("Nombre, temática, mecánica…").count(), 1);
           assert.equal(await page.getByRole("button", { name: "Estrategia, desactivar filtro", exact: true }).count(), 1);
-          assert.equal(await page.locator('[aria-label="Resultados de juegos"] > a').count(), 49);
+          await expect(page.locator('[aria-label="Resultados de juegos"] > a')).toHaveCount(49);
           assert.equal(await page.locator('link[rel="canonical"]').getAttribute("href"), `https://www.ludoradar.mx${category}`);
           assert.equal(await page.locator('meta[name="robots"]').getAttribute("content"), "index, follow");
           assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);

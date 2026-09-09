@@ -271,20 +271,11 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
   const [routeParams, setRouteParams] = useSearchParams();
   const searchParams = useMemo(() => categoryPage?.category
     ? new URLSearchParams({ category_ids: String(categoryPage.category.id) }) : routeParams, [categoryPage, routeParams]);
-  const setSearchParams = useCallback((update: URLSearchParams | ((params: URLSearchParams) => URLSearchParams), options?: NavigateOptions) => {
-    const next = typeof update === "function" ? update(new URLSearchParams(searchParams)) : update;
-    if (categoryPage) {
-      clearLudoscopioSessionCache();
-      navigate(`/search${next.size ? `?${next}` : ""}`, { state: options?.state, flushSync: options?.flushSync });
-    }
-    else setRouteParams(next, options);
-  }, [categoryPage, navigate, searchParams, setRouteParams]);
   useEffect(() => {
     if (!categoryPage || !routeParams.size) return;
     const next = new URLSearchParams(searchParams);
     for (const [key, value] of routeParams) next.set(key, value);
-    clearLudoscopioSessionCache();
-    navigate(`/search?${next}`, { replace: true });
+    navigate(`/search?${next}`, { replace: true, state: { exploreResultMode: "ordinary" } });
   }, [categoryPage, routeParams, searchParams, navigate]);
   const controls = useMemo(() => parseExploreControlParams(searchParams), [searchParams]);
   const requestedTextQuery = searchParams.get("q")?.trim() ?? "";
@@ -311,12 +302,23 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
   const [players, setPlayers] = useState<number | null>(controls.players);
   const [playtimes, setPlaytimes] = useState<Set<PlaytimeKey>>(() => new Set(controls.playtimes as PlaytimeKey[]));
   const [complexity, setComplexity] = useState<[number, number]>(controls.complexity as [number, number]);
-  // Explicit category entries use ordinary results; unfiltered Search can restore its semantic session.
-  const [cachedLudoscopioSession] = useState(() => activeCategories.size > 0 ? null : readLudoscopioSessionCache());
-  const [semanticQuery, setSemanticQuery] = useState(() => cachedLudoscopioSession?.prompt ?? "");
-  const [semanticGames, setSemanticGames] = useState<FilterableSemanticResult[] | null>(
-    () => cachedLudoscopioSession?.results ?? null,
-  );
+  // A completed prompt must remain usable even when sessionStorage rejects writes.
+  const completedSemanticSession = useRef<{ prompt: string; results: FilterableSemanticResult[] } | null>(null);
+  // Resolve each history entry, including same-component Explore navigation and Back.
+  // Filter edits retain their result mode; an external category URL starts ordinary Search.
+  const cachedLudoscopioSession = useMemo(() => {
+    const mode = location.state?.exploreResultMode;
+    if (categoryPage || mode === "ordinary" || (mode !== "semantic" && parsePositiveIntegerSetParam(searchParams.get("category_ids")).size > 0)) return null;
+    return completedSemanticSession.current ?? readLudoscopioSessionCache();
+  }, [categoryPage, location.key, location.state, searchParams]);
+  const semanticQuery = cachedLudoscopioSession?.prompt ?? "";
+  const semanticGames: FilterableSemanticResult[] | null = cachedLudoscopioSession?.results ?? null;
+  const setSearchParams = useCallback((update: URLSearchParams | ((params: URLSearchParams) => URLSearchParams), options?: NavigateOptions) => {
+    const next = typeof update === "function" ? update(new URLSearchParams(searchParams)) : update;
+    const state = { exploreResultMode: semanticGames ? "semantic" : "ordinary", ...options?.state };
+    if (categoryPage) navigate(`/search${next.size ? `?${next}` : ""}`, { state, flushSync: options?.flushSync });
+    else setRouteParams(next, { ...options, state });
+  }, [categoryPage, navigate, searchParams, semanticGames, setRouteParams]);
   const [isSemanticLoading, setIsSemanticLoading] = useState(false);
   const selectedPlaytimeRanges = useMemo(
     () =>
@@ -424,15 +426,14 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
     setPlayers(null);
     setPlaytimes(new Set());
     setComplexity([1, 5]);
-    setSemanticQuery("");
-    setSemanticGames(null);
+    completedSemanticSession.current = null;
     clearLudoscopioSessionCache();
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("q");
     nextParams.delete("category_ids");
     nextParams.delete("mechanic_ids");
     for (const key of ["players", "playtimes", "complexity_min", "complexity_max"]) nextParams.delete(key);
-    setSearchParams(nextParams, { replace: true });
+    setSearchParams(nextParams, { replace: true, state: { exploreResultMode: "ordinary" } });
   };
 
   const handleTextQueryChange = (value: string) => {
@@ -465,15 +466,14 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
     try {
       const details = await loadSemanticCatalogGameDetails(prompt, 40);
       const semanticResults = details.map(mapDetailToFilterableSemanticResult);
-      setSemanticGames(semanticResults);
-      setSemanticQuery(prompt);
+      completedSemanticSession.current = { prompt, results: semanticResults };
       writeLudoscopioSessionCache(prompt, semanticResults);
       setQuery("");
       setSearchParams((currentParams) => {
         const nextParams = new URLSearchParams(currentParams);
         for (const key of ["q", "category_ids", "mechanic_ids", "players", "playtimes", "complexity_min", "complexity_max", "ludoscopio", "ludoscopioPrompt"]) nextParams.delete(key);
         return nextParams;
-      }, { replace: true });
+      }, { replace: true, state: { exploreResultMode: "semantic" } });
       setActiveCategories(new Set());
       setActiveMechanics(new Set());
       setPlayers(null);

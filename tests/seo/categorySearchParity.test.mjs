@@ -53,7 +53,11 @@ const savedSession = { prompt: "sesión semántica guardada", results: [{
   minMinutes: 30, maxMinutes: 60, complexity: 2,
 }] };
 async function seedSession(page) {
-  await page.addInitScript(session => sessionStorage.setItem("ludora:ludoscopio:session:v2", JSON.stringify(session)), savedSession);
+  await page.addInitScript(session => {
+    if (sessionStorage.getItem("ludora:ludoscopio:session:v2") === null) {
+      sessionStorage.setItem("ludora:ludoscopio:session:v2", JSON.stringify(session));
+    }
+  }, savedSession);
 }
 
 test("unfiltered Search restores its saved session and explicit Ludoscopio prompts still replace it", { timeout: 40000 }, async () => {
@@ -71,7 +75,7 @@ test("unfiltered Search restores its saved session and explicit Ludoscopio promp
     await page.locator('[aria-label="Resultados de juegos"] > a').click();
     await page.waitForURL("**/game/1/juego-01"); await page.locator("#store-offers").waitFor();
     await page.goBack(); await page.waitForLoadState("networkidle");
-    assert.equal(await page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true }).count(), 1);
+    await expect(page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true })).toBeVisible();
     const prompts = [];
     await page.route("**/api/items/semantic-search?*", route => {
       prompts.push(new URL(route.request().url()).searchParams.get("q"));
@@ -92,7 +96,112 @@ test("unfiltered Search restores its saved session and explicit Ludoscopio promp
   } finally { await browser.close(); await server.close(); }
 });
 
+test("ordinary and semantic filter navigation retain their result mode through reload and Back", { timeout: 60000 }, async () => {
+  const categoryOption = { id: 33, name: "Estrategia abstracta" };
+  const server = await startFixtureServer({ catalog: true, category: categoryOption });
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    for (const path of ["/search?category_ids=33", "/categoria/33/estrategia-abstracta", "/categoria/33/estrategia-abstracta/pagina/2"]) {
+      const page = await browser.newPage(), { errors } = await configure(page, categoryOption);
+      await seedSession(page);
+      await page.goto(origin + path); await page.waitForLoadState("networkidle");
+      await page.getByRole("button", { name: "Estrategia abstracta, desactivar filtro", exact: true }).click();
+      await page.waitForURL(origin + "/search"); await page.waitForLoadState("networkidle");
+      await expect(page.locator('[aria-label="Resultados de juegos"] > a')).toHaveCount(60);
+      assert.deepEqual(await page.evaluate(() => JSON.parse(sessionStorage.getItem("ludora:ludoscopio:session:v2"))), savedSession);
+      await page.reload(); await page.waitForLoadState("networkidle");
+      assert.equal(await page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true }).count(), 0, "reloading an ordinary filter edit does not restore an unrelated session");
+      await page.locator('[aria-label="Resultados de juegos"] > a').first().click();
+      await page.waitForURL("**/game/1/juego-01"); await page.locator("#store-offers").waitFor();
+      await page.goBack(); await page.waitForLoadState("networkidle");
+      await expect(page.locator('[aria-label="Resultados de juegos"] > a')).toHaveCount(60);
+      await page.getByRole("banner").getByRole("link", { name: "Explorar catálogo", exact: true }).click();
+      await page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true }).waitFor();
+      await page.waitForLoadState("networkidle");
+      await page.getByRole("button", { name: "Expandir categorías", exact: true }).click();
+      await page.getByRole("button", { name: "Estrategia abstracta", exact: true }).click();
+      await page.waitForURL("**/search?category_ids=33"); await page.waitForLoadState("networkidle");
+      for (const step of ["filter", "reload", "product/Back"]) {
+        if (step === "reload") { await page.reload(); await page.waitForLoadState("networkidle"); }
+        if (step === "product/Back") {
+          await page.locator('[aria-label="Resultados de juegos"] > a').click();
+          await page.waitForURL("**/game/1/juego-01"); await page.locator("#store-offers").waitFor();
+          await page.goBack(); await page.waitForLoadState("networkidle");
+        }
+        await expect(page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true }), `${step} keeps the explicitly filtered semantic result`).toBeVisible();
+        assert.equal(await page.locator('[aria-label="Resultados de juegos"] > a').count(), 1);
+        assert.equal(new URL(page.url()).searchParams.get("category_ids"), "33");
+      }
+      assert.deepEqual(errors, []); await page.close();
+    }
+  } finally { await browser.close(); await server.close(); }
+});
+
+test("an explicit semantic search still works when session storage cannot be written", { timeout: 20000 }, async () => {
+  const server = await startFixtureServer({ catalog: true }), browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    const page = await browser.newPage(), { errors } = await configure(page);
+    await page.addInitScript(() => { Storage.prototype.setItem = () => { throw new Error("storage unavailable"); }; });
+    await page.route("**/api/items/semantic-search?*", route => route.fulfill({ json: { data: [{ ...item, id: 2, canonical_name: "Nueva coincidencia", categories: [] }] } }));
+    await page.goto(`${origin}/search?ludoscopio=consulta`);
+    await expect(page.getByText("Resultados para “consulta”", { exact: true })).toBeVisible();
+    assert.equal(await page.getByText("Nueva coincidencia", { exact: true }).count(), 1);
+    await page.getByPlaceholder("Nombre, temática, mecánica…").fill("Nueva");
+    await page.waitForURL("**/search?q=Nueva");
+    await expect(page.getByText("Nueva coincidencia", { exact: true })).toBeVisible();
+    assert.equal(await page.getByText("Resultados para “consulta”", { exact: true }).count(), 1);
+    assert.deepEqual(errors, []);
+  } finally { await browser.close(); await server.close(); }
+});
+
 for (const [name, width, height] of [["desktop", 1280, 900], ["mobile", 390, 844]]) {
+  test(`${name}: Explore restores the same session after category query, slug and page-two navigation`, { timeout: 60000 }, async t => {
+    const categoryOption = { id: 33, name: "Estrategia abstracta" };
+    const server = await startFixtureServer({ catalog: true, category: categoryOption });
+    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    try {
+      const outcomes = [];
+      for (const path of ["/search?category_ids=33", "/categoria/33/estrategia-abstracta", "/categoria/33/estrategia-abstracta/pagina/2"]) {
+        const page = await browser.newPage({ viewport: { width, height } });
+        const { errors } = await configure(page, categoryOption);
+        await seedSession(page);
+        await page.goto(origin + path); await page.waitForLoadState("networkidle");
+        assert.equal(await page.locator('[aria-label="Resultados de juegos"] > a').count(), 60);
+        await page.getByRole("banner").getByRole("link", { name: "Explorar catálogo", exact: true }).click();
+        await page.waitForURL(origin + "/search"); await page.waitForLoadState("networkidle");
+        const states = [];
+        for (const step of ["Explore", "product/Back", "reload"]) {
+          if (step === "product/Back") {
+            await page.locator('[aria-label="Resultados de juegos"] > a').first().click();
+            await page.waitForURL("**/game/1/juego-01"); await page.locator("#store-offers").waitFor();
+            await page.goBack(); await page.waitForLoadState("networkidle");
+            await expect(page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true })).toBeVisible();
+          } else if (step === "reload") {
+            await page.reload(); await page.waitForLoadState("networkidle");
+          }
+          // Neutralize hover and restored scroll before comparing complete visible UI geometry.
+          await page.mouse.move(0, 0); await page.evaluate(() => window.scrollTo(0, 0));
+          await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))));
+          const state = { step, prompt: await page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true }).count(),
+            cards: await page.locator('[aria-label="Resultados de juegos"] > a').count(), ui: await visibleUi(page) };
+          t.diagnostic(JSON.stringify({ path, step, prompt: state.prompt, cards: state.cards }));
+          states.push(state);
+          assert.equal(new URL(page.url()).pathname + new URL(page.url()).search, "/search");
+          assert.equal(await page.locator('meta[name="robots"]').getAttribute("content"), "noindex, follow");
+        }
+        assert.deepEqual(await page.evaluate(() => JSON.parse(sessionStorage.getItem("ludora:ludoscopio:session:v2"))), savedSession);
+        assert.deepEqual(errors, []);
+        outcomes.push(states);
+        await page.close();
+      }
+      for (const states of outcomes) for (const state of states) {
+        assert.equal(state.prompt, 1, `${state.step} restores the saved prompt regardless of mount history`);
+        assert.equal(state.cards, 1);
+        assert.deepEqual(state.ui, outcomes[0][1].ui);
+      }
+    } finally { await browser.close(); await server.close(); }
+  });
+
   test(`${name}: explicit category URLs ignore a seeded semantic session and retain result parity`, { timeout: 40000 }, async t => {
     const categoryOption = { id: 33, name: "Estrategia abstracta" };
     const server = await startFixtureServer({ catalog: true, category: categoryOption });
