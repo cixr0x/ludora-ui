@@ -7,6 +7,57 @@ import { startFixtureServer } from "./fixture-server.mjs";
 const origin = "http://127.0.0.1:5175";
 const category = "/categoria/7/estrategia";
 
+test("sequential keyboard input keeps the full query, focus and caret across the category handoff", { timeout: 60000 }, async t => {
+  const server = await startFixtureServer({ catalog: true });
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    const page = await browser.newPage(), errors = [];
+    page.on("pageerror", error => errors.push(error.message));
+    page.on("console", message => { if (["warning", "error"].includes(message.type())) errors.push(message.text()); });
+    for (const path of [category, `${category}/pagina/2`, "/search?category_ids=7"]) {
+      await t.test(`typing from ${path}`, async () => {
+        await page.goto(`${origin}${path}`); await page.waitForLoadState("networkidle");
+        const input = page.getByPlaceholder("Nombre, temática, mecánica…");
+        await input.click(); await page.keyboard.type("azul", { delay: 100 });
+        const snapshot = await input.evaluate(element => ({ value: element.value, focused: document.activeElement === element,
+          start: element.selectionStart, end: element.selectionEnd, url: location.pathname + location.search }));
+        t.diagnostic(JSON.stringify({ path, ...snapshot }));
+        assert.equal(snapshot.value, "azul");
+        assert.equal(snapshot.focused, true);
+        assert.equal(snapshot.start, 4); assert.equal(snapshot.end, 4);
+        assert.equal(new URL(page.url()).pathname, "/search");
+        assert.equal(new URL(page.url()).searchParams.get("q"), "azul");
+        await page.keyboard.press("ArrowLeft"); await page.keyboard.press("ArrowLeft");
+        await page.keyboard.type("X", { delay: 100 });
+        assert.equal(await input.inputValue(), "azXul");
+        assert.deepEqual(await input.evaluate(element => [document.activeElement === element, element.selectionStart, element.selectionEnd]), [true, 3, 3]);
+        assert.equal(new URL(page.url()).searchParams.get("q"), "azXul");
+        assert.equal(await page.locator('meta[name="robots"]').getAttribute("content"), "noindex, follow");
+        await page.reload(); await page.waitForLoadState("networkidle");
+        assert.equal(await input.inputValue(), "azXul");
+      });
+    }
+    for (const path of [category, `${category}/pagina/2`]) {
+      await t.test(`composition from ${path}`, async () => {
+        await page.goto(`${origin}${path}`); await page.waitForLoadState("networkidle");
+        const input = page.getByPlaceholder("Nombre, temática, mecánica…");
+        await input.click();
+        await input.dispatchEvent("compositionstart", { data: "" });
+        await page.keyboard.type("azul", { delay: 100 });
+        assert.equal(new URL(page.url()).pathname, path, "do not unmount the composing input");
+        await page.keyboard.press("ArrowLeft");
+        await input.dispatchEvent("compositionend", { data: "azul" });
+        await page.waitForURL(url => url.pathname === "/search");
+        assert.equal(new URL(page.url()).searchParams.get("q"), "azul");
+        assert.equal(await input.inputValue(), "azul");
+        assert.deepEqual(await input.evaluate(element => [document.activeElement === element, element.selectionStart, element.selectionEnd]), [true, 3, 3]);
+        await page.keyboard.type("X"); assert.equal(await input.inputValue(), "azuXl");
+      });
+    }
+    assert.deepEqual(errors, []);
+  } finally { await browser.close(); await server.close(); }
+});
+
 test("LudoRadar submission from a category enters Search and consumes its prompt once", { timeout: 30000 }, async () => {
   const server = await startFixtureServer({ catalog: true });
   const browser = await chromium.launch({ channel: "chrome", headless: true });

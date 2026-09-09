@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams, type NavigateOptions } from "react-router";
 import { productPath } from "../utils/productRoutes.js";
 import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, ChevronDown, ChevronRight } from "lucide-react";
 import type { Game, GameDetail, GameTaxonomyEntry } from "../data/games";
@@ -65,6 +65,13 @@ interface CatalogSearchRequest {
   players: number | null;
   playtimeRanges: Array<[number, number]>;
   query: string;
+}
+
+interface QueryInputHandoff {
+  value: string;
+  start: number;
+  end: number;
+  direction: "forward" | "backward" | "none";
 }
 
 function useCatalogSearchGames(
@@ -263,14 +270,15 @@ function Toggle({
 
 export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [routeParams, setRouteParams] = useSearchParams();
   const searchParams = useMemo(() => categoryPage?.category
     ? new URLSearchParams({ category_ids: String(categoryPage.category.id) }) : routeParams, [categoryPage, routeParams]);
-  const setSearchParams = useCallback((update: URLSearchParams | ((params: URLSearchParams) => URLSearchParams), options?: { replace?: boolean }) => {
+  const setSearchParams = useCallback((update: URLSearchParams | ((params: URLSearchParams) => URLSearchParams), options?: NavigateOptions) => {
     const next = typeof update === "function" ? update(new URLSearchParams(searchParams)) : update;
     if (categoryPage) {
       clearLudoscopioSessionCache();
-      navigate(`/search${next.size ? `?${next}` : ""}`);
+      navigate(`/search${next.size ? `?${next}` : ""}`, { state: options?.state, flushSync: options?.flushSync });
     }
     else setRouteParams(next, options);
   }, [categoryPage, navigate, searchParams, setRouteParams]);
@@ -283,7 +291,18 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
   }, [categoryPage, routeParams, searchParams, navigate]);
   const controls = useMemo(() => parseExploreControlParams(searchParams), [searchParams]);
   const requestedTextQuery = searchParams.get("q")?.trim() ?? "";
-  const [query, setQuery] = useState(requestedTextQuery);
+  const [queryHandoff] = useState<QueryInputHandoff | null>(() => {
+    const handoff = location.state?.exploreQueryInput;
+    return !categoryPage && typeof handoff?.value === "string" && handoff.value.trim() === requestedTextQuery ? handoff : null;
+  });
+  const [query, setQuery] = useState(queryHandoff?.value ?? requestedTextQuery);
+  const queryInputRef = useRef<HTMLInputElement | null>(null);
+  const queryComposingRef = useRef(false);
+  useLayoutEffect(() => {
+    if (!queryHandoff || !queryInputRef.current) return;
+    queryInputRef.current.focus({ preventScroll: true });
+    queryInputRef.current.setSelectionRange(queryHandoff.start, queryHandoff.end, queryHandoff.direction);
+  }, [queryHandoff]);
   const [activeCategories, setActiveCategories] = useState<Set<number>>(() =>
     parsePositiveIntegerSetParam(searchParams.get("category_ids")),
   );
@@ -422,13 +441,19 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
 
   const handleTextQueryChange = (value: string) => {
     setQuery(value);
+    if (categoryPage && queryComposingRef.current) return;
+    const input = queryInputRef.current;
+    const handoff: QueryInputHandoff | undefined = categoryPage && input === document.activeElement ? {
+      value, start: input.selectionStart ?? value.length, end: input.selectionEnd ?? value.length,
+      direction: input.selectionDirection ?? "none",
+    } : undefined;
     setSearchParams((currentParams) => {
       const nextParams = new URLSearchParams(currentParams);
       const nextQuery = value.trim();
       if (nextQuery) nextParams.set("q", nextQuery);
       else nextParams.delete("q");
       return nextParams;
-    }, { replace: true });
+    }, handoff ? { state: { exploreQueryInput: handoff }, flushSync: true } : { replace: true });
   };
 
   const handleLudoscopioSearch = useCallback(async (value: string) => {
@@ -466,7 +491,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
   const shouldOpenLudoscopio = searchParams.get("ludoscopio") === "open";
 
   useEffect(() => {
-    setQuery(requestedTextQuery);
+    setQuery(current => current.trim() === requestedTextQuery ? current : requestedTextQuery);
   }, [requestedTextQuery]);
 
   useEffect(() => {
@@ -561,8 +586,14 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
               <SearchIcon className="w-4 h-4 text-neutral-500 flex-none" />
               <input
                 type="text"
+                ref={queryInputRef}
                 value={query}
                 onChange={(e) => handleTextQueryChange(e.target.value)}
+                onCompositionStart={() => { queryComposingRef.current = true; }}
+                onCompositionEnd={(event) => {
+                  queryComposingRef.current = false;
+                  if (categoryPage) handleTextQueryChange(event.currentTarget.value);
+                }}
                 placeholder="Nombre, temática, mecánica…"
                 className="bg-transparent text-sm text-white placeholder:text-neutral-600 outline-none w-full"
               />

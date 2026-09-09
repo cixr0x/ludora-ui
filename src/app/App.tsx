@@ -1,4 +1,5 @@
 import { RouterProvider, type RouterProviderProps } from "react-router";
+import { flushSync } from "react-dom";
 
 import { PrerenderDataProvider, type PrerenderData } from "./PrerenderData";
 
@@ -11,7 +12,7 @@ export default function App({
 }) {
   return (
     <PrerenderDataProvider value={prerenderData}>
-      <RouterProvider router={router} />
+      <RouterProvider router={router} flushSync={flushSync} />
     </PrerenderDataProvider>
   );
 }

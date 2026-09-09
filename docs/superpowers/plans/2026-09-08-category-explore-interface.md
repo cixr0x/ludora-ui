@@ -30,3 +30,9 @@
 - Query parameters on a category URL transfer to the corresponding Search URL; arbitrary filtered variants never gain a category canonical/indexable identity.
 - Updating/removing the category and adding any supported filter transitions off the category URL. Filter URLs reconstruct the same controls after reload.
 - `/categorias` stays an indexable directory with category landing links; all games remain reachable through the all-games catalog and real product anchors.
+
+## R-CE-1 keyboard handoff follow-up
+
+- [x] Reproduce sequential keyboard input on category page 1/page 2 and ordinary Search; assert full query, focused input and caret rather than using atomic `fill()` alone.
+- [x] Capture raw text and selection when a category edit navigates. Commit the route handoff synchronously and restore the destination input focus/selection before further keyboard events. Hold the category URL stable during IME composition and hand off after composition ends. Preserve the existing live-filter interaction without a new submit UI.
+- [x] Verify other filter exits, hydration, semantic prompt consumption, complete UI/browser suites and production build; record RED/GREEN and commit the bounded fix.

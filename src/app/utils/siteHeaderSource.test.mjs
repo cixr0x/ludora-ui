@@ -66,8 +66,8 @@ test("public pages use SiteHeader for consistent top navigation", () => {
 
   assert.match(searchSource, /Encuentra tu pr(?:o|\u00f3)ximo juego/u);
   assert.match(searchSource, /const requestedTextQuery = searchParams\.get\("q"\)\?\.trim\(\) \?\? ""/);
-  assert.match(searchSource, /const \[query, setQuery\] = useState\(requestedTextQuery\)/);
-  assert.match(searchSource, /setQuery\(requestedTextQuery\)/);
+  assert.match(searchSource, /const \[query, setQuery\] = useState\(queryHandoff\?\.value \?\? requestedTextQuery\)/);
+  assert.match(searchSource, /setQuery\(current => current\.trim\(\) === requestedTextQuery \? current : requestedTextQuery\)/);
   assert.match(searchSource, /if \(nextQuery\) nextParams\.set\("q", nextQuery\)/);
   assert.match(searchSource, /else nextParams\.delete\("q"\)/);
   assert.match(browseSource, /juego\$\{games\.length !== 1 \? "s" : ""\}/);
