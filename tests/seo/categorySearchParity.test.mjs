@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { chromium, expect } from "@playwright/test";
 import { startFixtureServer } from "./fixture-server.mjs";
+import { item } from "./fixtures.mjs";
 
 const origin = "http://127.0.0.1:5175", category = "/categoria/7/estrategia";
 const rows = Array.from({ length: 125 }, (_, i) => ({ id: i + 1,
@@ -11,18 +12,18 @@ const rows = Array.from({ length: 125 }, (_, i) => ({ id: i + 1,
   canonical_name_es: `Juego ${String(i + 1).padStart(3, "0")}`, image_url: "", image_url_es: "",
   is_expansion: i % 7 === 0, categories: [{ id: 7, name: "Estrategia" }], families: [], mechanics: [] }));
 
-async function configure(page) {
+async function configure(page, categoryOption = { id: 7, name: "Estrategia" }) {
   const requests = [], errors = [];
   page.on("pageerror", error => errors.push(error.message));
   page.on("console", message => { if (["warning", "error"].includes(message.type())) errors.push(message.text()); });
   await page.route("**/api/items/filter-options", route => route.fulfill({ json: { data: {
-    categories: [{ id: 7, name: "Estrategia" }], mechanics: [],
+    categories: [categoryOption], mechanics: [],
   } } }));
   await page.route("**/api/items/search-results?*", route => {
     const query = new URL(route.request().url()).searchParams;
     requests.push(Object.fromEntries(query));
     const offset = Number(query.get("offset") ?? 0), limit = Number(query.get("limit"));
-    return route.fulfill({ json: { data: rows.slice(offset, offset + limit) } });
+    return route.fulfill({ json: { data: rows.slice(offset, offset + limit).map(row => ({ ...row, categories: [categoryOption] })) } });
   });
   return { requests, errors };
 }
@@ -45,7 +46,87 @@ async function visibleUi(page) {
   });
 }
 
+const savedSession = { prompt: "sesión semántica guardada", results: [{
+  id: 1, name: "Juego 01", altTitle: "Resultado guardado", image: "", isExpansion: false,
+  genres: ["Estrategia abstracta"], categories: [{ id: 33, name: "Estrategia abstracta" }], mechanics: [],
+  categoryNames: ["Estrategia abstracta"], mechanicNames: [], minPlayers: 1, maxPlayers: 4,
+  minMinutes: 30, maxMinutes: 60, complexity: 2,
+}] };
+async function seedSession(page) {
+  await page.addInitScript(session => sessionStorage.setItem("ludora:ludoscopio:session:v2", JSON.stringify(session)), savedSession);
+}
+
+test("unfiltered Search restores its saved session and explicit Ludoscopio prompts still replace it", { timeout: 40000 }, async () => {
+  const server = await startFixtureServer({ catalog: true, category: { id: 33, name: "Estrategia abstracta" } });
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    const page = await browser.newPage();
+    const { requests, errors } = await configure(page, { id: 33, name: "Estrategia abstracta" });
+    await seedSession(page);
+    await page.goto(origin + "/search"); await page.waitForLoadState("networkidle");
+    assert.equal(await page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true }).count(), 1);
+    assert.equal(await page.locator('[aria-label="Resultados de juegos"] > a').count(), 1);
+    assert.equal(await page.getByText("Resultado guardado", { exact: true }).count(), 1);
+    assert.deepEqual(requests, [], "restoring unfiltered semantic results does not start ordinary Search");
+    await page.locator('[aria-label="Resultados de juegos"] > a').click();
+    await page.waitForURL("**/game/1/juego-01"); await page.locator("#store-offers").waitFor();
+    await page.goBack(); await page.waitForLoadState("networkidle");
+    assert.equal(await page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true }).count(), 1);
+    const prompts = [];
+    await page.route("**/api/items/semantic-search?*", route => {
+      prompts.push(new URL(route.request().url()).searchParams.get("q"));
+      return route.fulfill({ json: { data: [{ ...item, id: 2, canonical_name: "Nueva coincidencia", categories: [] }] } });
+    });
+    for (const key of ["ludoscopio", "ludoscopioPrompt"]) {
+      const prompt = `nueva búsqueda ${key}`;
+      await page.goto(`${origin}/search?${new URLSearchParams({ category_ids: "33", [key]: prompt })}`);
+      await page.getByText(`Resultados para “${prompt}”`, { exact: true }).waitFor();
+      await page.waitForLoadState("networkidle");
+      assert.equal(await page.getByText("Nueva coincidencia", { exact: true }).count(), 1);
+      assert.equal(new URL(page.url()).search, "");
+      assert.equal(await page.evaluate(() => JSON.parse(sessionStorage.getItem("ludora:ludoscopio:session:v2")).prompt), prompt);
+      assert.equal(await page.locator('meta[name="robots"]').getAttribute("content"), "noindex, follow");
+    }
+    assert.deepEqual(prompts, ["nueva búsqueda ludoscopio", "nueva búsqueda ludoscopioPrompt"]);
+    assert.deepEqual(errors, []);
+  } finally { await browser.close(); await server.close(); }
+});
+
 for (const [name, width, height] of [["desktop", 1280, 900], ["mobile", 390, 844]]) {
+  test(`${name}: explicit category URLs ignore a seeded semantic session and retain result parity`, { timeout: 40000 }, async t => {
+    const categoryOption = { id: 33, name: "Estrategia abstracta" };
+    const server = await startFixtureServer({ catalog: true, category: categoryOption });
+    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    try {
+      const snapshots = [], results = [], requestSequences = [];
+      for (const path of ["/categoria/33/estrategia-abstracta", "/search?category_ids=33"]) {
+        const page = await browser.newPage({ viewport: { width, height } });
+        const { requests, errors } = await configure(page, categoryOption);
+        await seedSession(page);
+        await page.goto(origin + path); await page.waitForLoadState("networkidle");
+        t.diagnostic(JSON.stringify({ path, cachedPromptCount: await page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true }).count(),
+          cards: await page.locator('[aria-label="Resultados de juegos"] > a').count() }));
+        assert.equal(await page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true }).count(), 0);
+        assert.equal(await page.locator('[aria-label="Resultados de juegos"] > a').count(), 60);
+        snapshots.push(await visibleUi(page));
+        for (const count of [120, 125]) {
+          await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+          await expect(page.locator('[aria-label="Resultados de juegos"] > a')).toHaveCount(count, { timeout: 3000 });
+          await page.waitForLoadState("networkidle");
+        }
+        results.push(await page.locator('[aria-label="Resultados de juegos"] > a').evaluateAll(links => links.map(link => link.getAttribute("href"))));
+        requestSequences.push(requests);
+        assert.equal(new URL(page.url()).pathname, path.split("?")[0]);
+        assert.deepEqual(await page.evaluate(() => JSON.parse(sessionStorage.getItem("ludora:ludoscopio:session:v2"))), savedSession, "ordinary category navigation ignores, but does not erase, the saved unfiltered session");
+        assert.deepEqual(errors, []);
+        await page.close();
+      }
+      assert.deepEqual(snapshots[1], snapshots[0]);
+      assert.deepEqual(results[1], results[0]);
+      assert.deepEqual(requestSequences[1], requestSequences[0]);
+    } finally { await browser.close(); await server.close(); }
+  });
+
   test(`${name}: category server HTML keeps SEO links hidden and matches Search's initial loading UI`, { timeout: 30000 }, async () => {
     const server = await startFixtureServer({ catalog: true }), browser = await chromium.launch({ channel: "chrome", headless: true });
     let release;

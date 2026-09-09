@@ -7,3 +7,9 @@ Approved scope: category URLs use the ordinary Explore/Search live results and i
 - [x] Use the ordinary Search result state from the initial loading frame. Remove category-specific request/append suppression and use Search's ordinary page size, ordering, data and loading sentinel.
 - [x] Move the unique heading/description, published product-link slice and crawlable pagination into a native hidden SEO fallback block. Preserve canonical metadata without adding a second visible result implementation.
 - [x] Update obsolete publication-only browser expectations and supply realistic bounded search responses in the existing fixture. Run focused RED/GREEN, full UI/browser suites and production build; inspect desktop/mobile screenshots, self-review, commit and report.
+
+## Seeded semantic-session follow-up
+
+- [x] Reproduce the category/Search divergence with a fully valid saved semantic result, including desktop/mobile category ID 33, and capture RED before production edits.
+- [x] Ignore stale semantic cache for ordinary explicit category-filter entries on both routes. Preserve the saved session itself, unfiltered Search/back restoration and explicit Ludoscopio prompts.
+- [x] Run focused parity/session-cache checks and appropriate complete verification; commit the bounded correction and report exact SHA/evidence for rereview.

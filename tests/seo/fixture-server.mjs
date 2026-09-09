@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { buildCatalogIndex, catalogPageDescriptors, catalogPageModel } from "../../src/app/utils/catalogSeo.js";
 import { apiMinimumPrice } from "../../src/app/utils/offerSeo.js";
 
-export async function startFixtureServer({ catalog = false } = {}) {
+export async function startFixtureServer({ catalog = false, category = { id: 7, name: "Estrategia" } } = {}) {
   const root = fileURLToPath(new URL("../../", import.meta.url));
   const vite = await createViteServer({ root, server: { middlewareMode: true, hmr: false }, appType: "custom" });
   const { renderProductDocument, renderCatalogDocument, renderHomepageDocument } = await vite.ssrLoadModule("/src/entry-server.tsx");
@@ -27,7 +27,9 @@ export async function startFixtureServer({ catalog = false } = {}) {
     unexpectedErrors.push(String(message)); originalError(message, ...args);
   };
   let html;
-  const documents = new Map(), records = catalog ? catalogFixtures() : [item];
+  const documents = new Map(), records = catalog ? catalogFixtures().map(record => ({
+    ...record, categories: record.categories.map(entry => entry.id === 7 ? category : entry),
+  })) : [item];
   try {
     html = renderProductDocument({ item, template, publishedAt }).document;
     if (catalog) {

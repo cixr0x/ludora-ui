@@ -311,7 +311,8 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
   const [players, setPlayers] = useState<number | null>(controls.players);
   const [playtimes, setPlaytimes] = useState<Set<PlaytimeKey>>(() => new Set(controls.playtimes as PlaytimeKey[]));
   const [complexity, setComplexity] = useState<[number, number]>(controls.complexity as [number, number]);
-  const [cachedLudoscopioSession] = useState(() => categoryPage ? null : readLudoscopioSessionCache());
+  // Explicit category entries use ordinary results; unfiltered Search can restore its semantic session.
+  const [cachedLudoscopioSession] = useState(() => activeCategories.size > 0 ? null : readLudoscopioSessionCache());
   const [semanticQuery, setSemanticQuery] = useState(() => cachedLudoscopioSession?.prompt ?? "");
   const [semanticGames, setSemanticGames] = useState<FilterableSemanticResult[] | null>(
     () => cachedLudoscopioSession?.results ?? null,
