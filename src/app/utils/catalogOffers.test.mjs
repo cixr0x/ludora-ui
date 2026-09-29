@@ -29,6 +29,15 @@ test("API offer mapping preserves eligibility, unknown availability and source t
     assert.equal(Object.hasOwn(game.stores[0], "listingUrl"), true);
     const unknownListing = { ...game.stores[0], currency: "MXN" };
     assert.deepEqual(productOfferSchema(JSON.parse(JSON.stringify([unknownListing]))), []);
+    const visibility = mapApiItemToDetail({ id: 77, canonical_name: "Game", offers: [
+      { id: 3, store_name: "Hidden", store_active: false, listing_status: "LISTED", availability: "available" },
+      { id: 4, store_name: "Visible unavailable", store_active: true, listing_status: "LISTED", availability: "unavailable", price: 350, currency: "MXN", source_url: "https://store.example/game", is_bundle: false }
+    ] });
+    assert.equal(visibility.stores.length, 1);
+    assert.equal(visibility.stores[0].availabilityStatus, "unavailable");
+    assert.equal(visibility.stores[0].storeActive, true);
+    assert.equal(visibility.stores[0].listingUrl, "https://store.example/game");
+    assert.deepEqual(productOfferSchema(visibility.stores), []);
     const unknownBundle = mapApiItemToDetail({ id: 77, canonical_name: "Game", offers: [{
       id: 2, store_id: 7, store_name: "Example", game_title: "Game", store_active: true,
       listing_status: "LISTED", availability: "available", price: 350, currency: "MXN", source_url: "https://store.example/game"

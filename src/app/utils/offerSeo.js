@@ -5,7 +5,7 @@ import { storeDisplayName, storeOfferUrl } from "./storeLinks.js";
 
 export function apiMinimumPrice(offers) {
   const eligible = pricingOffers((offers ?? []).map(offer => {
-    const availabilityStatus = storeAvailabilityState(offer.availability, offer.store_active);
+    const availabilityStatus = storeAvailabilityState(offer.availability);
     return { storeActive: offer.store_active, listingStatus: offer.listing_status, isBundle: offer.is_bundle,
       name: storeDisplayName(offer.store_name, offer.store_platform),
       priceValue: typeof offer.price === "number" || typeof offer.price === "string" ? Number(offer.price) : NaN,
@@ -18,7 +18,7 @@ export function apiMinimumPrice(offers) {
 
 export function visibleStoreOffers(stores) {
   return (Array.isArray(stores) ? stores : []).filter(store =>
-    store && store.listingStatus === "LISTED" && typeof store.name === "string" && store.name.trim()
+    store && store.storeActive !== false && store.listingStatus === "LISTED" && typeof store.name === "string" && store.name.trim()
   );
 }
 
@@ -46,7 +46,7 @@ export function productOfferSchema(stores) {
 
 function eligibleOffers(stores) {
   return visibleStoreOffers(stores).filter(store =>
-    store.storeActive === true && store.isBundle === false &&
+    store.storeActive === true && store.availabilityStatus !== "unavailable" && store.isBundle === false &&
     typeof store.priceValue === "number" && Number.isFinite(store.priceValue) && store.priceValue > 0 &&
     store.currency === "MXN" && publicListingUrl(listingUrl(store))
   );

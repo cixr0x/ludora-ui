@@ -50,7 +50,8 @@ test("actual product SSR keeps comparison facts, embedded data and individual of
 
     const cases = [
       { name: "zero offers", offers: [], text: /No hay ofertas registradas para este juego/, badge: null, schema: [] },
-      { name: "inactive store", change: { store_active: false }, text: /No disponible/, badge: /class="[^"]*border-red-500[^"]*bg-red-500[^"]*text-red-300[^"]*">No disponible<\/span>/, schema: [] },
+      { name: "hidden store", change: { store_active: false }, text: /No hay ofertas registradas para este juego/, schema: [] },
+      { name: "unavailable product", change: { availability: "unavailable", store_active: true }, text: /No disponible/, badge: /class="[^"]*border-red-500[^"]*bg-red-500[^"]*text-red-300[^"]*">No disponible<\/span>/, schema: [] },
       { name: "out of stock", change: { availability: "out_of_stock" }, text: /Agotado/, badge: /class="[^"]*border-yellow-500[^"]*bg-yellow-500[^"]*text-yellow-300[^"]*">Agotado<\/span>/, schema: ["OutOfStock"] },
       { name: "unknown availability and language", change: { availability: "unknown", language: null }, text: /Disponibilidad por confirmar/, schema: [null] },
       { name: "zero price", change: { price: 0 }, text: /Consultar/, schema: [] },
@@ -73,7 +74,9 @@ test("actual product SSR keeps comparison facts, embedded data and individual of
       assert.doesNotMatch(text, /Desde \$/);
       const offers = jsonScript(html, "product-structured-data")["@graph"][0].offers ?? [];
       assert.deepEqual(offers.map(entry => entry.availability?.replace("https://schema.org/", "") ?? null), fixture.schema);
-      if (fixture.name === "inactive store") assert.doesNotMatch(text, /\$350/);
+      if (["hidden store", "unavailable product"].includes(fixture.name)) assert.doesNotMatch(text, /\$350/);
+      if (fixture.name === "hidden store") assert.doesNotMatch(text, /Tienda Mesa|No disponible/);
+      if (fixture.name === "unavailable product") { assert.match(text, /Tienda Mesa/); assert.match(html, /href="https:\/\/tienda.example\/dixit"/); }
       if (fixture.name === "negative price") assert.doesNotMatch(text, /-\$10/);
     });
 

@@ -3,13 +3,15 @@ import test from "node:test";
 
 import { storeAvailabilityLabel, storeAvailabilityRank, storeAvailabilityState } from "./storeAvailability.js";
 
-test("inactive store items are shown as no longer available", () => {
-  assert.equal(storeAvailabilityState("available", false), "unavailable");
+test("availability determines no longer available independently of visibility", () => {
+  assert.equal(storeAvailabilityState("available", false), "available");
+  assert.equal(storeAvailabilityState("unavailable", true), "unavailable");
+  assert.equal(storeAvailabilityState("no disponible"), "unavailable");
   assert.equal(storeAvailabilityLabel("unavailable"), "No disponible");
 });
 
 test("active out-of-stock values are normalized for the store listing", () => {
-  for (const value of ["out_of_stock", "OutOfStock", "sold-out", "agotado", "sin stock", "unavailable", "no disponible"]) {
+  for (const value of ["out_of_stock", "OutOfStock", "sold-out", "agotado", "sin stock"]) {
     assert.equal(storeAvailabilityState(value, true), "out_of_stock");
   }
   assert.equal(storeAvailabilityLabel("out_of_stock"), "Agotado");

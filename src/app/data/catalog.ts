@@ -266,6 +266,7 @@ export function mapApiItemToDetail(item: ApiItem): GameDetail {
     tiktokUser: tiktokTutorial?.user,
     youtubeId,
     stores: (item.offers ?? [])
+      .filter((offer) => offer.store_active !== false)
       .map((offer) => mapOffer(offer, base))
       .sort(
         (left, right) =>
@@ -322,7 +323,7 @@ function descriptionParagraphs(item: ApiItem): string[] {
 function mapOffer(offer: ApiOffer, game: Game): StoreEntry {
   const priceValue = numericValue(offer.price, 0);
   const currency = typeof offer.currency === "string" ? offer.currency.trim().toUpperCase() : "";
-  const availabilityStatus = storeAvailabilityState(offer.availability, offer.store_active);
+  const availabilityStatus = storeAvailabilityState(offer.availability);
   const stockLevel = availabilityStatus === "available" ? stockLevelFromAvailability(offer.availability)
     : availabilityStatus === "unknown" ? "unknown" : "out";
 

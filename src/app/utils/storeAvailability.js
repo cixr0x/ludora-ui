@@ -1,10 +1,10 @@
-export function storeAvailabilityState(availability, storeActive = true) {
-  if (storeActive === false) return "unavailable";
-
+export function storeAvailabilityState(availability) {
   const normalized = String(availability ?? "")
     .trim()
     .toLowerCase()
     .replace(/[\s-]+/g, "_");
+
+  if (["unavailable", "no_disponible"].includes(normalized)) return "unavailable";
 
   if (
     normalized.includes("out_of_stock") ||
@@ -12,9 +12,7 @@ export function storeAvailabilityState(availability, storeActive = true) {
     normalized.includes("sold_out") ||
     normalized.includes("soldout") ||
     normalized.includes("agotado") ||
-    normalized.includes("sin_stock") ||
-    normalized.includes("unavailable") ||
-    normalized.includes("no_disponible")
+    normalized.includes("sin_stock")
   ) {
     return "out_of_stock";
   }

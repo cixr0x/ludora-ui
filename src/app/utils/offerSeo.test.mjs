@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { apiMinimumPrice, pricingOffers, productOfferSchema } from "./offerSeo.js";
+import { apiMinimumPrice, pricingOffers, productOfferSchema, visibleStoreOffers } from "./offerSeo.js";
 
 const base = {
   id: 1, storeId: 7, name: "Example store",
@@ -50,10 +50,9 @@ test("out-of-stock and unknown states remain distinct without invented editions"
   ];
   assert.deepEqual(pricingOffers(stores), []);
   const schema = productOfferSchema(stores);
-  assert.equal(schema.length, 3);
+  assert.equal(schema.length, 2);
   assert.equal(schema[0].availability, "https://schema.org/OutOfStock");
   assert.equal(schema[1].availability, undefined);
-  assert.equal(schema[2].availability, undefined);
   for (const offer of schema) {
     assert.equal(offer["@type"], "Offer");
     assert.equal(offer.itemOffered, undefined);
@@ -68,9 +67,17 @@ test("a store-homepage fallback never becomes a product listing in schema", () =
 test("compact raw API summaries apply the same price and eligibility policy", () => {
   const offer = { store_name: "Shop", source_url: "https://shop.example/game", price: "350", currency: "MXN",
     listing_status: "LISTED", store_active: true, is_bundle: false, availability: "available" };
-  const excluded = [{ is_bundle: true }, { availability: "unknown" }, { availability: "out_of_stock" },
+  const excluded = [{ is_bundle: true }, { availability: "unknown" }, { availability: "out_of_stock" }, { availability: "unavailable" },
     { store_active: false }, { currency: "USD" }, { currency: null }, { listing_status: "PENDING" },
     { source_url: null, store_website_url: "https://shop.example/" }, { price: true }, { price: -1 }];
   assert.equal(apiMinimumPrice(excluded.map(change => ({ ...offer, price: 1, ...change }))), null);
   assert.equal(apiMinimumPrice([offer, ...excluded.map(change => ({ ...offer, price: 1, ...change }))]), 350);
+});
+
+test("visible unavailable offers retain links but are excluded from price and schema", () => {
+  const unavailable = { ...base, availabilityStatus: "unavailable", inStock: false };
+  const hidden = { ...base, id: 2, storeActive: false };
+  assert.deepEqual(visibleStoreOffers([unavailable, hidden]), [unavailable]);
+  assert.deepEqual(pricingOffers([unavailable, hidden]), []);
+  assert.deepEqual(productOfferSchema([unavailable, hidden]), []);
 });
