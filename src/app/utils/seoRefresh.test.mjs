@@ -347,6 +347,35 @@ test("runtime selection and worker import hold the same deployment lock", async 
   assert.equal(result.status, "complete");
 });
 
+test("the default worker deadline allows a complete refresh beyond 600 seconds", async t => {
+  const config = await environment(t);
+  let elapsedMs = 0;
+  t.mock.method(performance, "now", () => elapsedMs);
+  const source = feed([item()]);
+  const result = await refreshSeo({ ...config, fetchImpl: (...args) => {
+    elapsedMs = 889999;
+    return source.fetchImpl(...args);
+  } });
+  assert.equal(result.status, "complete");
+  assert.equal(result.publicationCompleted, true);
+  assert.match(await readFile(join(config.livePath, "game/1/game-1.html"), "utf8"), /price 350/);
+});
+
+test("the default worker deadline rejects a refresh at 890 seconds and releases its lock", async t => {
+  const config = await environment(t);
+  await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl });
+  const original = await realpath(config.livePath);
+  let elapsedMs = 0;
+  t.mock.method(performance, "now", () => elapsedMs);
+  const source = feed([item(1, 400)]);
+  await assert.rejects(refreshSeo({ ...config, fetchImpl: (...args) => {
+    elapsedMs = 890000;
+    return source.fetchImpl(...args);
+  } }), /deadline/);
+  assert.equal(await realpath(config.livePath), original);
+  assert.equal((await withGenerationLock(config.lockPath, async () => ({ status: "acquired" }))).status, "acquired");
+});
+
 test("the worker deadline aborts source requests and releases its lock without publishing", async t => {
   const config = await environment(t);
   await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl });

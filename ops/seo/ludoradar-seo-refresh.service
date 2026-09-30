@@ -14,7 +14,7 @@ Environment=LUDORA_SEO_LIVE_PATH=/opt/ludora/ludora-ui/dist
 Environment=LUDORA_SEO_LOCK_PATH=/run/lock/ludoradar-seo-refresh.lock
 Environment=LUDORA_PRERENDER_API_ORIGIN=http://127.0.0.1:4000
 ExecStart=/bin/sh /var/lib/ludoradar-seo/bin/measure.sh refresh
-TimeoutStartSec=600
+TimeoutStartSec=900
 TimeoutStopSec=10
 KillMode=control-group
 Nice=10

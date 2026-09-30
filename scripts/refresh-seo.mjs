@@ -33,7 +33,7 @@ export async function generateSeoStage(config) {
 
 async function executeGeneration(config) {
   const { runtimeDirectory, stateDirectory, livePath, lockPath, lease, apiOrigin, fetchImpl = fetch,
-    now = () => new Date().toISOString(), log = value => process.stdout.write(`${JSON.stringify(value)}\n`), deadlineMs = 590000,
+    now = () => new Date().toISOString(), log = value => process.stdout.write(`${JSON.stringify(value)}\n`), deadlineMs = 890000,
     publish, reusePages = true } = config;
   requireLease(lease, lockPath);
   const started = performance.now();

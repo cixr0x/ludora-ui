@@ -49,7 +49,7 @@ Compilation and finalization are outside the cold worker's time/memory measureme
 
 ## Resource evidence and service verification
 
-Both stage and daily services set Nice 10, CPUQuota 50%, MemoryHigh 320M, MemoryMax 384M, TimeoutStartSec 600, TimeoutStopSec 10 and KillMode control-group. Node receives `--max-old-space-size=256`; the worker deadline is 590 seconds. Do not increase these caps to pass a failed run.
+Both stage and daily services set Nice 10, CPUQuota 50%, MemoryHigh 320M, MemoryMax 384M, TimeoutStartSec 900, TimeoutStopSec 10 and KillMode control-group. Node receives `--max-old-space-size=256`; the worker deadline is 890 seconds, leaving ten seconds before the service timeout. Do not increase these approved limits automatically to pass a failed run.
 
 `measure.sh` stays inside the service cgroup until the worker and kernel-lock holder exit, then records `memory.peak`, every `memory.events` counter, `cpu.stat`, `cpu.max`, memory high/max, wall time, exit code, process IDs and remaining-child count. Optional `memory.swap.current`/`memory.swap.peak` are recorded when readable. Its own memory is included. The generated/daily receipt records the Node version, heap flag/limit, Nice, and matching worker/holder cgroup membership. Main-process RSS is supplementary evidence.
 

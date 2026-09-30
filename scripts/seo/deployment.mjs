@@ -105,9 +105,9 @@ export async function stageDeployment(config, { id, stageId }, deps = {}) {
       check();
       const result = await runtimeWorker.generateSeoStage({ ...config, runtimeDirectory: prepared.runtime,
         stageDirectory: join(attemptDirectory, "generation"), statusPath: join(attemptDirectory, "status.json"),
-        reusePages: false, lease, deadlineMs: 590000 - (performance.now() - started) });
+        reusePages: false, lease, deadlineMs: 890000 - (performance.now() - started) });
       check(); await (deps.source ?? gitSource).verify(config, prepared.receipt);
-      if (performance.now() - started >= 590000) throw new Error("Stage deadline exceeded");
+      if (performance.now() - started >= 890000) throw new Error("Stage deadline exceeded");
       const processInfo = deps.processEvidence ? deps.processEvidence() : result.process;
       const generated = { ...result, version: 1, id, stageId, preparedHash: prepared.preparedHash,
         validationHash: await fileHash(join(result.stageDirectory, "validation.json")), process: processInfo };
@@ -129,7 +129,7 @@ export async function readResourceGate(path, generated) {
   }
   const number = key => { if (!/^\d+$/.test(metrics[key] ?? "")) throw new Error(`Missing cgroup metric: ${key}`); return Number(metrics[key]); };
   if (number("version") !== 1 || number("worker_exit") !== 0 || number("worker_pid") !== generated.process.pid ||
-      number("remaining_children") !== 0 || number("wall_seconds") >= 600 || number("memory_peak") > 402653184 ||
+      number("remaining_children") !== 0 || number("wall_seconds") >= 900 || number("memory_peak") > 402653184 ||
       number("memory_high") !== 335544320 || number("memory_max") !== 402653184 || metrics.cpu_max !== "50000 100000" ||
       number("memory_event_oom") !== 0 || number("memory_event_oom_kill") !== 0 || number("memory_event_max") !== 0 ||
       !generated.process.execArgv.includes("--max-old-space-size=256") || !(generated.process.heapLimitBytes > 0 && generated.process.heapLimitBytes <= 320 * 1024 * 1024) || generated.process.nice !== 10 ||

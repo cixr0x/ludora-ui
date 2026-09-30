@@ -94,6 +94,82 @@ async function stageFixture(value, nextId = stageId, deploymentId = id) {
   return result;
 }
 
+test("cold staging permits a complete generation just before its 890-second total deadline", async t => {
+  const value = await preparedFixture(t), { config, deps } = value;
+  const previous = await realpath(config.livePath);
+  let elapsedMs = 0;
+  t.mock.method(performance, "now", () => elapsedMs);
+  deps.loadWorker = async () => { elapsedMs = 20000; return worker; };
+  const fetchImpl = config.fetchImpl;
+  config.fetchImpl = (...args) => { elapsedMs = 889999; return fetchImpl(...args); };
+  const result = await deployment.stageDeployment(config, { id, stageId }, deps);
+  assert.equal(result.status, "generated");
+  assert.equal(result.rendered, 4);
+  assert.equal(result.publicationCompleted, false);
+  assert.equal(await realpath(config.livePath), previous);
+  await access(join(result.attemptDirectory, "generated.json"));
+});
+
+test("cold staging rejects source verification finishing at the 890-second deadline", async t => {
+  const value = await preparedFixture(t), { config, deps } = value;
+  const previous = await realpath(config.livePath);
+  let elapsedMs = 0, verifications = 0;
+  t.mock.method(performance, "now", () => elapsedMs);
+  const verify = deps.source.verify;
+  deps.source.verify = async (...args) => {
+    await verify(...args);
+    if (++verifications === 2) elapsedMs = 890000;
+  };
+  await assert.rejects(deployment.stageDeployment(config, { id, stageId }, deps), /Stage deadline exceeded/);
+  assert.equal(await realpath(config.livePath), previous);
+  const attempt = join(value.prepared.pendingDirectory, "stages", stageId);
+  await assert.rejects(access(join(attempt, "generated.json")), { code: "ENOENT" });
+  assert.equal(JSON.parse(await readFile(join(attempt, "status.json"), "utf8")).publicationCompleted, false);
+});
+
+const measuredProcess = cgroup => ({ pid: 123, holderPid: 124, execArgv: ["--max-old-space-size=256"],
+  heapLimitBytes: 304087040, nice: 10, cgroup, holderCgroup: cgroup });
+const measuredMetrics = (cgroup, overrides = {}) => Object.entries({ version: 1, cgroup, worker_pid: 123, worker_exit: 0,
+  remaining_children: 0, wall_seconds: 899, memory_peak: 336052224, memory_high: 335544320, memory_max: 402653184,
+  cpu_max: "50000 100000", memory_event_oom: 0, memory_event_oom_kill: 0, memory_event_max: 0,
+  cpu_usage_usec: 1000000, ...overrides }).map(([key, value]) => `${key}=${value}`).join("\n");
+
+for (const unit of ["ludoradar-seo-stage@fixture.service", "ludoradar-seo-refresh.service"]) {
+  test(`${unit} resource gate accepts runs beyond 600 seconds and rejects the 900-second boundary`, async t => {
+    const root = await mkdtemp(join(tmpdir(), "ludoradar-resource-gate-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const path = join(root, "cgroup.metrics"), cgroup = `/system.slice/${unit}`;
+    const generated = { process: measuredProcess(cgroup) };
+    for (const seconds of [601, 899]) {
+      await writeFile(path, measuredMetrics(cgroup, { wall_seconds: seconds }));
+      assert.equal((await deployment.readResourceGate(path, generated)).wall_seconds, String(seconds));
+    }
+    for (const seconds of [900, 901]) {
+      await writeFile(path, measuredMetrics(cgroup, { wall_seconds: seconds }));
+      await assert.rejects(deployment.readResourceGate(path, generated), /resource gate/);
+    }
+  });
+}
+
+test("the extended resource deadline retains CPU, memory, exit and identity enforcement", async t => {
+  const root = await mkdtemp(join(tmpdir(), "ludoradar-resource-policy-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const path = join(root, "cgroup.metrics"), cgroup = "/system.slice/ludoradar-seo-refresh.service";
+  const processInfo = measuredProcess(cgroup);
+  for (const metrics of [{ memory_peak: 402653185 }, { memory_high: 335544321 }, { memory_max: 402653185 },
+    { cpu_max: "100000 100000" }, { memory_event_oom: 1 }, { memory_event_oom_kill: 1 }, { memory_event_max: 1 },
+    { worker_exit: 1 }, { remaining_children: 1 }, { worker_pid: 125 }, { cgroup: "/system.slice/unrelated.service" },
+    { cpu_usage_usec: "" }]) {
+    await writeFile(path, measuredMetrics(cgroup, metrics));
+    await assert.rejects(deployment.readResourceGate(path, { process: processInfo }), /resource gate|Missing cgroup metric/);
+  }
+  await writeFile(path, measuredMetrics(cgroup));
+  for (const evidence of [{ execArgv: [] }, { heapLimitBytes: 335544321 }, { nice: 0 }, { holderPid: undefined },
+    { cgroup: "/system.slice/unrelated.service" }, { holderCgroup: "/system.slice/unrelated.service" }]) {
+    await assert.rejects(deployment.readResourceGate(path, { process: { ...processInfo, ...evidence } }), /resource gate/);
+  }
+});
+
 test("prepare, cold stage and finalize publish once without another export and retain the previous release", async t => {
   const value = await preparedFixture(t), { config, deps } = value;
   const previous = await realpath(config.livePath), stage = await stageFixture(value), requests = config.requests();
