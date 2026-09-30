@@ -16,6 +16,7 @@ import { BGG_FOOTER_LOGO_URL } from "../utils/siteFooter.js";
 import { buildExploreTaxonomyPath } from "../utils/catalogSearch.js";
 import { usePrerenderedProduct } from "../PrerenderData";
 import { ProductMetadata, applyPageMetadata } from "../components/ProductMetadata";
+import { ProductShare } from "../components/ProductShare";
 import { productPath } from "../utils/productRoutes.js";
 import { visibleStoreOffers } from "../utils/offerSeo.js";
 import { formatStorePrice } from "../utils/priceFormat.js";
@@ -592,6 +593,7 @@ export function GameDetail() {
                 Comprar ahora
               </button>
             )}
+            <ProductShare detail={detail} canonicalPath={publishedCanonical} />
           </div>
 
           {/* Info */}
