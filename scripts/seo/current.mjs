@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { readLiveGeneration, readVerifiedRuntime, withGenerationLock, writeJsonAtomic } from "./publish.mjs";
 
-export async function refreshCurrentGeneration({ stateDirectory, livePath, lockPath, apiOrigin,
+export async function refreshCurrentGeneration({ stateDirectory, livePath, lockPath, apiOrigin, deadlineMs,
   loadWorker = directory => import(/* @vite-ignore */ pathToFileURL(join(directory, "refresh-worker.mjs")).href) }) {
   return withGenerationLock(lockPath, async lease => {
     let worker, runtimeDirectory;
@@ -16,6 +16,6 @@ export async function refreshCurrentGeneration({ stateDirectory, livePath, lockP
       await writeJsonAtomic(join(stateDirectory, "status.json"), { status: "failed", phase: "runtime-selection", error: error.message, failedAt: new Date().toISOString() }).catch(() => {});
       throw error;
     }
-    return worker.refreshSeo({ runtimeDirectory, stateDirectory, livePath, lockPath, lease, apiOrigin });
+    return worker.refreshSeo({ runtimeDirectory, stateDirectory, livePath, lockPath, lease, apiOrigin, deadlineMs });
   });
 }

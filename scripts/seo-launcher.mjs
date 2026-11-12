@@ -8,6 +8,9 @@ import { captureBaseIdentity } from "./seo/base.mjs";
 import { checkedDirectory, uuid } from "./seo/paths.mjs";
 import { fileHash, requireLease, withGenerationLock, writeJsonAtomic, publishGeneration, readVerifiedRuntime } from "./seo/publish.mjs";
 
+const DAILY_REFRESH_TIMEOUT_SECONDS = 2700;
+const DAILY_REFRESH_DEADLINE_MS = (DAILY_REFRESH_TIMEOUT_SECONDS - 60) * 1000;
+
 export const productionConfig = () => ({
   projectRoot: process.env.LUDORA_UI_ROOT ?? "/opt/ludora/ludora-ui",
   serviceRoot: process.env.LUDORA_SERVICE_ROOT ?? "/opt/ludora/ludora-service",
@@ -58,7 +61,7 @@ export async function launcher(args, config = productionConfig()) {
     // Measured daily receipts are per invocation; shared status.json cannot prove which service ran.
     await writeFile(join(directory, "request.json"), JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() }), { flag: "wx" });
     try {
-      const result = await refreshCurrentGeneration(config);
+      const result = await refreshCurrentGeneration({ ...config, deadlineMs: DAILY_REFRESH_DEADLINE_MS });
       await writeJsonAtomic(join(directory, "result.json"), { ...result, pid: process.pid });
       return result;
     } catch (error) {
@@ -80,7 +83,7 @@ export async function launcher(args, config = productionConfig()) {
     const result = JSON.parse(await readFile(join(directory, "result.json"), "utf8"));
     const selected = await captureBaseIdentity(config.livePath);
     if (result.status !== "complete" || result.publicationCompleted !== true || selected.uiSha !== second || result.uiSha !== second || selected.generationId !== result.generationId) throw new Error("The exact daily service must successfully refresh the selected UI before timer enablement");
-    const metrics = await readResourceGate(join(directory, "cgroup.metrics"), result);
+    const metrics = await readResourceGate(join(directory, "cgroup.metrics"), result, { timeoutSeconds: DAILY_REFRESH_TIMEOUT_SECONDS });
     if (metrics.unit !== "ludoradar-seo-refresh.service") throw new Error("Missing successful exact-service measurement");
     await verifyServiceExit("ludoradar-seo-refresh.service");
     requireLease(lease, config.lockPath);

@@ -47,13 +47,24 @@ The three phases acquire and release the real lock independently:
 
 Compilation and finalization are outside the cold worker's time/memory measurement. Neither the stage nor daily launcher imports Vite or mutable checkout modules before locking. Ordinary `npm run build` still emits nonindexable output; `npm run build:indexable` still compiles and publishes indexable output using its original combined command. Use the three-phase procedure for the production capacity gate.
 
+### Update stable tools only
+
+For a launcher or unit change that works with the selected retained worker, run `./ops/seo/Deploy-LudoraSeo.ps1 -Action InstallTools -UiSha <tool-source SHA>` from the clean checkout at that committed SHA. This installs the stable tools and reloads systemd without rebuilding the retained UI. Run `Refresh` to verify the updated service. If you need to enable the timer, pass the selected UI SHA from `Status` (`selected.uiSha`) to `EnableTimer -UiSha` and the successful refresh UUID to `-RunId`.
+
 ## Resource evidence and service verification
 
-Both stage and daily services set Nice 10, CPUQuota 50%, MemoryHigh 320M, MemoryMax 384M, TimeoutStartSec 900, TimeoutStopSec 10 and KillMode control-group. Node receives `--max-old-space-size=256`; the worker deadline is 890 seconds, leaving ten seconds before the service timeout. Do not increase these approved limits automatically to pass a failed run.
+Both services set Nice 10, CPUQuota 50%, MemoryHigh 320M, MemoryMax 384M, TimeoutStopSec 10 and KillMode control-group. Node receives `--max-old-space-size=256`. Do not increase the approved limits automatically to pass a failed run.
+
+| Run | Systemd `TimeoutStartSec` | Worker deadline |
+| --- | ---: | ---: |
+| Cold stage | 900 seconds | 890 seconds |
+| Daily refresh | 2700 seconds | 2640 seconds |
+
+The stable launcher passes `deadlineMs: 2640000` to the selected retained worker for daily refreshes. This leaves 60 seconds before the service timeout for launcher overhead, cleanup, and measurement. The local `npm run seo:refresh` uses the 890-second worker default.
 
 `measure.sh` stays inside the service cgroup until the worker and kernel-lock holder exit, then records `memory.peak`, every `memory.events` counter, `cpu.stat`, `cpu.max`, memory high/max, wall time, exit code, process IDs and remaining-child count. Optional `memory.swap.current`/`memory.swap.peak` are recorded when readable. Its own memory is included. The generated/daily receipt records the Node version, heap flag/limit, Nice, and matching worker/holder cgroup membership. Main-process RSS is supplementary evidence.
 
-The gate rejects missing/incomplete metrics, nonzero exit, remaining children, an exceeded deadline, OOM/max events, mismatched process/cgroup identity, or limits different from the approved policy. MemoryHigh events may show soft throttling and remain visible for review. Systemd 252 does not expose MemoryPeak through `systemctl show`; use the retained cgroup file evidence.
+The stage finalization gate requires `wall_seconds` below 900. The daily `enable-timer` gate requires `wall_seconds` below 2700. Both gates reject missing or incomplete metrics, nonzero exit, remaining children, OOM/max events, mismatched process/cgroup identity, or limits different from the approved policy. MemoryHigh events may show soft throttling and remain visible for review. Systemd 252 does not expose MemoryPeak through `systemctl show`. Use the retained cgroup file evidence.
 
 ```sh
 /usr/bin/node /var/lib/ludoradar-seo/bin/seo-launcher.mjs status
@@ -64,7 +75,7 @@ systemctl list-timers ludoradar-seo-refresh.timer --no-pager
 systemd-analyze calendar '*-*-* 06:00:00 UTC'
 ```
 
-The timer runs daily at 06:00 UTC with `Persistent=true` and one-minute accuracy. Before enabling it, run its exact service manually, verify selected SHA/generation and inspect its `daily-runs/<UUID>/result.json` and `cgroup.metrics`. `enable-timer` checks that successful exact-service evidence against the selected generation. Verify lock exclusion during that run. This proves the service and schedule; report explicitly that the next natural calendar firing has not yet occurred.
+The timer runs daily at 06:00 UTC with `Persistent=true` and one-minute accuracy. Before enabling it, run its exact service manually and verify the selected SHA and generation. The service journal logs phases and the `SEO_MEASUREMENT` path for the run. `status.json` holds the last worker status. For a specific run, inspect `daily-runs/<UUID>/request.json`, `result.json` and `cgroup.metrics`. `enable-timer` checks successful exact-service evidence against the selected generation. Verify lock exclusion during that run and report whether a natural calendar firing has occurred.
 
 During the full cold stage, monitor the existing homepage and public API service independently. Inspect the complete candidate's HTML, route graph, canonicals, prices/schema and sitemap/lastmod consistency before finalization. After publication, verify representative product, zero-offer, expansion, catalog page 2/last page, category, wrong-slug redirects and true 404 routes in normal and no-JavaScript browsers. Google live inspection, Rich Results Test and sitemap/recrawl submission follow technical validation; accepted requests do not prove indexing or ranking.
 

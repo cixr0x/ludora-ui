@@ -11,6 +11,7 @@ import { fetchSeoExport } from "../../../scripts/seo/export.mjs";
 import { contentFingerprint, reconcilePages } from "../../../scripts/seo/manifest.mjs";
 import { withGenerationLock, publishGeneration, requireLease, fileHash } from "../../../scripts/seo/publish.mjs";
 import { refreshSeo, generateSeoStage, refreshCurrentGeneration, validateGeneratedGraph } from "../../../scripts/refresh-seo.mjs";
+import { launcher } from "../../../scripts/seo-launcher.mjs";
 
 const item = (id = 1, price = 350) => ({ id, canonical_name: `Game ${id}`, canonical_path: `/game/${id}/game-${id}`,
   categories: [], mechanics: [], families: [], designers: [], publishers: [], parent_items: [], related_items: [], expansion_items: [],
@@ -87,7 +88,7 @@ test("export rejects missing/v1 envelopes, unexpected empty feeds, changing caps
   }).fetchImpl }), /maximum|max_id/i);
 });
 
-async function environment(t) {
+async function environment(t, workerSource = "export const fixture = true;") {
   const root = await mkdtemp(join(tmpdir(), "ludoradar-seo-test-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const runtimeDirectory = join(root, "runtime");
@@ -103,7 +104,7 @@ async function environment(t) {
       document: template.replace('href="https://www.ludoradar.mx/"','href="https://www.ludoradar.mx'+item.canonical_path+'"')
         .replace('<div id="root"></div>', '<div id="root">price '+item.offers[0].price+'</div>') }; }
   `);
-  await writeFile(join(runtimeDirectory, "refresh-worker.mjs"), "export const fixture = true;");
+  await writeFile(join(runtimeDirectory, "refresh-worker.mjs"), workerSource);
   const files = {};
   for (const file of ["entry-server.mjs", "refresh-worker.mjs", "template.html"]) files[file] = await fileHash(join(runtimeDirectory, file));
   await writeFile(join(runtimeDirectory, "release.json"), JSON.stringify({ version: 1, uiSha: "sha-a", siteUrl: "https://www.ludoradar.mx", indexingEnabled: true, files }));
@@ -345,6 +346,35 @@ test("runtime selection and worker import hold the same deployment lock", async 
     return { refreshSeo: async options => { requireLease(options.lease, config.lockPath); return { status: "complete" }; } };
   } });
   assert.equal(result.status, "complete");
+});
+
+test("the daily launcher publishes below the 44-minute retained worker deadline and records a deadline failure at it", async t => {
+  const workerUrl = new URL("../../../scripts/refresh-seo.mjs", import.meta.url).href;
+  const config = await environment(t, `export { refreshSeo } from ${JSON.stringify(workerUrl)};`);
+  await refreshSeo({ ...config, fetchImpl: feed([item()]).fetchImpl });
+  let elapsedMs = 0, refreshDurationMs = 2639999;
+  const source = feed([item(1, 400)]);
+  t.mock.method(performance, "now", () => elapsedMs);
+  t.mock.method(globalThis, "fetch", (...args) => {
+    elapsedMs = refreshDurationMs;
+    return source.fetchImpl(...args);
+  });
+
+  const successfulRun = "a0000000-0000-4000-8000-000000000000";
+  const result = await launcher(["refresh", successfulRun], config);
+  assert.equal(result.status, "complete");
+  assert.equal(result.publicationCompleted, true);
+  assert.match(await readFile(join(config.livePath, "game/1/game-1.html"), "utf8"), /price 400/);
+  const receipt = async run => JSON.parse(await readFile(join(config.stateDirectory, "daily-runs", run, "result.json"), "utf8"));
+  assert.equal((await receipt(successfulRun)).generationId, result.generationId);
+
+  const selected = await realpath(config.livePath);
+  elapsedMs = 0;
+  refreshDurationMs = 2640000;
+  const failedRun = "b0000000-0000-4000-8000-000000000000";
+  await assert.rejects(launcher(["refresh", failedRun], config), /deadline/);
+  assert.equal(await realpath(config.livePath), selected);
+  assert.equal((await receipt(failedRun)).status, "failed");
 });
 
 test("the default worker deadline allows a complete refresh beyond 600 seconds", async t => {

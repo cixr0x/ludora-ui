@@ -134,19 +134,22 @@ const measuredMetrics = (cgroup, overrides = {}) => Object.entries({ version: 1,
   cpu_max: "50000 100000", memory_event_oom: 0, memory_event_oom_kill: 0, memory_event_max: 0,
   cpu_usage_usec: 1000000, ...overrides }).map(([key, value]) => `${key}=${value}`).join("\n");
 
-for (const unit of ["ludoradar-seo-stage@fixture.service", "ludoradar-seo-refresh.service"]) {
-  test(`${unit} resource gate accepts runs beyond 600 seconds and rejects the 900-second boundary`, async t => {
+for (const { unit, limit, options } of [
+  { unit: "ludoradar-seo-stage@fixture.service", limit: 900 },
+  { unit: "ludoradar-seo-refresh.service", limit: 2700, options: { timeoutSeconds: 2700 } },
+]) {
+  test(`${unit} resource gate accepts runs below ${limit} seconds and rejects the boundary`, async t => {
     const root = await mkdtemp(join(tmpdir(), "ludoradar-resource-gate-"));
     t.after(() => rm(root, { recursive: true, force: true }));
     const path = join(root, "cgroup.metrics"), cgroup = `/system.slice/${unit}`;
     const generated = { process: measuredProcess(cgroup) };
-    for (const seconds of [601, 899]) {
+    for (const seconds of [601, limit - 1]) {
       await writeFile(path, measuredMetrics(cgroup, { wall_seconds: seconds }));
-      assert.equal((await deployment.readResourceGate(path, generated)).wall_seconds, String(seconds));
+      assert.equal((await deployment.readResourceGate(path, generated, options)).wall_seconds, String(seconds));
     }
-    for (const seconds of [900, 901]) {
+    for (const seconds of [limit, limit + 1]) {
       await writeFile(path, measuredMetrics(cgroup, { wall_seconds: seconds }));
-      await assert.rejects(deployment.readResourceGate(path, generated), /resource gate/);
+      await assert.rejects(deployment.readResourceGate(path, generated, options), /resource gate/);
     }
   });
 }
@@ -156,17 +159,18 @@ test("the extended resource deadline retains CPU, memory, exit and identity enfo
   t.after(() => rm(root, { recursive: true, force: true }));
   const path = join(root, "cgroup.metrics"), cgroup = "/system.slice/ludoradar-seo-refresh.service";
   const processInfo = measuredProcess(cgroup);
+  const options = { timeoutSeconds: 2700 };
   for (const metrics of [{ memory_peak: 402653185 }, { memory_high: 335544321 }, { memory_max: 402653185 },
     { cpu_max: "100000 100000" }, { memory_event_oom: 1 }, { memory_event_oom_kill: 1 }, { memory_event_max: 1 },
     { worker_exit: 1 }, { remaining_children: 1 }, { worker_pid: 125 }, { cgroup: "/system.slice/unrelated.service" },
     { cpu_usage_usec: "" }]) {
     await writeFile(path, measuredMetrics(cgroup, metrics));
-    await assert.rejects(deployment.readResourceGate(path, { process: processInfo }), /resource gate|Missing cgroup metric/);
+    await assert.rejects(deployment.readResourceGate(path, { process: processInfo }, options), /resource gate|Missing cgroup metric/);
   }
   await writeFile(path, measuredMetrics(cgroup));
   for (const evidence of [{ execArgv: [] }, { heapLimitBytes: 335544321 }, { nice: 0 }, { holderPid: undefined },
     { cgroup: "/system.slice/unrelated.service" }, { holderCgroup: "/system.slice/unrelated.service" }]) {
-    await assert.rejects(deployment.readResourceGate(path, { process: { ...processInfo, ...evidence } }), /resource gate/);
+    await assert.rejects(deployment.readResourceGate(path, { process: { ...processInfo, ...evidence } }, options), /resource gate/);
   }
 });
 
