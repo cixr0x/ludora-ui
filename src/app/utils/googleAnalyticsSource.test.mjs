@@ -12,7 +12,7 @@ const sourceOrEmpty = (relativePath) => {
   }
 };
 
-test("public root installs production-only GA4 route tracking", () => {
+test("public root configures the production-only Google tag for automatic page views", () => {
   const analyticsSource = sourceOrEmpty("../components/GoogleAnalytics.tsx");
   const rootSource = source("../Root.tsx");
 
@@ -20,9 +20,8 @@ test("public root installs production-only GA4 route tracking", () => {
   assert.doesNotMatch(analyticsSource, /G-5F9KFSSE0M/);
   assert.match(analyticsSource, /googletagmanager\.com\/gtag\/js/);
   assert.match(analyticsSource, /import\.meta\.env\.PROD/);
-  assert.match(analyticsSource, /send_page_view:\s*false/);
-  assert.match(analyticsSource, /useLocation/);
-  assert.match(analyticsSource, /page_path:\s*`\$\{pathname\}\$\{search\}`/);
+  assert.match(analyticsSource, /window\.gtag\("config", GA_MEASUREMENT_ID\)/);
+  assert.doesNotMatch(analyticsSource, /send_page_view|["']page_view["']/);
   assert.match(analyticsSource, /function\s+gtag\(\)\s*{[\s\S]*dataLayer\?\.push\(arguments\)/);
   assert.doesNotMatch(analyticsSource, /dataLayer\?\.push\(args\)/);
   assert.match(rootSource, /<GoogleAnalytics \/>/);

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useLocation, useParams, useNavigate } from "react-router";
 import { ArrowLeft, Users, Clock, ChevronLeft, ChevronRight, Youtube, ShoppingCart, ExternalLink, X } from "lucide-react";
 import { ExpansionBadge } from "../components/ExpansionBadge";
+import { trackGoogleAnalyticsEvent } from "../components/GoogleAnalytics";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { SiteHeader } from "../components/SiteHeader";
 import type { StoreEntry, Game, GameDetail as GameDetailData, GameTaxonomyEntry } from "../data/games";
@@ -168,7 +169,7 @@ function TikTokEmbed({ tiktokId, tiktokUser, gameName }: { tiktokId: string; tik
   );
 }
 
-function StoreCard({ store }: { store: StoreEntry }) {
+function StoreCard({ store, itemId }: { store: StoreEntry; itemId: number }) {
   const availabilityStatus = store.availabilityStatus ?? "unknown";
   const availabilityLabel = availabilityStatus === "available" ? "Disponible" : storeAvailabilityLabel(availabilityStatus);
   const price = Number.isFinite(store.priceValue) && store.priceValue > 0 && store.currency
@@ -219,13 +220,29 @@ function StoreCard({ store }: { store: StoreEntry }) {
     return <div className={`${cardClassName} opacity-80`}>{content}</div>;
   }
 
+  const trackOfferClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.defaultPrevented || event.currentTarget.origin === window.location.origin) return;
+    trackGoogleAnalyticsEvent("store_offer_click", {
+      product_id: String(itemId),
+      offer_id: String(store.id),
+      store_name: store.name,
+      ...(store.storeId ? { store_id: String(store.storeId) } : {}),
+    });
+  };
+
   return (
     <a
       href={store.url}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Ver oferta de ${store.gameTitle} en ${store.name}`}
-      onClick={() => reportStoreItemClick(store.id)}
+      onClick={(event) => {
+        reportStoreItemClick(store.id);
+        trackOfferClick(event);
+      }}
+      onAuxClick={(event) => {
+        if (event.button === 1) trackOfferClick(event);
+      }}
       className={`${cardClassName} hover:border-fuchsia-500/40 hover:bg-neutral-800/60`}
     >
       {content}
@@ -306,6 +323,19 @@ export function GameDetail() {
   );
   const [isImageOverlayOpen, setIsImageOverlayOpen] = useState(false);
   const storesSectionRef = useRef<HTMLDivElement>(null);
+  const lastViewedItemId = useRef<number>();
+
+  useEffect(() => {
+    // A new product route ends the visit even while its details are loading.
+    if (lastViewedItemId.current === itemId) return;
+    lastViewedItemId.current = undefined;
+    if (!publishedCanonical || missingPublishedRoute || detail?.id !== itemId || !detail.name.trim()) return;
+
+    lastViewedItemId.current = itemId;
+    trackGoogleAnalyticsEvent("view_item", {
+      items: [{ item_id: String(itemId), item_name: detail.name }],
+    });
+  }, [itemId, detail, publishedCanonical, missingPublishedRoute]);
 
   useEffect(() => {
     if (!Number.isInteger(itemId) || itemId <= 0) {
@@ -765,7 +795,7 @@ export function GameDetail() {
           </p>
           <div className="flex flex-col gap-2 max-w-2xl">
             {singleStoreOffers.map((store) => (
-              <StoreCard key={store.id} store={store} />
+              <StoreCard key={store.id} store={store} itemId={itemId} />
             ))}
             {bundleStoreOffers.length > 0 && (
               <>
@@ -775,7 +805,7 @@ export function GameDetail() {
                   <div className="h-px flex-1 bg-neutral-800" />
                 </div>
                 {bundleStoreOffers.map((store) => (
-                  <StoreCard key={store.id} store={store} />
+                  <StoreCard key={store.id} store={store} itemId={itemId} />
                 ))}
               </>
             )}

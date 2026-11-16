@@ -8,9 +8,14 @@ import assert from "node:assert/strict";
 import { buildCatalogIndex, catalogPageDescriptors, catalogPageModel } from "../../src/app/utils/catalogSeo.js";
 import { apiMinimumPrice } from "../../src/app/utils/offerSeo.js";
 
-export async function startFixtureServer({ catalog = false, category = { id: 7, name: "Estrategia" } } = {}) {
+export async function startFixtureServer({ catalog = false, category = { id: 7, name: "Estrategia" }, productionAnalytics = false } = {}) {
   const root = fileURLToPath(new URL("../../", import.meta.url));
-  const vite = await createViteServer({ root, server: { middlewareMode: true, hmr: false }, appType: "custom" });
+  const vite = await createViteServer({
+    root,
+    server: { middlewareMode: true, hmr: false },
+    appType: "custom",
+    define: productionAnalytics ? { "import.meta.env.PROD": "true" } : {},
+  });
   const { renderProductDocument, renderCatalogDocument, renderHomepageDocument } = await vite.ssrLoadModule("/src/entry-server.tsx");
   let template = await readFile(new URL("../../index.html", import.meta.url), "utf8");
   // Development main.tsx injects CSS through JavaScript. Serve the same CSS

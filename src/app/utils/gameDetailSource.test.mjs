@@ -90,7 +90,7 @@ test("game detail reports store offer clicks while preserving external links", (
   assert.match(source, /href=\{store\.url\}/);
   assert.match(source, /target="_blank"/);
   assert.match(source, /rel="noopener noreferrer"/);
-  assert.match(source, /onClick=\{\(\) => reportStoreItemClick\(store\.id\)\}/);
+  assert.match(source, /onClick=\{\(event\) => \{\s*reportStoreItemClick\(store\.id\);/);
 });
 
 test("game detail collapses overflowing publishers to one expandable line", () => {
