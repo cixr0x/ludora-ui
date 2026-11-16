@@ -4,7 +4,7 @@ import { chromium } from "@playwright/test";
 import { startFixtureServer } from "./fixture-server.mjs";
 import { item, offer } from "./fixtures.mjs";
 
-test("GA4 records visible product visits and outbound offer activations", { timeout: 60000 }, async () => {
+test("GA4 queues page views before the tag loads and records product and offer events", { timeout: 60000 }, async () => {
   const server = await startFixtureServer({ productionAnalytics: true });
   let browser;
   try {
@@ -12,7 +12,7 @@ test("GA4 records visible product visits and outbound offer activations", { time
     const context = await browser.newContext();
     const page = await context.newPage();
     const firstPartyClicks = [];
-    const gaRequests = [];
+    const googleTagUrl = "https://www.googletagmanager.com/gtag/js?id=G-QGR5CKL5S4";
     const bundle = {
       ...offer, id: 11, store_id: undefined, store_name: "Tienda Paquetes",
       // Chromium's background tab can start navigation before interception.
@@ -21,11 +21,13 @@ test("GA4 records visible product visits and outbound offer activations", { time
     const nextProduct = { ...item, id: 852, canonical_name: "Juego relacionado", offers: [], related_items: [] };
     let releaseLiveDetail;
     const liveDetail = new Promise(resolve => { releaseLiveDetail = resolve; });
+    let releaseGoogleTag;
+    const googleTagGate = new Promise(resolve => { releaseGoogleTag = resolve; });
 
     await context.route(url => url.hostname !== "127.0.0.1", async route => {
       const url = new URL(route.request().url());
       if (url.hostname === "www.googletagmanager.com") {
-        gaRequests.push(url.href);
+        await googleTagGate;
         await route.fulfill({ contentType: "application/javascript", body: "" });
       } else {
         await route.fulfill({ contentType: "text/html", body: "<title>External link fixture</title>" });
@@ -54,6 +56,8 @@ test("GA4 records visible product visits and outbound offer activations", { time
       command => (window.dataLayer ?? []).map(args => Array.from(args)).filter(args => args[0] === command),
       command,
     );
+    const pageViews = async () => (await calls("event")).filter(([, name]) => name === "page_view").map(([, , parameters]) => parameters);
+    const productAndOfferEvents = async () => (await calls("event")).filter(([, name]) => name !== "page_view");
     const waitForEventCount = (name, count) => page.waitForFunction(
       ({ name, count }) => (window.dataLayer ?? []).filter(args => args[0] === "event" && args[1] === name).length >= count,
       { name, count },
@@ -67,13 +71,22 @@ test("GA4 records visible product visits and outbound offer activations", { time
       await popup.close();
     };
     const dixitView = ["event", "view_item", { items: [{ item_id: "851", item_name: "Dixit" }] }];
+    const initialPath = "/game/851/dixit?ref=analytics";
+    const initialUrl = `http://127.0.0.1:5175${initialPath}`;
+    const expectedConfig = [["config", "G-QGR5CKL5S4", { send_page_view: false }]];
 
-    await page.goto("http://127.0.0.1:5175/game/851/dixit");
+    const googleTagRequest = page.waitForRequest(googleTagUrl);
+    await page.goto(initialUrl, { waitUntil: "domcontentloaded" });
+    await googleTagRequest;
     await page.getByText("$350.00 MXN").waitFor();
     await waitForEventCount("view_item", 1);
-    assert.deepEqual(await calls("config"), [["config", "G-QGR5CKL5S4"]]);
-    assert.deepEqual(await calls("event"), [dixitView]);
-    assert.deepEqual(gaRequests, ["https://www.googletagmanager.com/gtag/js?id=G-QGR5CKL5S4"]);
+    assert.deepEqual(await pageViews(), [{
+      page_path: initialPath,
+      page_location: initialUrl,
+      page_title: await page.title(),
+    }]);
+    assert.deepEqual(await calls("config"), expectedConfig);
+    assert.deepEqual(await productAndOfferEvents(), [dixitView]);
 
     releaseLiveDetail();
     await page.getByText("$425.00 MXN").waitFor();
@@ -83,7 +96,7 @@ test("GA4 records visible product visits and outbound offer activations", { time
       link => link.click(),
       /https:\/\/www\.youtube\.com\//,
     );
-    assert.deepEqual(await calls("event"), [dixitView]);
+    assert.deepEqual(await productAndOfferEvents(), [dixitView]);
     assert.deepEqual(firstPartyClicks, []);
 
     const clickRequest = page.waitForResponse(response => new URL(response.url()).pathname === "/api/store-items/10/clicks");
@@ -103,12 +116,20 @@ test("GA4 records visible product visits and outbound offer activations", { time
     await page.getByRole("link", { name: "Juego relacionado" }).click();
     await page.getByRole("heading", { name: "Juego relacionado", exact: true }).waitFor();
     await waitForEventCount("view_item", 2);
-    await page.goBack();
+    await page.goBack({ waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: "Dixit", exact: true }).waitFor();
     await waitForEventCount("view_item", 3);
 
-    assert.deepEqual(await calls("config"), [["config", "G-QGR5CKL5S4"]]);
-    assert.deepEqual(await calls("event"), [
+    assert.deepEqual(
+      (await pageViews()).map(({ page_path }) => page_path),
+      [initialPath, "/game/852/juego-relacionado", initialPath],
+    );
+    const googleTagResponse = page.waitForResponse(googleTagUrl);
+    releaseGoogleTag();
+    await googleTagResponse;
+
+    assert.deepEqual(await calls("config"), expectedConfig);
+    assert.deepEqual(await productAndOfferEvents(), [
       dixitView,
       ["event", "store_offer_click", { product_id: "851", offer_id: "10", store_name: "Tienda Mesa", store_id: "7" }],
       ["event", "store_offer_click", { product_id: "851", offer_id: "11", store_name: "Tienda Paquetes" }],

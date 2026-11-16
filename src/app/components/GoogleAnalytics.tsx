@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useLocation } from "react-router";
 
 const GA_MEASUREMENT_ID = "G-QGR5CKL5S4";
 const GA_SCRIPT_ID = "google-analytics-gtag";
@@ -21,7 +22,7 @@ function initializeGoogleAnalytics() {
       window.dataLayer?.push(arguments);
     };
   window.gtag("js", new Date());
-  window.gtag("config", GA_MEASUREMENT_ID);
+  window.gtag("config", GA_MEASUREMENT_ID, { send_page_view: false });
 
   const script = document.createElement("script");
   script.id = GA_SCRIPT_ID;
@@ -36,9 +37,16 @@ export function trackGoogleAnalyticsEvent(eventName: string, parameters: Record<
 }
 
 export function GoogleAnalytics() {
+  const { pathname, search } = useLocation();
+
   useEffect(() => {
-    initializeGoogleAnalytics();
-  }, []);
+    // Queue each route as it is visited, even while the Google tag is loading.
+    trackGoogleAnalyticsEvent("page_view", {
+      page_title: document.title,
+      page_location: window.location.href,
+      page_path: `${pathname}${search}`,
+    });
+  }, [pathname, search]);
 
   return null;
 }
