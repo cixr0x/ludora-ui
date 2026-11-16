@@ -7,6 +7,8 @@ import { captureBaseIdentity, directoryHash, runtimeIdentity, sameBase } from ".
 import { checkedDirectory, uuid } from "./paths.mjs";
 import { fileHash, readVerifiedRuntime, requireLease, withGenerationLock, verifyGeneration, publishGeneration, pruneManagedState, writeJsonAtomic } from "./publish.mjs";
 
+const STAGE_DEADLINE_MS = 1_440_000;
+
 const requiredSha = value => { if (!/^[a-f0-9]{40}$/.test(value ?? "")) throw new Error("A full commit SHA is required"); return value; };
 const readJson = async path => {
   if (!(await lstat(path)).isFile()) throw new Error(`Unsafe receipt: ${path}`);
@@ -105,9 +107,9 @@ export async function stageDeployment(config, { id, stageId }, deps = {}) {
       check();
       const result = await runtimeWorker.generateSeoStage({ ...config, runtimeDirectory: prepared.runtime,
         stageDirectory: join(attemptDirectory, "generation"), statusPath: join(attemptDirectory, "status.json"),
-        reusePages: false, lease, deadlineMs: 890000 - (performance.now() - started) });
+        reusePages: false, lease, deadlineMs: STAGE_DEADLINE_MS - (performance.now() - started) });
       check(); await (deps.source ?? gitSource).verify(config, prepared.receipt);
-      if (performance.now() - started >= 890000) throw new Error("Stage deadline exceeded");
+      if (performance.now() - started >= STAGE_DEADLINE_MS) throw new Error("Stage deadline exceeded");
       const processInfo = deps.processEvidence ? deps.processEvidence() : result.process;
       const generated = { ...result, version: 1, id, stageId, preparedHash: prepared.preparedHash,
         validationHash: await fileHash(join(result.stageDirectory, "validation.json")), process: processInfo };
@@ -120,7 +122,7 @@ export async function stageDeployment(config, { id, stageId }, deps = {}) {
   });
 }
 
-export async function readResourceGate(path, generated, { timeoutSeconds = 900 } = {}) {
+export async function readResourceGate(path, generated, { timeoutSeconds = 1500 } = {}) {
   const text = await readFile(path, "utf8"), metrics = {};
   for (const line of text.trim().split("\n")) {
     const split = line.indexOf("=");

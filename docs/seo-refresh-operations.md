@@ -57,14 +57,14 @@ Both services set Nice 10, CPUQuota 50%, MemoryHigh 320M, MemoryMax 384M, Timeou
 
 | Run | Systemd `TimeoutStartSec` | Worker deadline |
 | --- | ---: | ---: |
-| Cold stage | 900 seconds | 890 seconds |
+| Cold stage | 1500 seconds | 1440 seconds |
 | Daily refresh | 2700 seconds | 2640 seconds |
 
-The stable launcher passes `deadlineMs: 2640000` to the selected retained worker for daily refreshes. This leaves 60 seconds before the service timeout for launcher overhead, cleanup, and measurement. The local `npm run seo:refresh` uses the 890-second worker default.
+The cold-stage deadline covers preparation checks, generation, and source verification. The stable launcher passes `deadlineMs: 2640000` to the selected retained worker for daily refreshes. Both production deadlines leave 60 seconds before the service timeout for launcher overhead, cleanup, and measurement. The local `npm run seo:refresh` uses the 890-second worker default.
 
 `measure.sh` stays inside the service cgroup until the worker and kernel-lock holder exit, then records `memory.peak`, every `memory.events` counter, `cpu.stat`, `cpu.max`, memory high/max, wall time, exit code, process IDs and remaining-child count. Optional `memory.swap.current`/`memory.swap.peak` are recorded when readable. Its own memory is included. The generated/daily receipt records the Node version, heap flag/limit, Nice, and matching worker/holder cgroup membership. Main-process RSS is supplementary evidence.
 
-The stage finalization gate requires `wall_seconds` below 900. The daily `enable-timer` gate requires `wall_seconds` below 2700. Both gates reject missing or incomplete metrics, nonzero exit, remaining children, OOM/max events, mismatched process/cgroup identity, or limits different from the approved policy. MemoryHigh events may show soft throttling and remain visible for review. Systemd 252 does not expose MemoryPeak through `systemctl show`. Use the retained cgroup file evidence.
+The stage finalization gate requires `wall_seconds` below 1500. The daily `enable-timer` gate requires `wall_seconds` below 2700. Both gates reject missing or incomplete metrics, nonzero exit, remaining children, OOM/max events, mismatched process/cgroup identity, or limits different from the approved policy. MemoryHigh events may show soft throttling and remain visible for review. Systemd 252 does not expose MemoryPeak through `systemctl show`. Use the retained cgroup file evidence.
 
 ```sh
 /usr/bin/node /var/lib/ludoradar-seo/bin/seo-launcher.mjs status

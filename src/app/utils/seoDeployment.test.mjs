@@ -94,14 +94,14 @@ async function stageFixture(value, nextId = stageId, deploymentId = id) {
   return result;
 }
 
-test("cold staging permits a complete generation just before its 890-second total deadline", async t => {
+test("cold staging permits a complete generation just before its 1440-second total deadline", async t => {
   const value = await preparedFixture(t), { config, deps } = value;
   const previous = await realpath(config.livePath);
   let elapsedMs = 0;
   t.mock.method(performance, "now", () => elapsedMs);
   deps.loadWorker = async () => { elapsedMs = 20000; return worker; };
   const fetchImpl = config.fetchImpl;
-  config.fetchImpl = (...args) => { elapsedMs = 889999; return fetchImpl(...args); };
+  config.fetchImpl = (...args) => { elapsedMs = 1439999; return fetchImpl(...args); };
   const result = await deployment.stageDeployment(config, { id, stageId }, deps);
   assert.equal(result.status, "generated");
   assert.equal(result.rendered, 4);
@@ -110,7 +110,7 @@ test("cold staging permits a complete generation just before its 890-second tota
   await access(join(result.attemptDirectory, "generated.json"));
 });
 
-test("cold staging rejects source verification finishing at the 890-second deadline", async t => {
+test("cold staging rejects source verification finishing at the 1440-second deadline", async t => {
   const value = await preparedFixture(t), { config, deps } = value;
   const previous = await realpath(config.livePath);
   let elapsedMs = 0, verifications = 0;
@@ -118,7 +118,7 @@ test("cold staging rejects source verification finishing at the 890-second deadl
   const verify = deps.source.verify;
   deps.source.verify = async (...args) => {
     await verify(...args);
-    if (++verifications === 2) elapsedMs = 890000;
+    if (++verifications === 2) elapsedMs = 1440000;
   };
   await assert.rejects(deployment.stageDeployment(config, { id, stageId }, deps), /Stage deadline exceeded/);
   assert.equal(await realpath(config.livePath), previous);
@@ -135,7 +135,7 @@ const measuredMetrics = (cgroup, overrides = {}) => Object.entries({ version: 1,
   cpu_usage_usec: 1000000, ...overrides }).map(([key, value]) => `${key}=${value}`).join("\n");
 
 for (const { unit, limit, options } of [
-  { unit: "ludoradar-seo-stage@fixture.service", limit: 900 },
+  { unit: "ludoradar-seo-stage@fixture.service", limit: 1500 },
   { unit: "ludoradar-seo-refresh.service", limit: 2700, options: { timeoutSeconds: 2700 } },
 ]) {
   test(`${unit} resource gate accepts runs below ${limit} seconds and rejects the boundary`, async t => {
