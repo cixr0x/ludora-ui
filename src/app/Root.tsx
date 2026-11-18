@@ -6,12 +6,13 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import { SiteFooter } from "./components/SiteFooter";
 import { RouteMetadata } from "./components/ProductMetadata";
 
-type RouteFeedbackGame = FeedbackGame & { locationKey: string };
+type RouteFeedbackGame = FeedbackGame & { locationKey: string; pathname: string };
 export type FeedbackOutletContext = Dispatch<SetStateAction<RouteFeedbackGame | undefined>>;
 
 export function Root() {
-  const { key } = useLocation();
+  const { key, pathname } = useLocation();
   const [feedbackGame, setFeedbackGame] = useState<RouteFeedbackGame>();
+  const currentGame = feedbackGame?.locationKey === key && feedbackGame.pathname === pathname ? feedbackGame : undefined;
 
   return (
     <>
@@ -20,7 +21,7 @@ export function Root() {
       <ScrollToTop />
       <Outlet context={setFeedbackGame} />
       <SiteFooter />
-      <FeedbackDialog game={feedbackGame?.locationKey === key ? feedbackGame : undefined} />
+      <FeedbackDialog key={`${pathname}:${key}`} game={currentGame} />
     </>
   );
 }

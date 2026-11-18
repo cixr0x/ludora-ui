@@ -45,17 +45,24 @@ const feedbackOptions = [
 
 type FeedbackOption = (typeof feedbackOptions)[number];
 type FeedbackSelection = { option: FeedbackOption; starter: string };
+type FeedbackStatus = "idle" | "empty" | "submitting" | "failed" | "success";
 
 export function FeedbackDialog({ game }: { game?: FeedbackGame }) {
+  const [isOpen, setIsOpen] = useState(false);
   const [selection, setSelection] = useState<FeedbackSelection | null>(null);
+  const [status, setStatus] = useState<FeedbackStatus>("idle");
   const returnFocusTo = useRef<FeedbackOption>();
+  const isSubmitting = status === "submitting";
 
   return (
-    <Dialog onOpenChange={(open) => {
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open && isSubmitting) return;
       if (open) {
         returnFocusTo.current = undefined;
         setSelection(null);
+        setStatus("idle");
       }
+      setIsOpen(open);
     }}>
       <DialogTrigger asChild>
         <button
@@ -66,7 +73,10 @@ export function FeedbackDialog({ game }: { game?: FeedbackGame }) {
           Ayúdanos a mejorar
         </button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border-neutral-700 bg-neutral-950 p-4 text-neutral-100 sm:max-w-lg sm:p-6">
+      <DialogContent
+        closeDisabled={isSubmitting}
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border-neutral-700 bg-neutral-950 p-4 text-neutral-100 sm:max-w-lg sm:p-6"
+      >
         <DialogHeader className="pr-7 text-left">
           <DialogTitle className="flex items-start gap-2 text-base leading-snug sm:text-lg">
             <MessageSquareHeart className="mt-0.5 size-4 shrink-0 text-fuchsia-400" aria-hidden="true" />
@@ -78,7 +88,7 @@ export function FeedbackDialog({ game }: { game?: FeedbackGame }) {
         </DialogHeader>
 
         {selection ? (
-          <FeedbackForm selection={selection} onBack={() => setSelection(null)} />
+          <FeedbackForm selection={selection} status={status} onStatusChange={setStatus} onBack={() => setSelection(null)} />
         ) : (
           <div className="grid gap-3">
             {feedbackOptions.map((option) => (
@@ -89,6 +99,7 @@ export function FeedbackDialog({ game }: { game?: FeedbackGame }) {
                 className="grid cursor-pointer grid-cols-[1rem_minmax(0,1fr)_1rem] items-start gap-x-2.5 rounded-xl border border-neutral-700 bg-neutral-900 p-3 text-left transition-colors hover:border-fuchsia-500 hover:bg-neutral-800/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-400"
                 onClick={() => {
                   returnFocusTo.current = option;
+                  setStatus("idle");
                   setSelection({ option, starter: option.starter(game) });
                 }}
               >
@@ -105,11 +116,16 @@ export function FeedbackDialog({ game }: { game?: FeedbackGame }) {
   );
 }
 
-function FeedbackForm({ selection, onBack }: { selection: FeedbackSelection; onBack: () => void }) {
+function FeedbackForm({ selection, status, onStatusChange, onBack }: {
+  selection: FeedbackSelection;
+  status: FeedbackStatus;
+  onStatusChange: (status: FeedbackStatus) => void;
+  onBack: () => void;
+}) {
   const messageId = useId();
   const messageRef = useRef<HTMLTextAreaElement>(null);
+  const submissionStarted = useRef(false);
   const [message, setMessage] = useState(selection.starter);
-  const [status, setStatus] = useState<"idle" | "empty" | "submitting" | "failed" | "success">("idle");
   const isSubmitting = status === "submitting";
 
   useEffect(() => {
@@ -121,19 +137,22 @@ function FeedbackForm({ selection, onBack }: { selection: FeedbackSelection; onB
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isSubmitting) return;
+    if (submissionStarted.current) return;
     if (!message.trim()) {
-      setStatus("empty");
+      onStatusChange("empty");
       messageRef.current?.focus();
       return;
     }
 
-    setStatus("submitting");
+    // Guard a second submit event before React renders the pending state.
+    submissionStarted.current = true;
+    onStatusChange("submitting");
     try {
       await submitContactForm({ name: "Ludo Radar", email: selection.option.email, message });
-      setStatus("success");
+      onStatusChange("success");
     } catch {
-      setStatus("failed");
+      submissionStarted.current = false;
+      onStatusChange("failed");
     }
   }
 
@@ -162,7 +181,7 @@ function FeedbackForm({ selection, onBack }: { selection: FeedbackSelection; onB
           value={message}
           onChange={(event) => {
             setMessage(event.target.value);
-            if (status === "empty") setStatus("idle");
+            if (status === "empty") onStatusChange("idle");
           }}
           readOnly={isSubmitting}
           aria-invalid={status === "empty"}
@@ -176,7 +195,7 @@ function FeedbackForm({ selection, onBack }: { selection: FeedbackSelection; onB
         <p role="alert" className="text-sm text-red-300">No pudimos enviar el mensaje. Intenta de nuevo.</p>
       )}
       <DialogFooter className="flex-row justify-between sm:justify-between">
-        <Button type="button" variant="ghost" onClick={onBack} className="cursor-pointer text-neutral-300 hover:bg-neutral-800 hover:text-white focus-visible:ring-fuchsia-400/70">
+        <Button type="button" variant="ghost" onClick={onBack} disabled={isSubmitting} className="cursor-pointer text-neutral-300 hover:bg-neutral-800 hover:text-white focus-visible:ring-fuchsia-400/70">
           <ArrowLeft aria-hidden="true" />
           Volver
         </Button>

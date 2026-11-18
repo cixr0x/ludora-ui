@@ -331,10 +331,10 @@ export function GameDetail() {
 
   useEffect(() => {
     if (!feedbackName?.trim()) return;
-    const game = { id: itemId, name: feedbackName, locationKey: location.key };
+    const game = { id: itemId, name: feedbackName, locationKey: location.key, pathname: location.pathname };
     setFeedbackGame(game);
     return () => setFeedbackGame((current) => current === game ? undefined : current);
-  }, [feedbackName, itemId, location.key, setFeedbackGame]);
+  }, [feedbackName, itemId, location.key, location.pathname, setFeedbackGame]);
 
   useEffect(() => {
     // A new product route ends the visit even while its details are loading.
