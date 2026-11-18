@@ -71,7 +71,7 @@ export function FeedbackDialog({ game }: { game?: FeedbackGame }) {
           type="button"
           className="fixed right-[calc(1rem+env(safe-area-inset-right))] bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full bg-fuchsia-700 px-4 py-2 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-fuchsia-600 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-fuchsia-400"
         >
-          <MessageSquareHeart className="size-4" aria-hidden="true" />
+          <MessageSquareHeart className="size-4 translate-y-px" aria-hidden="true" />
           Ayúdanos a mejorar
         </button>
       </DialogTrigger>
@@ -80,8 +80,8 @@ export function FeedbackDialog({ game }: { game?: FeedbackGame }) {
         className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border-neutral-700 bg-neutral-950 p-4 text-neutral-100 sm:max-w-lg sm:p-6"
       >
         <DialogHeader className="pr-7 text-left">
-          <DialogTitle className="flex items-start gap-2 text-base leading-snug sm:text-lg">
-            <MessageSquareHeart className="mt-0.5 size-4 shrink-0 text-fuchsia-400" aria-hidden="true" />
+          <DialogTitle className="flex items-center gap-2 text-base leading-snug sm:text-lg">
+            <MessageSquareHeart className="size-4 shrink-0 translate-y-px text-fuchsia-400" aria-hidden="true" />
             {selection?.option.title ?? "Ayúdanos a mejorar"}
           </DialogTitle>
           <DialogDescription className="text-neutral-300">
@@ -98,16 +98,16 @@ export function FeedbackDialog({ game }: { game?: FeedbackGame }) {
                 key={option.email}
                 type="button"
                 autoFocus={returnFocusTo.current === option}
-                className="grid cursor-pointer grid-cols-[1rem_minmax(0,1fr)_1rem] items-start gap-x-2.5 rounded-xl border border-neutral-700 bg-neutral-900 p-3 text-left transition-colors hover:border-fuchsia-500 hover:bg-neutral-800/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-400"
+                className="grid cursor-pointer grid-cols-[1rem_minmax(0,1fr)_1rem] items-center gap-x-2.5 rounded-xl border border-neutral-700 bg-neutral-900 p-3 text-left transition-colors hover:border-fuchsia-500 hover:bg-neutral-800/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-400"
                 onClick={() => {
                   returnFocusTo.current = option;
                   setStatus("idle");
                   setSelection({ option, starter: option.starter(game) });
                 }}
               >
-                <option.icon className="mt-0.5 size-4 text-neutral-300" aria-hidden="true" />
+                <option.icon className="size-4 translate-y-px text-neutral-300" aria-hidden="true" />
                 <span className="text-sm leading-snug font-semibold sm:text-base">{option.title}</span>
-                <ChevronRight className="mt-0.5 size-4 text-neutral-400" aria-hidden="true" />
+                <ChevronRight className="size-4 translate-y-px text-neutral-400" aria-hidden="true" />
                 <span className="col-span-3 mt-1.5 text-sm font-normal text-neutral-300">{option.subtitle}</span>
               </button>
             ))}
