@@ -122,7 +122,7 @@ export async function stageDeployment(config, { id, stageId }, deps = {}) {
   });
 }
 
-export async function readResourceGate(path, generated, { timeoutSeconds = 1500, cpuMax = "150000 100000" } = {}) {
+export async function readResourceGate(path, generated, { timeoutSeconds = 1500 } = {}) {
   const text = await readFile(path, "utf8"), metrics = {};
   for (const line of text.trim().split("\n")) {
     const split = line.indexOf("=");
@@ -132,7 +132,7 @@ export async function readResourceGate(path, generated, { timeoutSeconds = 1500,
   const number = key => { if (!/^\d+$/.test(metrics[key] ?? "")) throw new Error(`Missing cgroup metric: ${key}`); return Number(metrics[key]); };
   if (number("version") !== 1 || number("worker_exit") !== 0 || number("worker_pid") !== generated.process.pid ||
       number("remaining_children") !== 0 || number("wall_seconds") >= timeoutSeconds || number("memory_peak") > 402653184 ||
-      number("memory_high") !== 335544320 || number("memory_max") !== 402653184 || metrics.cpu_max !== cpuMax ||
+      number("memory_high") !== 335544320 || number("memory_max") !== 402653184 || metrics.cpu_max !== "150000 100000" ||
       number("memory_event_oom") !== 0 || number("memory_event_oom_kill") !== 0 || number("memory_event_max") !== 0 ||
       !generated.process.execArgv.includes("--max-old-space-size=256") || !(generated.process.heapLimitBytes > 0 && generated.process.heapLimitBytes <= 320 * 1024 * 1024) || generated.process.nice !== 10 ||
       !Number.isInteger(generated.process.holderPid) || generated.process.cgroup !== metrics.cgroup || generated.process.holderCgroup !== metrics.cgroup ||
