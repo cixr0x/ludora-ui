@@ -83,7 +83,9 @@ export async function launcher(args, config = productionConfig()) {
     const result = JSON.parse(await readFile(join(directory, "result.json"), "utf8"));
     const selected = await captureBaseIdentity(config.livePath);
     if (result.status !== "complete" || result.publicationCompleted !== true || selected.uiSha !== second || result.uiSha !== second || selected.generationId !== result.generationId) throw new Error("The exact daily service must successfully refresh the selected UI before timer enablement");
-    const metrics = await readResourceGate(join(directory, "cgroup.metrics"), result, { timeoutSeconds: DAILY_REFRESH_TIMEOUT_SECONDS });
+    const metrics = await readResourceGate(join(directory, "cgroup.metrics"), result, {
+      timeoutSeconds: DAILY_REFRESH_TIMEOUT_SECONDS, cpuMax: "50000 100000",
+    });
     if (metrics.unit !== "ludoradar-seo-refresh.service") throw new Error("Missing successful exact-service measurement");
     await verifyServiceExit("ludoradar-seo-refresh.service");
     requireLease(lease, config.lockPath);

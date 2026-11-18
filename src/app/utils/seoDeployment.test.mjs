@@ -90,7 +90,9 @@ async function preparedFixture(t) {
 async function stageFixture(value, nextId = stageId, deploymentId = id) {
   const result = await deployment.stageDeployment(value.config, { id: deploymentId, stageId: nextId }, value.deps);
   assert.equal(result.status, "generated");
-  await writeFile(join(result.attemptDirectory, "cgroup.metrics"), "version=1\ncgroup=/system.slice/ludoradar-seo-stage@fixture.service\nworker_pid=123\nworker_exit=0\nremaining_children=0\nwall_seconds=20\nmemory_peak=100000000\nmemory_high=335544320\nmemory_max=402653184\ncpu_max=50000 100000\nmemory_event_oom=0\nmemory_event_oom_kill=0\nmemory_event_max=0\ncpu_usage_usec=1000000\n");
+  await writeFile(join(result.attemptDirectory, "cgroup.metrics"), measuredMetrics("/system.slice/ludoradar-seo-stage@fixture.service", {
+    wall_seconds: 20, memory_peak: 100000000, cpu_max: "150000 100000",
+  }));
   return result;
 }
 
@@ -134,23 +136,35 @@ const measuredMetrics = (cgroup, overrides = {}) => Object.entries({ version: 1,
   cpu_max: "50000 100000", memory_event_oom: 0, memory_event_oom_kill: 0, memory_event_max: 0,
   cpu_usage_usec: 1000000, ...overrides }).map(([key, value]) => `${key}=${value}`).join("\n");
 
-for (const { unit, limit, options } of [
-  { unit: "ludoradar-seo-stage@fixture.service", limit: 1500 },
-  { unit: "ludoradar-seo-refresh.service", limit: 2700, options: { timeoutSeconds: 2700 } },
+test("stage and daily service units configure distinct CPU quotas", async () => {
+  const stage = await readFile(new URL("../../../ops/seo/ludoradar-seo-stage@.service", import.meta.url), "utf8");
+  const daily = await readFile(new URL("../../../ops/seo/ludoradar-seo-refresh.service", import.meta.url), "utf8");
+  assert.match(stage, /^CPUQuota=150%$/m);
+  assert.match(daily, /^CPUQuota=50%$/m);
+});
+
+for (const { unit, limit, options, cpuMax, otherCpuMax } of [
+  { unit: "ludoradar-seo-stage@fixture.service", limit: 1500, cpuMax: "150000 100000", otherCpuMax: "50000 100000" },
+  { unit: "ludoradar-seo-refresh.service", limit: 2700, cpuMax: "50000 100000", otherCpuMax: "150000 100000",
+    options: { timeoutSeconds: 2700, cpuMax: "50000 100000" } },
 ]) {
-  test(`${unit} resource gate accepts runs below ${limit} seconds and rejects the boundary`, async t => {
+  test(`${unit} resource gate enforces its CPU quota and ${limit}-second boundary`, async t => {
     const root = await mkdtemp(join(tmpdir(), "ludoradar-resource-gate-"));
     t.after(() => rm(root, { recursive: true, force: true }));
     const path = join(root, "cgroup.metrics"), cgroup = `/system.slice/${unit}`;
     const generated = { process: measuredProcess(cgroup) };
     for (const seconds of [601, limit - 1]) {
-      await writeFile(path, measuredMetrics(cgroup, { wall_seconds: seconds }));
-      assert.equal((await deployment.readResourceGate(path, generated, options)).wall_seconds, String(seconds));
+      await writeFile(path, measuredMetrics(cgroup, { wall_seconds: seconds, cpu_max: cpuMax }));
+      const metrics = await deployment.readResourceGate(path, generated, options);
+      assert.equal(metrics.wall_seconds, String(seconds));
+      assert.equal(metrics.cpu_max, cpuMax);
     }
     for (const seconds of [limit, limit + 1]) {
-      await writeFile(path, measuredMetrics(cgroup, { wall_seconds: seconds }));
+      await writeFile(path, measuredMetrics(cgroup, { wall_seconds: seconds, cpu_max: cpuMax }));
       await assert.rejects(deployment.readResourceGate(path, generated, options), /resource gate/);
     }
+    await writeFile(path, measuredMetrics(cgroup, { cpu_max: otherCpuMax }));
+    await assert.rejects(deployment.readResourceGate(path, generated, options), /resource gate/);
   });
 }
 
@@ -159,7 +173,7 @@ test("the extended resource deadline retains CPU, memory, exit and identity enfo
   t.after(() => rm(root, { recursive: true, force: true }));
   const path = join(root, "cgroup.metrics"), cgroup = "/system.slice/ludoradar-seo-refresh.service";
   const processInfo = measuredProcess(cgroup);
-  const options = { timeoutSeconds: 2700 };
+  const options = { timeoutSeconds: 2700, cpuMax: "50000 100000" };
   for (const metrics of [{ memory_peak: 402653185 }, { memory_high: 335544321 }, { memory_max: 402653185 },
     { cpu_max: "100000 100000" }, { memory_event_oom: 1 }, { memory_event_oom_kill: 1 }, { memory_event_max: 1 },
     { worker_exit: 1 }, { remaining_children: 1 }, { worker_pid: 125 }, { cgroup: "/system.slice/unrelated.service" },

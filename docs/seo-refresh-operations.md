@@ -53,12 +53,14 @@ For a launcher or unit change that works with the selected retained worker, run 
 
 ## Resource evidence and service verification
 
-Both services set Nice 10, CPUQuota 50%, MemoryHigh 320M, MemoryMax 384M, TimeoutStopSec 10 and KillMode control-group. Node receives `--max-old-space-size=256`. Do not increase the approved limits automatically to pass a failed run.
+Both services set Nice 10, MemoryHigh 320M, MemoryMax 384M, TimeoutStopSec 10 and KillMode control-group. Node receives `--max-old-space-size=256`. Do not increase the approved limits automatically to pass a failed run.
 
-| Run | Systemd `TimeoutStartSec` | Worker deadline |
-| --- | ---: | ---: |
-| Cold stage | 1500 seconds | 1440 seconds |
-| Daily refresh | 2700 seconds | 2640 seconds |
+| Run | Systemd `CPUQuota` | Required `cpu.max` | Systemd `TimeoutStartSec` | Worker deadline |
+| --- | ---: | --- | ---: | ---: |
+| Cold stage | 150% | `150000 100000` | 1500 seconds | 1440 seconds |
+| Daily refresh | 50% | `50000 100000` | 2700 seconds | 2640 seconds |
+
+The cold-stage quota allows 1.5 vCPUs, which is 75% of the production VM’s two-vCPU capacity.
 
 The cold-stage deadline covers preparation checks, generation, and source verification. The stable launcher passes `deadlineMs: 2640000` to the selected retained worker for daily refreshes. Both production deadlines leave 60 seconds before the service timeout for launcher overhead, cleanup, and measurement. The local `npm run seo:refresh` uses the 890-second worker default.
 
