@@ -14,8 +14,7 @@ test("Root renders the shared site footer below routed pages", () => {
   const rootSource = source("../Root.tsx");
 
   assert.match(rootSource, /import \{ SiteFooter \}/);
-  assert.match(rootSource, /<Outlet \/>/);
-  assert.match(rootSource, /<SiteFooter \/>/);
+  assert.match(rootSource, /<Outlet\b[^>]*\/>\s*<SiteFooter \/>/);
 });
 
 test("SiteFooter renders contact, legal links, and BGG attribution in Spanish", () => {

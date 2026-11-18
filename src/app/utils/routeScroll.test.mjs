@@ -15,7 +15,7 @@ test("Root installs a scroll reset for client-side route changes", () => {
 
   assert.match(rootSource, /import \{ ScrollToTop \}/);
   assert.match(rootSource, /<ScrollToTop \/>/);
-  assert.match(rootSource, /<Outlet \/>/);
+  assert.match(rootSource, /<Outlet\b[^>]*\/>/);
 });
 
 test("ScrollToTop resets window scroll when the route pathname changes", () => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent } from "react";
-import { useLocation, useParams, useNavigate } from "react-router";
+import { useLocation, useParams, useNavigate, useOutletContext } from "react-router";
 import { ArrowLeft, Users, Clock, ChevronLeft, ChevronRight, Youtube, ShoppingCart, ExternalLink, X } from "lucide-react";
 import { ExpansionBadge } from "../components/ExpansionBadge";
 import { trackGoogleAnalyticsEvent } from "../components/GoogleAnalytics";
@@ -22,6 +22,7 @@ import { productPath } from "../utils/productRoutes.js";
 import { visibleStoreOffers } from "../utils/offerSeo.js";
 import { formatStorePrice } from "../utils/priceFormat.js";
 import { categoryPath } from "../utils/catalogSeo.js";
+import type { FeedbackOutletContext } from "../Root";
 
 const BGG_PRIMARY_LOGO_URL = "/bgg-primary-logo-reverse.svg";
 
@@ -306,6 +307,7 @@ export function GameDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const setFeedbackGame = useOutletContext<FeedbackOutletContext>();
   const itemId = Number(id);
   const prerenderedDetail = usePrerenderedProduct(itemId);
   const snapshotPath = prerenderedDetail ? productPath(prerenderedDetail.id, prerenderedDetail.name) : undefined;
@@ -324,6 +326,15 @@ export function GameDetail() {
   const [isImageOverlayOpen, setIsImageOverlayOpen] = useState(false);
   const storesSectionRef = useRef<HTMLDivElement>(null);
   const lastViewedItemId = useRef<number>();
+  const feedbackName = publishedCanonical && !missingPublishedRoute && detail?.id === itemId
+    ? detail.name : undefined;
+
+  useEffect(() => {
+    if (!feedbackName?.trim()) return;
+    const game = { id: itemId, name: feedbackName, locationKey: location.key };
+    setFeedbackGame(game);
+    return () => setFeedbackGame((current) => current === game ? undefined : current);
+  }, [feedbackName, itemId, location.key, setFeedbackGame]);
 
   useEffect(() => {
     // A new product route ends the visit even while its details are loading.
