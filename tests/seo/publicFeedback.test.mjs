@@ -34,7 +34,7 @@ test("site-wide feedback sends the selected category and keeps a failed correcti
       const dialog = page.getByRole("dialog");
       const message = dialog.getByRole("textbox", { name: "Mensaje" });
       const submit = dialog.getByRole("button", { name: "Enviar", exact: true });
-      const success = dialog.getByText("Mensaje enviado.", { exact: true });
+      const success = dialog.getByRole("heading", { name: "Mensaje enviado", exact: true });
 
       async function selectOption(title, subtitle, starter) {
         await expect(dialog).toHaveAccessibleName("Ayúdanos a mejorar");
@@ -47,6 +47,19 @@ test("site-wide feedback sends the selected category and keeps a failed correcti
         await expect(message).toHaveJSProperty("value", starter);
         await expect(message).toHaveJSProperty("selectionStart", starter.length);
         await expect(message).toHaveJSProperty("selectionEnd", starter.length);
+      }
+
+      async function expectFeedbackConfirmation(title, subtitle) {
+        await expect(success).toBeVisible();
+        await expect(dialog).toHaveAccessibleName("Mensaje enviado");
+        await expect(dialog).toHaveAccessibleDescription("¡Gracias por ayudarnos a mejorar Ludo Radar!");
+        await expect(dialog).toBeFocused();
+        await expect(dialog.getByText(title, { exact: true })).toHaveCount(0);
+        await expect(dialog.getByText(subtitle, { exact: true })).toHaveCount(0);
+        await expect(dialog.getByRole("status")).toHaveCount(0);
+        await expect(message).toHaveCount(0);
+        await expect(dialog.getByRole("button")).toHaveCount(1);
+        await expect(dialog.getByRole("button", { name: "Cerrar", exact: true })).toBeEnabled();
       }
 
       await expect(trigger).toBeVisible();
@@ -82,11 +95,14 @@ test("site-wide feedback sends the selected category and keeps a failed correcti
       await expect(message).toBeEditable();
       await expect(back).toBeEnabled();
       await expect(close).toBeEnabled();
+      await page.clock.install();
       await submit.click();
-      await expect(success).toBeVisible();
+      await expectFeedbackConfirmation(correctionTitle, correctionSubtitle);
       assert.deepEqual(submissions, [correction, correction]);
 
-      await page.keyboard.press("Escape");
+      await page.clock.fastForward(4_000);
+      await expect(success).toBeVisible();
+      await page.clock.fastForward(1_000);
       await expect(dialog).toHaveCount(0);
       await expect(trigger).toBeFocused();
       // Navigate inside the mounted app to catch product context leaking to other pages.
@@ -100,15 +116,21 @@ test("site-wide feedback sends the selected category and keeps a failed correcti
       await selectOption("Sugerir una funcionalidad", "Comparte tus ideas para mejorar la plataforma.", "Me gustaría que Ludo Radar ");
       await message.fill("Me gustaría comparar varios juegos.");
       await submit.click();
-      await expect(success).toBeVisible();
-      await dialog.getByRole("button", { name: "Cerrar", exact: true }).click();
+      await expectFeedbackConfirmation("Sugerir una funcionalidad", "Comparte tus ideas para mejorar la plataforma.");
+      await close.click();
+      await expect(dialog).toHaveCount(0);
+      await expect(trigger).toBeFocused();
 
       await trigger.click();
+      await page.clock.fastForward(5_000);
+      await expect(dialog).toHaveAccessibleName("Ayúdanos a mejorar");
       await selectOption("Enviar un comentario", "Cuéntanos tu experiencia con Ludo Radar.", "Quiero compartir que ");
       await message.fill("Encontré el juego que buscaba.");
       await submit.click();
-      await expect(success).toBeVisible();
-      await dialog.getByRole("button", { name: "Cerrar", exact: true }).click();
+      await expectFeedbackConfirmation("Enviar un comentario", "Cuéntanos tu experiencia con Ludo Radar.");
+      await page.keyboard.press("Escape");
+      await expect(dialog).toHaveCount(0);
+      await expect(trigger).toBeFocused();
 
       await page.getByRole("button", { name: "Contacto", exact: true }).click();
       await expect(dialog).toHaveAccessibleName("Contacto");
@@ -116,7 +138,9 @@ test("site-wide feedback sends the selected category and keeps a failed correcti
       await dialog.getByRole("textbox", { name: "Correo electrónico" }).fill("prueba@example.com");
       await message.fill("Mensaje del formulario de contacto.");
       await submit.click();
-      await expect(success).toBeVisible();
+      await expect(dialog.getByText("Mensaje enviado.", { exact: true })).toBeVisible();
+      await page.clock.fastForward(5_000);
+      await expect(dialog).toHaveAccessibleName("Contacto");
       assert.deepEqual(submissions.slice(2), [
         { name: "Ludo Radar", email: "sugerencia@ludoradar.mx", message: "Me gustaría comparar varios juegos." },
         { name: "Ludo Radar", email: "comentario@ludoradar.mx", message: "Encontré el juego que buscaba." },

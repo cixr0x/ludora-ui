@@ -5,7 +5,6 @@ import { submitContactForm } from "../api/catalog";
 import { Button } from "./ui/button";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -18,6 +17,7 @@ import { Label } from "./ui/label";
 export type FeedbackGame = { id: number; name: string };
 
 const FEEDBACK_REQUEST_TIMEOUT_MS = 15_000;
+const FEEDBACK_CONFIRMATION_DURATION_MS = 5_000;
 
 const feedbackOptions = [
   {
@@ -53,8 +53,17 @@ export function FeedbackDialog({ game }: { game?: FeedbackGame }) {
   const [isOpen, setIsOpen] = useState(false);
   const [selection, setSelection] = useState<FeedbackSelection | null>(null);
   const [status, setStatus] = useState<FeedbackStatus>("idle");
+  const contentRef = useRef<HTMLDivElement>(null);
   const returnFocusTo = useRef<FeedbackOption>();
   const isSubmitting = status === "submitting";
+  const showConfirmation = status === "success";
+
+  useEffect(() => {
+    if (!isOpen || !showConfirmation) return;
+    contentRef.current?.focus();
+    const timeout = setTimeout(() => setIsOpen(false), FEEDBACK_CONFIRMATION_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [isOpen, showConfirmation]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
@@ -76,16 +85,18 @@ export function FeedbackDialog({ game }: { game?: FeedbackGame }) {
         </button>
       </DialogTrigger>
       <DialogContent
+        ref={contentRef}
         closeDisabled={isSubmitting}
         className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border-neutral-700 bg-neutral-950 p-4 text-neutral-100 sm:max-w-lg sm:p-6"
       >
         <DialogHeader className="pr-7 text-left">
           <DialogTitle className="flex items-center gap-2 text-base leading-snug sm:text-lg">
-            <MessageSquareHeart className="size-4 shrink-0 translate-y-px text-fuchsia-400" aria-hidden="true" />
-            {selection?.option.title ?? "Ayúdanos a mejorar"}
+            {!showConfirmation && <MessageSquareHeart className="size-4 shrink-0 translate-y-px text-fuchsia-400" aria-hidden="true" />}
+            {showConfirmation ? "Mensaje enviado" : selection?.option.title ?? "Ayúdanos a mejorar"}
           </DialogTitle>
           <DialogDescription className="text-neutral-300">
-            {selection?.option.subtitle ?? "¿Encontraste información incorrecta o tienes una idea para mejorar Ludo Radar? ¡Queremos escucharte!"}
+            {showConfirmation ? "¡Gracias por ayudarnos a mejorar Ludo Radar!"
+              : selection?.option.subtitle ?? "¿Encontraste información incorrecta o tienes una idea para mejorar Ludo Radar? ¡Queremos escucharte!"}
           </DialogDescription>
         </DialogHeader>
 
@@ -162,18 +173,7 @@ function FeedbackForm({ selection, status, onStatusChange, onBack }: {
     }
   }
 
-  if (status === "success") {
-    return (
-      <>
-        <p role="status" className="text-sm text-emerald-300">Mensaje enviado.</p>
-        <DialogFooter>
-          <DialogClose autoFocus className="min-h-9 cursor-pointer rounded-md bg-fuchsia-700 px-4 py-2 text-sm text-white hover:bg-fuchsia-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-400">
-            Listo
-          </DialogClose>
-        </DialogFooter>
-      </>
-    );
-  }
+  if (status === "success") return null;
 
   return (
     <form className="grid gap-3" onSubmit={handleSubmit}>
