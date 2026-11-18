@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
 import { useLocation, useParams, useNavigate, useOutletContext } from "react-router";
-import { ArrowLeft, Users, Clock, ChevronLeft, ChevronRight, Youtube, ShoppingCart, ExternalLink, X } from "lucide-react";
+import { ArrowLeft, Users, Clock, ChevronLeft, ChevronRight, Youtube, ShoppingCart, ExternalLink, TriangleAlert, X } from "lucide-react";
 import { ExpansionBadge } from "../components/ExpansionBadge";
 import { trackGoogleAnalyticsEvent } from "../components/GoogleAnalytics";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
@@ -25,6 +25,8 @@ import { categoryPath } from "../utils/catalogSeo.js";
 import type { FeedbackOutletContext } from "../Root";
 
 const BGG_PRIMARY_LOGO_URL = "/bgg-primary-logo-reverse.svg";
+const OFFER_REFRESH_WINDOW_MS = 48 * 60 * 60 * 1000;
+const STALE_OFFER_WARNING = "Este dato tiene más de 48 horas sin actualizarse";
 
 function ComplexityBar({ value }: { value: number }) {
   if (value <= 0) {
@@ -170,8 +172,11 @@ function TikTokEmbed({ tiktokId, tiktokUser, gameName }: { tiktokId: string; tik
   );
 }
 
-function StoreCard({ store, itemId }: { store: StoreEntry; itemId: number }) {
+function StoreCard({ store, itemId, freshnessCheckedAt }: { store: StoreEntry; itemId: number; freshnessCheckedAt: number | undefined }) {
+  const staleWarningId = useId();
   const availabilityStatus = store.availabilityStatus ?? "unknown";
+  const isStale = availabilityStatus !== "unavailable" && freshnessCheckedAt !== undefined &&
+    typeof store.refreshedDate === "string" && freshnessCheckedAt - Date.parse(store.refreshedDate) > OFFER_REFRESH_WINDOW_MS;
   const availabilityLabel = availabilityStatus === "available" ? "Disponible" : storeAvailabilityLabel(availabilityStatus);
   const price = Number.isFinite(store.priceValue) && store.priceValue > 0 && store.currency
     ? `${formatStorePrice(store.priceValue, store.currency)} ${store.currency}` : "Consultar";
@@ -210,6 +215,14 @@ function StoreCard({ store, itemId }: { store: StoreEntry; itemId: number }) {
         )}
         <div className="flex items-center gap-2">
           {availabilityStatus !== "unavailable" && <p className="text-fuchsia-400 text-sm">{price}</p>}
+          {isStale && (
+            <>
+              <span className="inline-flex cursor-help text-amber-300" title={STALE_OFFER_WARNING} aria-hidden="true">
+                <TriangleAlert className="size-3.5" />
+              </span>
+              <span id={staleWarningId} className="sr-only">{STALE_OFFER_WARNING}</span>
+            </>
+          )}
           {store.url && <ExternalLink className="w-3.5 h-3.5 text-neutral-500 group-hover:text-fuchsia-300 transition-colors" />}
         </div>
       </div>
@@ -237,6 +250,7 @@ function StoreCard({ store, itemId }: { store: StoreEntry; itemId: number }) {
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Ver oferta de ${store.gameTitle} en ${store.name}`}
+      aria-describedby={isStale ? staleWarningId : undefined}
       onClick={(event) => {
         reportStoreItemClick(store.id);
         trackOfferClick(event);
@@ -318,6 +332,7 @@ export function GameDetail() {
     ? publishedRoute.canonicalPath : undefined;
   const missingPublishedRoute = publishedRoute.requestedPath === location.pathname && publishedRoute.missing;
   const [detail, setDetail] = useState<GameDetailData | undefined>(() => prerenderedDetail);
+  const [offerFreshnessCheckedAt, setOfferFreshnessCheckedAt] = useState<number>();
   const [expansionGames, setExpansionGames] = useState<Game[]>(() => prerenderedDetail?.expansionGames ?? []);
   const [relatedGames, setRelatedGames] = useState<Game[]>(() => prerenderedDetail?.relatedGames ?? []);
   const [isLoading, setIsLoading] = useState(
@@ -349,6 +364,7 @@ export function GameDetail() {
   }, [itemId, detail, publishedCanonical, missingPublishedRoute]);
 
   useEffect(() => {
+    setOfferFreshnessCheckedAt(undefined);
     if (!Number.isInteger(itemId) || itemId <= 0) {
       setDetail(undefined);
       setExpansionGames([]);
@@ -368,6 +384,8 @@ export function GameDetail() {
     loadGameDetail(itemId).then((nextDetail) => {
       if (!isActive) return;
       if (nextDetail) setDetail(nextDetail);
+      // Prerendered offer timestamps can lag behind the live API.
+      setOfferFreshnessCheckedAt(Date.now());
       setIsLoading(false);
     }).finally(() => {
       if (isActive) setIsLoading(false);
@@ -806,7 +824,7 @@ export function GameDetail() {
           </p>
           <div className="flex flex-col gap-2 max-w-2xl">
             {singleStoreOffers.map((store) => (
-              <StoreCard key={store.id} store={store} itemId={itemId} />
+              <StoreCard key={store.id} store={store} itemId={itemId} freshnessCheckedAt={offerFreshnessCheckedAt} />
             ))}
             {bundleStoreOffers.length > 0 && (
               <>
@@ -816,7 +834,7 @@ export function GameDetail() {
                   <div className="h-px flex-1 bg-neutral-800" />
                 </div>
                 {bundleStoreOffers.map((store) => (
-                  <StoreCard key={store.id} store={store} itemId={itemId} />
+                  <StoreCard key={store.id} store={store} itemId={itemId} freshnessCheckedAt={offerFreshnessCheckedAt} />
                 ))}
               </>
             )}

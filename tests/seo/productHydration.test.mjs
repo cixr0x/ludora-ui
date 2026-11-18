@@ -4,11 +4,25 @@ import { chromium } from "@playwright/test";
 import { startFixtureServer } from "./fixture-server.mjs";
 import { item, offer } from "./fixtures.mjs";
 
+const staleOfferWarning = "Este dato tiene más de 48 horas sin actualizarse";
+
 test("real browser hydration retains SSR offers and relationships then refreshes price and JSON-LD together", { timeout: 60000 }, async () => {
   const server = await startFixtureServer();
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   try {
     const page = await browser.newPage();
+    await page.clock.setFixedTime(new Date("2026-09-10T06:00:00.000Z"));
+    const justStale = "2026-09-08T05:59:59.999Z";
+    const boundary = "2026-09-08T06:00:00.000Z";
+    const extraOffers = [
+      { store_name: "Tienda Actualizada", availability: "available", refreshed_date: "2026-09-08T06:00:00.001Z" },
+      { store_name: "Tienda Límite", availability: "available", refreshed_date: boundary },
+      { store_name: "Tienda Agotada", availability: "out_of_stock", refreshed_date: justStale },
+      { store_name: "Tienda de Paquetes", availability: "unknown", refreshed_date: justStale, is_bundle: true },
+      { store_name: "Tienda No Disponible", availability: "unavailable", refreshed_date: justStale },
+      { store_name: "Tienda Sin Fecha", availability: "available", refreshed_date: null },
+      { store_name: "Tienda Fecha Inválida", availability: "available", refreshed_date: "invalid" },
+    ].map((extra, index) => ({ ...offer, id: 20 + index, price: 450, ...extra }));
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
     page.on("console", message => { if (/hydration|did not match|server HTML/i.test(message.text())) errors.push(message.text()); });
@@ -20,7 +34,8 @@ test("real browser hydration retains SSR offers and relationships then refreshes
     await page.route(url => url.pathname.startsWith("/api/"), async route => {
       const url = new URL(route.request().url());
       apiStarted(); await apiGate;
-      const data = url.pathname === "/api/items/851" ? { ...item, offers: [{ ...offer, price: 425 }] }
+      const data = url.pathname === "/api/items/851"
+        ? { ...item, offers: [{ ...offer, price: 425, refreshed_date: justStale }, ...extraOffers] }
         : url.pathname.endsWith("/related") ? [{ id: 854, canonical_name: "Nuevo relacionado" }]
         : url.pathname.endsWith("/expansions") ? [{ id: 855, canonical_name: "Nueva expansión" }] : [];
       await route.fulfill({ json: { data } });
@@ -40,6 +55,7 @@ test("real browser hydration retains SSR offers and relationships then refreshes
     await page.evaluate(() => { window.originalRoot = document.getElementById("root").firstChild; });
     releaseClient(); await requestStarted;
     assert.deepEqual(await snapshot(), before, "hydration must preserve the exact initial offer/relationship model");
+    assert.equal(await page.getByTitle(staleOfferWarning, { exact: true }).count(), 0, "the prerendered offer is not treated as live during hydration");
     assert.equal(await page.evaluate(() => window.originalRoot === document.getElementById("root").firstChild), true);
     releaseApi();
     await page.waitForFunction(() => document.querySelector("#store-offers").textContent.includes("$425.00") &&
@@ -47,6 +63,21 @@ test("real browser hydration retains SSR offers and relationships then refreshes
       .catch(async error => { throw new Error(`${error.message}\n${JSON.stringify({ snapshot: await snapshot(), errors })}`); });
     const after = await snapshot();
     assert.doesNotMatch(after.text, /\$350\.00/);
+    const offers = page.locator("#store-offers");
+    for (const name of ["Tienda Mesa", "Tienda Agotada", "Tienda de Paquetes"]) {
+      const link = offers.getByRole("link", { name: `Ver oferta de ${offer.game_title} en ${name}`, exact: true });
+      const icon = link.getByTitle(staleOfferWarning, { exact: true });
+      await icon.waitFor({ timeout: 2000 });
+      await icon.hover();
+      const descriptionId = await link.getAttribute("aria-describedby");
+      assert.ok(descriptionId);
+      assert.equal(await page.evaluate(id => document.getElementById(id)?.textContent, descriptionId), staleOfferWarning);
+    }
+    for (const name of ["Tienda Actualizada", "Tienda Límite", "Tienda No Disponible", "Tienda Sin Fecha", "Tienda Fecha Inválida"]) {
+      const link = offers.getByRole("link", { name: `Ver oferta de ${offer.game_title} en ${name}`, exact: true });
+      await link.waitFor();
+      assert.equal(await link.getByTitle(staleOfferWarning, { exact: true }).count(), 0, name);
+    }
     await page.locator('a[href="/game/854/nuevo-relacionado"]').waitFor();
     await page.locator('a[href="/game/855/nueva-expansion"]').waitFor();
     assert.deepEqual(errors, []);
