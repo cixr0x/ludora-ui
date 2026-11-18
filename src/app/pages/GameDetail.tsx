@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
 import { useLocation, useParams, useNavigate, useOutletContext } from "react-router";
-import { ArrowLeft, Users, Clock, ChevronLeft, ChevronRight, Youtube, ShoppingCart, ExternalLink, TriangleAlert, X } from "lucide-react";
+import { ArrowLeft, Users, Clock, ChevronLeft, ChevronRight, Youtube, ShoppingCart, ExternalLink, CircleAlert, X } from "lucide-react";
 import { ExpansionBadge } from "../components/ExpansionBadge";
 import { trackGoogleAnalyticsEvent } from "../components/GoogleAnalytics";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
@@ -218,7 +218,7 @@ function StoreCard({ store, itemId, freshnessCheckedAt }: { store: StoreEntry; i
           {isStale && (
             <>
               <span className="inline-flex cursor-help text-amber-300" title={STALE_OFFER_WARNING} aria-hidden="true">
-                <TriangleAlert className="size-3.5" />
+                <CircleAlert className="size-3.5" />
               </span>
               <span id={staleWarningId} className="sr-only">{STALE_OFFER_WARNING}</span>
             </>
