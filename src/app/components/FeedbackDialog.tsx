@@ -17,6 +17,8 @@ import { Label } from "./ui/label";
 
 export type FeedbackGame = { id: number; name: string };
 
+const FEEDBACK_REQUEST_TIMEOUT_MS = 15_000;
+
 const feedbackOptions = [
   {
     email: "correccion@ludoradar.mx",
@@ -147,12 +149,16 @@ function FeedbackForm({ selection, status, onStatusChange, onBack }: {
     // Guard a second submit event before React renders the pending state.
     submissionStarted.current = true;
     onStatusChange("submitting");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FEEDBACK_REQUEST_TIMEOUT_MS);
     try {
-      await submitContactForm({ name: "Ludo Radar", email: selection.option.email, message });
+      await submitContactForm({ name: "Ludo Radar", email: selection.option.email, message }, controller.signal);
       onStatusChange("success");
     } catch {
       submissionStarted.current = false;
       onStatusChange("failed");
+    } finally {
+      clearTimeout(timeout);
     }
   }
 

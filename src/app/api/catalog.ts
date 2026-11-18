@@ -220,13 +220,14 @@ export async function fetchCatalogFilterOptions(): Promise<ApiCatalogFilterOptio
   return fetchData<ApiCatalogFilterOptions>("/api/items/filter-options");
 }
 
-export async function submitContactForm(submission: ContactFormSubmission): Promise<void> {
+export async function submitContactForm(submission: ContactFormSubmission, signal?: AbortSignal): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/contact`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(submission),
+    signal,
   });
 
   if (!response.ok) {

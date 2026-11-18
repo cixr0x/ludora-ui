@@ -137,6 +137,62 @@ test("feedback closes on browser Back and leaves the footer attribution clear", 
       await page.route(url => url.pathname === "/api/contact", route => route.abort());
       const trigger = page.getByRole("button", { name: "Ayúdanos a mejorar" });
 
+      await t.test("same-page history replacement preserves the open draft", async () => {
+        await page.goto(`${origin}/search`);
+        await trigger.click();
+        const dialog = page.getByRole("dialog");
+        await dialog.getByRole("button", { name: /Enviar un comentario/ }).click();
+        const message = dialog.getByRole("textbox", { name: "Mensaje" });
+        await message.fill("Mi comentario sigue aquí.");
+        await page.evaluate(() => {
+          history.replaceState({ ...history.state, key: "new-search-key" }, "", "/search?q=dixit");
+          window.dispatchEvent(new PopStateEvent("popstate"));
+        });
+        await expect(page).toHaveURL(`${origin}/search?q=dixit`);
+        await expect(dialog).toHaveAccessibleName("Enviar un comentario");
+        await expect(message).toHaveValue("Mi comentario sigue aquí.");
+      });
+
+      await t.test("a stalled feedback send times out and restores the draft and controls", async () => {
+        await page.goto(`${origin}/privacidad`);
+        await trigger.click();
+        const dialog = page.getByRole("dialog");
+        await dialog.getByRole("button", { name: /Enviar un comentario/ }).click();
+        const message = dialog.getByRole("textbox", { name: "Mensaje" });
+        const submit = dialog.getByRole("button", { name: "Enviar", exact: true });
+        await message.fill("Comentario que quiero conservar.");
+        let releaseResponse;
+        const responseGate = new Promise(resolve => { releaseResponse = resolve; });
+        const isContact = url => url.pathname === "/api/contact";
+        await page.route(isContact, async route => {
+          await responseGate;
+          await route.fulfill({ status: 201, json: { data: { id: 1 } } });
+        }, { times: 1 });
+        const failedRequests = [];
+        const recordFailure = request => {
+          if (isContact(new URL(request.url()))) failedRequests.push(request.failure()?.errorText);
+        };
+        page.on("requestfailed", recordFailure);
+        try {
+          await page.clock.install();
+          await submit.click();
+          const pending = dialog.getByRole("button", { name: "Enviando…" });
+          await page.clock.fastForward(14_000);
+          await expect(pending).toBeDisabled();
+          await page.clock.fastForward(1_000);
+          await expect(dialog.getByRole("alert")).toHaveText("No pudimos enviar el mensaje. Intenta de nuevo.");
+          await expect.poll(() => failedRequests).toContain("net::ERR_ABORTED");
+          await expect(message).toBeEditable();
+          await expect(message).toHaveValue("Comentario que quiero conservar.");
+          await expect(submit).toBeEnabled();
+          await expect(dialog.getByRole("button", { name: "Volver", exact: true })).toBeEnabled();
+          await expect(dialog.getByRole("button", { name: "Cerrar", exact: true })).toBeEnabled();
+        } finally {
+          page.off("requestfailed", recordFailure);
+          releaseResponse();
+        }
+      });
+
       await t.test("browser Back closes a game correction before showing the previous page", async () => {
         await page.goto(`${origin}/privacidad`);
         await expect(page.getByRole("heading", { name: "Aviso de Privacidad", exact: true })).toBeVisible();
