@@ -25,22 +25,22 @@ const feedbackOptions = [
     title: "Reportar información incorrecta",
     subtitle: "Datos de juegos, precios, tiendas o enlaces.",
     starter: (game?: FeedbackGame) => game
-      ? `Encontré el siguiente error sobre el juego «${game.name}» (ID ${game.id}): `
-      : "La información que encontré incorrecta es…",
+      ? `Encontré el siguiente error sobre el juego «${game.name}» (ID ${game.id}):\n`
+      : "La información que encontré incorrecta es:\n",
     icon: Flag,
   },
   {
     email: "sugerencia@ludoradar.mx",
     title: "Sugerir una funcionalidad",
     subtitle: "Comparte tus ideas para mejorar la plataforma.",
-    starter: () => "Me gustaría que Ludo Radar pudiera…",
+    starter: () => "Me gustaría que Ludo Radar ",
     icon: Lightbulb,
   },
   {
     email: "comentario@ludoradar.mx",
     title: "Enviar un comentario",
     subtitle: "Cuéntanos tu experiencia con Ludo Radar.",
-    starter: () => "Quiero compartir que…",
+    starter: () => "Quiero compartir que ",
     icon: MessageCircle,
   },
 ];

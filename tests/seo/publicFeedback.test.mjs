@@ -6,7 +6,8 @@ import { startFixtureServer } from "./fixture-server.mjs";
 const origin = "http://127.0.0.1:5175";
 const correctionTitle = "Reportar información incorrecta";
 const correctionSubtitle = "Datos de juegos, precios, tiendas o enlaces.";
-const gameStarter = "Encontré el siguiente error sobre el juego «Dixit» (ID 851): ";
+const gameStarter = "Encontré el siguiente error sobre el juego «Dixit» (ID 851):\n";
+const genericStarter = "La información que encontré incorrecta es:\n";
 
 test("site-wide feedback sends the selected category and keeps a failed correction editable", { timeout: 60000 }, async () => {
   const server = await startFixtureServer();
@@ -44,13 +45,14 @@ test("site-wide feedback sends the selected category and keeps a failed correcti
         await expect(dialog).toHaveAccessibleDescription(subtitle);
         await expect(message).toBeFocused();
         await expect(message).toHaveJSProperty("value", starter);
+        await expect(message).toHaveJSProperty("selectionStart", starter.length);
+        await expect(message).toHaveJSProperty("selectionEnd", starter.length);
       }
 
       await expect(trigger).toBeVisible();
       await expect(page.getByRole("heading", { name: "Dixit", exact: true })).toBeVisible();
       await trigger.press("Enter");
       await selectOption(correctionTitle, correctionSubtitle, gameStarter);
-      await message.press("End");
       await message.pressSequentially("El enlace no funciona.");
       const correction = { name: "Ludo Radar", email: "correccion@ludoradar.mx", message: `${gameStarter}El enlace no funciona.` };
       const back = dialog.getByRole("button", { name: "Volver", exact: true });
@@ -93,16 +95,16 @@ test("site-wide feedback sends the selected category and keeps a failed correcti
       await page.setViewportSize({ width: 320, height: 568 });
       await trigger.click();
       await expect(dialog).toBeInViewport({ ratio: 1 });
-      await selectOption(correctionTitle, correctionSubtitle, "La información que encontré incorrecta es…");
+      await selectOption(correctionTitle, correctionSubtitle, genericStarter);
       await dialog.getByRole("button", { name: "Volver", exact: true }).click();
-      await selectOption("Sugerir una funcionalidad", "Comparte tus ideas para mejorar la plataforma.", "Me gustaría que Ludo Radar pudiera…");
+      await selectOption("Sugerir una funcionalidad", "Comparte tus ideas para mejorar la plataforma.", "Me gustaría que Ludo Radar ");
       await message.fill("Me gustaría comparar varios juegos.");
       await submit.click();
       await expect(success).toBeVisible();
       await dialog.getByRole("button", { name: "Cerrar", exact: true }).click();
 
       await trigger.click();
-      await selectOption("Enviar un comentario", "Cuéntanos tu experiencia con Ludo Radar.", "Quiero compartir que…");
+      await selectOption("Enviar un comentario", "Cuéntanos tu experiencia con Ludo Radar.", "Quiero compartir que ");
       await message.fill("Encontré el juego que buscaba.");
       await submit.click();
       await expect(success).toBeVisible();
@@ -211,7 +213,7 @@ test("feedback closes on browser Back and leaves the footer attribution clear", 
         await expect(dialog).toHaveCount(0);
         await trigger.click();
         await dialog.getByRole("button", { name: new RegExp(correctionTitle) }).click();
-        await expect(dialog.getByRole("textbox", { name: "Mensaje" })).toHaveValue("La información que encontré incorrecta es…");
+        await expect(dialog.getByRole("textbox", { name: "Mensaje" })).toHaveJSProperty("value", genericStarter);
       });
 
       for (const [width, height] of [[1280, 800], [320, 568]]) {
