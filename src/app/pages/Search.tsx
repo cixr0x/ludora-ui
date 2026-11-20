@@ -267,9 +267,13 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
   const [completedLudoscopioSession, setCompletedLudoscopioSession] = useState<LudoscopioSession | null>(
     () => readLudoscopioSessionCache(),
   );
+  const ludoscopioParam = routeParams.get("ludoscopio")?.trim();
+  const shouldOpenLudoscopio = ludoscopioParam === "open";
+  const requestedLudoscopioPrompt = ludoscopioParam && !shouldOpenLudoscopio
+    ? ludoscopioParam : routeParams.get("ludoscopioPrompt")?.trim();
   const mode = location.state?.exploreResultMode;
   const routedLudoscopio = location.state?.ludoscopioSearch as LudoscopioSearchState | undefined;
-  const restored = !categoryPage && mode !== "ordinary" && !routedLudoscopio
+  const restored = !requestedLudoscopioPrompt && !categoryPage && mode !== "ordinary" && !routedLudoscopio
     && (mode === "semantic" || !hasLudoscopioControlParams(routeParams)) ? completedLudoscopioSession : null;
   const ludoscopioPrompt = !categoryPage && mode !== "ordinary" ? routedLudoscopio?.prompt ?? restored?.prompt ?? "" : "";
   const restoredFilters = restored?.filters;
@@ -380,6 +384,8 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
     () => allMechanics.filter((mechanic) => activeMechanics.has(mechanic.id)),
     [activeMechanics, allMechanics],
   );
+  const suggestedCategories = categoryOptions.filter((category) => ludoscopioFilters?.suggestedCategoryIds.includes(category.id));
+  const suggestedMechanics = mechanicOptions.filter((mechanic) => ludoscopioFilters?.suggestedMechanicIds.includes(mechanic.id));
   const updateControl = (values: Record<string, string | null>) => {
     setSearchParams(current => {
       for (const [key, value] of Object.entries(values)) {
@@ -443,7 +449,11 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
     const timeout = window.setTimeout(() => {
       loadLudoscopioCatalogGames({ filters: ludoscopioFilters }, controller.signal)
         .then(session => {
-          if (!controller.signal.aborted) saveLudoscopioSession(ludoscopioPrompt, session);
+          if (controller.signal.aborted) return;
+          saveLudoscopioSession(ludoscopioPrompt, session);
+          if (!sameLudoscopioFilters(ludoscopioFilters, session.filters)) {
+            setSearchParams(current => writeLudoscopioControlParams(current, session.filters), { replace: true });
+          }
         })
         .catch(() => {
           if (!controller.signal.aborted) setFailedRefinement(refinementKey);
@@ -454,7 +464,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
       controller.abort();
       if (refinementRequest.current === controller) refinementRequest.current = null;
     };
-  }, [ludoscopioFilters, ludoscopioPrompt, refinementAttempt, refinementKey, saveLudoscopioSession]);
+  }, [ludoscopioFilters, ludoscopioPrompt, refinementAttempt, refinementKey, saveLudoscopioSession, setSearchParams]);
 
   const results: Array<Game & { canonicalPath?: string }> = isLudoscopio
     ? (hasCurrentResults ? completedLudoscopioSession?.results ?? [] : []) : games;
@@ -555,8 +565,6 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
     } });
   };
 
-  const shouldOpenLudoscopio = searchParams.get("ludoscopio") === "open";
-
   useEffect(() => {
     setQuery(current => current.trim() === requestedTextQuery ? current : requestedTextQuery);
   }, [requestedTextQuery]);
@@ -569,14 +577,9 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
   }, [location.key]);
 
   useEffect(() => {
-    const ludoscopioParam = searchParams.get("ludoscopio")?.trim();
-    const requestedPrompt =
-      ludoscopioParam && ludoscopioParam !== "open"
-        ? ludoscopioParam
-        : searchParams.get("ludoscopioPrompt")?.trim();
-    if (requestedPrompt) void handleLudoscopioSearch(requestedPrompt, true).catch(() => {});
-    else if (ludoscopioParam === "open") setSearchParams(searchParams, { replace: true });
-  }, [handleLudoscopioSearch, searchParams, setSearchParams]);
+    if (requestedLudoscopioPrompt) void handleLudoscopioSearch(requestedLudoscopioPrompt, true).catch(() => {});
+    else if (shouldOpenLudoscopio) setSearchParams(searchParams, { replace: true });
+  }, [handleLudoscopioSearch, requestedLudoscopioPrompt, searchParams, setSearchParams, shouldOpenLudoscopio]);
 
   useEffect(() => {
     if (isLudoscopio || !hasMore || isResultsLoading) return;
@@ -889,6 +892,31 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
                   {exactTitle && (
                     <div className="mt-2">
                       <Toggle label={`Título exacto · ${exactTitle}`} active removable onClick={() => updateLudoscopioSearch({ exactTitle: null })} />
+                    </div>
+                  )}
+                  {!pendingPrompt && !failedPrompt && (suggestedCategories.length > 0 || suggestedMechanics.length > 0) && (
+                    <div role="group" aria-labelledby="ludoscopio-suggested-label" className="mt-3">
+                      <p id="ludoscopio-suggested-label" className="mb-2 text-xs uppercase tracking-wider text-neutral-500">
+                        Filtros sugeridos
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {suggestedCategories.map((category) => (
+                          <Toggle
+                            key={`suggested-category-${category.id}`}
+                            label={t(category.name)}
+                            active={activeCategories.has(category.id)}
+                            onClick={() => toggleTaxonomy(activeCategories, category.id, "category_ids")}
+                          />
+                        ))}
+                        {suggestedMechanics.map((mechanic) => (
+                          <Toggle
+                            key={`suggested-mechanic-${mechanic.id}`}
+                            label={t(mechanic.name)}
+                            active={activeMechanics.has(mechanic.id)}
+                            onClick={() => toggleTaxonomy(activeMechanics, mechanic.id, "mechanic_ids")}
+                          />
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

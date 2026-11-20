@@ -6,6 +6,7 @@ import {
   readLudoscopioSessionCache,
   writeLudoscopioSessionCache,
 } from "./ludoscopioSessionCache.js";
+import { readLudoscopioControlParams, writeLudoscopioControlParams } from "./ludoscopioFilters.js";
 
 function memoryStorage() {
   const values = new Map();
@@ -34,10 +35,16 @@ const validResult = {
   complexity: 2,
 };
 
-const filters = {
+const legacyFilters = {
   players: 7, playtimes: [], durationMin: null, durationMax: 35,
   complexityMin: 1, complexityMax: 2.5, categoryIds: [4], mechanicIds: [],
   theme: "piratas", exactTitle: null, query: null,
+};
+
+const filters = {
+  ...legacyFilters,
+  suggestedCategoryIds: [4, 21],
+  suggestedMechanicIds: [8],
 };
 
 test("ludoscopio session cache stores and restores the active filters with their results", () => {
@@ -62,6 +69,34 @@ test("ludoscopio session cache normalizes string ids returned by the API", () =>
   assert.deepEqual(readLudoscopioSessionCache(storage), {
     prompt: "party games",
     results: [validResult],
+  });
+});
+
+test("ludoscopio session cache restores v3 sessions created before suggestions", () => {
+  const storage = memoryStorage();
+  storage.setItem(
+    "ludora:ludoscopio:session:v3",
+    JSON.stringify({ prompt: "party games", results: [validResult], filters: legacyFilters }),
+  );
+
+  assert.deepEqual(readLudoscopioSessionCache(storage), {
+    prompt: "party games",
+    filters: { ...legacyFilters, suggestedCategoryIds: [], suggestedMechanicIds: [] },
+    results: [validResult],
+  });
+});
+
+test("ludoscopio navigation keeps suggestions when optional traits become required", () => {
+  const initialRoute = writeLudoscopioControlParams(new URLSearchParams(), filters);
+  const promotedRoute = new URLSearchParams(initialRoute);
+  promotedRoute.set("category_ids", "4,21");
+  promotedRoute.set("mechanic_ids", "8");
+  const restored = readLudoscopioControlParams(promotedRoute, filters.theme, null);
+
+  assert.deepEqual(restored, { ...filters, categoryIds: [4, 21], mechanicIds: [8] });
+  const replaced = writeLudoscopioControlParams(promotedRoute, legacyFilters);
+  assert.deepEqual(readLudoscopioControlParams(replaced, legacyFilters.theme, null), {
+    ...legacyFilters, suggestedCategoryIds: [], suggestedMechanicIds: [],
   });
 });
 

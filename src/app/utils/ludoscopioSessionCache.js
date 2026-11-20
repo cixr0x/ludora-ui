@@ -1,4 +1,9 @@
-import { readLudoscopioControlParams, sameLudoscopioFilters, writeLudoscopioControlParams } from "./ludoscopioFilters.js";
+import {
+  readLudoscopioControlParams,
+  sameLudoscopioFilters,
+  withLudoscopioSuggestionDefaults,
+  writeLudoscopioControlParams,
+} from "./ludoscopioFilters.js";
 
 const LUDOSCOPIO_SESSION_CACHE_KEY = "ludora:ludoscopio:session:v3";
 const LEGACY_SESSION_CACHE_KEY = "ludora:ludoscopio:session:v2";
@@ -56,7 +61,8 @@ function normalizeSessionCache(value, legacy = false) {
   if (!filters || !nullableText(filters.theme, 250) || !nullableText(filters.exactTitle, 500)) return null;
   const params = writeLudoscopioControlParams(new URLSearchParams(), filters);
   const normalized = readLudoscopioControlParams(params, filters.theme, filters.exactTitle);
-  return sameLudoscopioFilters(filters, normalized) ? { prompt, results, filters: normalized } : null;
+  return sameLudoscopioFilters(withLudoscopioSuggestionDefaults(filters), normalized)
+    ? { prompt, results, filters: normalized } : null;
 }
 
 function normalizeResult(value) {

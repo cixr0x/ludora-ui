@@ -268,6 +268,8 @@ export interface LudoscopioFilters {
   complexityMax: number | null;
   categoryIds: number[];
   mechanicIds: number[];
+  suggestedCategoryIds: number[];
+  suggestedMechanicIds: number[];
   theme: string | null;
   exactTitle: string | null;
   query: string | null;

@@ -4,7 +4,7 @@ import { parsePositiveIntegerSetParam, setPositiveIntegerSetParam } from "./cata
 /** @type {LudoscopioFilters["playtimes"]} */
 const playtimeOptions = ["short", "medium", "long"];
 const controlKeys = ["q", "players", "playtimes", "duration_min", "duration_max",
-  "complexity_min", "complexity_max", "category_ids", "mechanic_ids"];
+  "complexity_min", "complexity_max", "category_ids", "mechanic_ids", "suggested_category_ids", "suggested_mechanic_ids"];
 
 export function hasLudoscopioControlParams(params) {
   return controlKeys.some(key => params.has(key));
@@ -26,7 +26,9 @@ export function writeLudoscopioControlParams(params, filters) {
     else next.set(key, String(value));
   }
   next = setPositiveIntegerSetParam(next, "category_ids", filters.categoryIds);
-  return setPositiveIntegerSetParam(next, "mechanic_ids", filters.mechanicIds);
+  next = setPositiveIntegerSetParam(next, "mechanic_ids", filters.mechanicIds);
+  next = setPositiveIntegerSetParam(next, "suggested_category_ids", filters.suggestedCategoryIds ?? []);
+  return setPositiveIntegerSetParam(next, "suggested_mechanic_ids", filters.suggestedMechanicIds ?? []);
 }
 
 /** @returns {LudoscopioFilters} */
@@ -44,9 +46,20 @@ export function readLudoscopioControlParams(params, theme, exactTitle) {
     complexityMax: readBound(params, "complexity_max", 1, 5, false),
     categoryIds: readIds(params, "category_ids"),
     mechanicIds: readIds(params, "mechanic_ids"),
+    suggestedCategoryIds: readIds(params, "suggested_category_ids"),
+    suggestedMechanicIds: readIds(params, "suggested_mechanic_ids"),
     theme,
     exactTitle,
     query: params.get("q")?.trim() || null,
+  };
+}
+
+/** @param {LudoscopioFilters} filters */
+export function withLudoscopioSuggestionDefaults(filters) {
+  return {
+    ...filters,
+    suggestedCategoryIds: filters.suggestedCategoryIds ?? [],
+    suggestedMechanicIds: filters.suggestedMechanicIds ?? [],
   };
 }
 

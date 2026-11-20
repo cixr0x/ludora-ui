@@ -66,6 +66,46 @@ const emptyFilters = {
   theme: null, exactTitle: null, query: null,
 };
 
+test("a direct Ludoscopio search submits once and promotes suggestions without interpreting again", { timeout: 30000 }, async () => {
+  const server = await startFixtureServer({ catalog: true });
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    const page = await browser.newPage();
+    await configure(page, { id: 35, name: "City Building", name_es: "Construcción de ciudades" });
+    const prompt = "Quiero un juego como Age of Empires";
+    const filters = {
+      ...emptyFilters,
+      theme: "construcción de ciudades y economía medieval",
+      suggestedCategoryIds: [35],
+      suggestedMechanicIds: [],
+    };
+    const submissions = [];
+    await page.route("**/api/items/ludoscopio", route => {
+      const body = route.request().postDataJSON();
+      submissions.push(body);
+      return route.fulfill({ json: {
+        data: [{ ...item, id: 2, canonical_name_es: body.prompt ? "Ciudad sugerida" : "Ciudad requerida" }],
+        meta: { filters: body.filters ?? filters },
+      } }).catch(() => {});
+    });
+
+    await page.goto(`${origin}/search?${new URLSearchParams({ ludoscopio: prompt })}`);
+    const suggestions = page.getByRole("group", { name: "Filtros sugeridos" });
+    const city = suggestions.getByRole("button", { name: "Construcción de ciudades" });
+    await expect(page.getByText("Ciudad sugerida", { exact: true })).toBeVisible();
+    await expect(city).toHaveAttribute("aria-pressed", "false");
+    await city.click();
+    await expect(page.getByText("Ciudad requerida", { exact: true })).toBeVisible();
+    await expect(city).toHaveAttribute("aria-pressed", "true");
+    assert.deepEqual(submissions, [{ prompt }, { filters: { ...filters, categoryIds: [35] } }]);
+
+    await page.reload();
+    await expect(city).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("Ciudad requerida", { exact: true })).toBeVisible();
+    assert.equal(submissions.length, 2);
+  } finally { await browser.close(); await server.close(); }
+});
+
 test("Ludoscopio applies Explore filters, refines on the server, and ignores results returned after clearing", { timeout: 30000 }, async () => {
   const server = await startFixtureServer({ catalog: true });
   const browser = await chromium.launch({ channel: "chrome", headless: true });
@@ -104,7 +144,9 @@ test("Ludoscopio applies Explore filters, refines on the server, and ignores res
     await expect(page.getByLabel("Tema")).toHaveValue("piratas");
     await page.getByRole("button", { name: "Máximo 35 min, desactivar filtro" }).click();
     await expect(page.getByText("Coincidencia adicional", { exact: true })).toBeVisible();
-    assert.deepEqual(submissions.map(({ prompt, filters }) => prompt ?? filters), [prompt, { ...filters, durationMax: null }]);
+    assert.deepEqual(submissions.map(({ prompt, filters }) => prompt ?? filters), [
+      prompt, { ...filters, durationMax: null, suggestedCategoryIds: [], suggestedMechanicIds: [] },
+    ]);
 
     await page.reload();
     await expect(page.getByText("Coincidencia adicional", { exact: true })).toBeVisible();

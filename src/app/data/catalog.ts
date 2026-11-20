@@ -19,6 +19,7 @@ import {
   type LudoscopioInput,
 } from "../api/catalog";
 import { isExpansionItem, positiveInteger } from "../utils/expansionDisplay.js";
+import { withLudoscopioSuggestionDefaults } from "../utils/ludoscopioFilters.js";
 import { formatStorePrice } from "../utils/priceFormat.js";
 import { storeDisplayName, storeOfferUrl } from "../utils/storeLinks.js";
 import { storeAvailabilityRank, storeAvailabilityState } from "../utils/storeAvailability.js";
@@ -169,7 +170,7 @@ export async function loadSemanticCatalogGameDetails(query: string, limit = 40):
 
 export async function loadLudoscopioCatalogGames(input: LudoscopioInput, signal: AbortSignal) {
   const { data, meta } = await fetchLudoscopioItems(input, signal);
-  return { filters: meta.filters, results: data.map(game => mapApiItemToGame(game)) };
+  return { filters: withLudoscopioSuggestionDefaults(meta.filters), results: data.map(game => mapApiItemToGame(game)) };
 }
 
 export async function loadGameDetail(id: number): Promise<GameDetail | undefined> {
