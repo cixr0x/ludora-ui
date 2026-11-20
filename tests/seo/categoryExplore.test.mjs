@@ -101,19 +101,23 @@ test("sequential keyboard input keeps the full query, focus and caret across the
   } finally { await browser.close(); await server.close(); }
 });
 
-test("LudoRadar submission from a category enters Search and consumes its prompt once", { timeout: 30000 }, async () => {
+test("Ludo Radar submission from a category enters Search and consumes its prompt once", { timeout: 30000 }, async () => {
   const server = await startFixtureServer({ catalog: true });
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   try {
     const page = await browser.newPage(), prompts = [];
-    await page.route("**/api/items/semantic-search?*", route => {
-      prompts.push(new URL(route.request().url()).searchParams.get("q"));
-      return route.fulfill({ json: { data: [] } });
+    await page.route("**/api/items/ludoscopio", route => {
+      prompts.push(route.request().postDataJSON().prompt);
+      return route.fulfill({ json: { data: [], meta: { filters: {
+        players: null, playtimes: [], durationMin: null, durationMax: null,
+        complexityMin: null, complexityMax: null, categoryIds: [], mechanicIds: [],
+        theme: null, exactTitle: null, query: null,
+      } } } });
     });
     await page.goto(`${origin}${category}`);
-    await page.getByRole("button", { name: "LudoRadar", exact: true }).click();
+    await page.getByRole("button", { name: "Ludo Radar", exact: true }).click();
     await page.getByLabel("Describe la experiencia").fill("juegos cooperativos");
-    await page.getByRole("button", { name: "Buscar con LudoRadar", exact: true }).click();
+    await page.getByRole("button", { name: "Buscar con Ludo Radar", exact: true }).click();
     await page.waitForURL(url => url.pathname === "/search");
     await page.getByText("Resultados para “juegos cooperativos”", { exact: true }).waitFor();
     await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(error => {

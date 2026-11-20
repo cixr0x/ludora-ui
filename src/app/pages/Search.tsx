@@ -2,11 +2,12 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Link, useLocation, useNavigate, useSearchParams, type NavigateOptions } from "react-router";
 import { productPath } from "../utils/productRoutes.js";
 import { ArrowLeft, Search as SearchIcon, X, Dices, SlidersHorizontal, ChevronDown, ChevronRight } from "lucide-react";
-import type { Game, GameDetail, GameTaxonomyEntry } from "../data/games";
+import type { Game } from "../data/games";
+import type { LudoscopioFilters } from "../api/catalog";
 import {
   loadCatalogFilterOptions,
   loadCatalogSearchResults,
-  loadSemanticCatalogGameDetails,
+  loadLudoscopioCatalogGames,
   type CatalogFilterOptions,
   type CatalogSearchResult,
 } from "../data/catalog";
@@ -28,7 +29,12 @@ import {
   shouldShowFilterRemoveIcon,
   sortTaxonomyOptionsByActive,
 } from "../utils/catalogSearch.js";
-import { filterSemanticSearchResults, parseRangeText } from "../utils/searchResultFiltering.js";
+import {
+  hasLudoscopioControlParams,
+  readLudoscopioControlParams,
+  sameLudoscopioFilters,
+  writeLudoscopioControlParams,
+} from "../utils/ludoscopioFilters.js";
 import {
   clearLudoscopioSessionCache,
   readLudoscopioSessionCache,
@@ -46,17 +52,8 @@ const PLAYTIME_OPTIONS: { key: PlaytimeKey; label: string; range: [number, numbe
 const PLAYER_OPTIONS = [1, 2, 3, 4, 5, 6];
 const SEARCH_PAGE_SIZE = 60;
 
-interface FilterableSemanticResult extends Game {
-  categories: GameTaxonomyEntry[];
-  mechanics: GameTaxonomyEntry[];
-  categoryNames: string[];
-  mechanicNames: string[];
-  minPlayers: number;
-  maxPlayers: number;
-  minMinutes: number | null;
-  maxMinutes: number | null;
-  complexity: number;
-}
+type LudoscopioSearchState = Pick<LudoscopioFilters, "theme" | "exactTitle"> & { prompt: string };
+type LudoscopioSession = { prompt: string; filters?: LudoscopioFilters; results: Game[] };
 
 interface CatalogSearchRequest {
   categoryIds: number[];
@@ -76,7 +73,7 @@ interface QueryInputHandoff {
 
 function useCatalogSearchGames(
   request: CatalogSearchRequest,
-  semanticGames: FilterableSemanticResult[] | null,
+  isLudoscopio: boolean,
 ): {
   filterOptions: CatalogFilterOptions;
   games: CatalogSearchResult[];
@@ -119,7 +116,7 @@ function useCatalogSearchGames(
   }, []);
 
   useEffect(() => {
-    if (semanticGames) {
+    if (isLudoscopio) {
       loadSequenceRef.current += 1;
       setIsLoading(false);
       setIsLoadingMore(false);
@@ -163,10 +160,10 @@ function useCatalogSearchGames(
       isActive = false;
       window.clearTimeout(timeout);
     };
-  }, [request, semanticGames]);
+  }, [request, isLudoscopio]);
 
   const loadMore = useCallback(() => {
-    if (semanticGames || isLoading || isLoadingMore || !hasMore) return;
+    if (isLudoscopio || isLoading || isLoadingMore || !hasMore) return;
 
     const sequence = loadSequenceRef.current;
     setIsLoadingMore(true);
@@ -190,50 +187,9 @@ function useCatalogSearchGames(
       .finally(() => {
         if (loadSequenceRef.current === sequence) setIsLoadingMore(false);
       });
-  }, [hasMore, isLoading, isLoadingMore, nextOffset, request, semanticGames]);
+  }, [hasMore, isLoading, isLoadingMore, nextOffset, request, isLudoscopio]);
 
   return { filterOptions, games, hasMore, isLoading, isLoadingMore, loadMore };
-}
-
-function sameNumberSet(left: Set<number>, right: Set<number>): boolean {
-  if (left.size !== right.size) return false;
-  for (const value of left) if (!right.has(value)) return false;
-  return true;
-}
-
-function taxonomyEntriesFromDetail(
-  detail: Pick<GameDetail, "categoryEntries" | "mechanicEntries">,
-  key: "categoryEntries" | "mechanicEntries",
-  names: string[],
-): GameTaxonomyEntry[] {
-  const entries = detail[key];
-  if (entries?.length) return entries;
-  return names.map((name, index) => ({ id: -(index + 1), name }));
-}
-
-function mapDetailToFilterableSemanticResult(detail: GameDetail): FilterableSemanticResult {
-  const [minPlayers, maxPlayers] = parseRangeText(detail.players);
-  const playtimeRange = parseRangeText(detail.playTime, null);
-  const categories = taxonomyEntriesFromDetail(detail, "categoryEntries", detail.categories);
-  const mechanics = taxonomyEntriesFromDetail(detail, "mechanicEntries", detail.mechanics);
-
-  return {
-    id: detail.id,
-    name: detail.name,
-    altTitle: detail.altTitle,
-    image: detail.image,
-    isExpansion: detail.isExpansion,
-    genres: detail.genres,
-    categories,
-    mechanics,
-    categoryNames: categories.map((entry) => entry.name),
-    mechanicNames: mechanics.map((entry) => entry.name),
-    minPlayers,
-    maxPlayers,
-    minMinutes: playtimeRange?.[0] ?? null,
-    maxMinutes: playtimeRange?.[1] ?? null,
-    complexity: detail.complexity,
-  };
 }
 
 function Toggle({
@@ -251,6 +207,8 @@ function Toggle({
 
   return (
     <button
+      type="button"
+      aria-pressed={active}
       aria-label={showRemoveIcon ? `${label}, desactivar filtro` : label}
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
@@ -265,12 +223,64 @@ function Toggle({
   );
 }
 
+function ThemeFilter({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (value: string | null) => void;
+}) {
+  const [draft, setDraft] = useState(value ?? "");
+  return (
+    <form
+      className="mt-3 flex flex-wrap items-end gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onChange(draft.trim() || null);
+      }}
+    >
+      <label className="min-w-0 flex-1 text-xs text-neutral-400">
+        Tema
+        <input
+          className="mt-1 block w-full rounded-md border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-sm text-white"
+          value={draft}
+          maxLength={250}
+          onChange={(event) => setDraft(event.target.value)}
+        />
+      </label>
+      <button type="submit" disabled={draft.trim() === (value ?? "")} className="px-2 py-1.5 text-sm text-fuchsia-300 disabled:opacity-50">
+        Aplicar
+      </button>
+      {value && (
+        <button type="button" aria-label="Quitar tema" onClick={() => onChange(null)} className="rounded-md border border-neutral-800 p-1.5 text-neutral-400 hover:text-white">
+          <X aria-hidden="true" className="h-4 w-4" />
+        </button>
+      )}
+    </form>
+  );
+}
+
 export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [routeParams, setRouteParams] = useSearchParams();
-  const searchParams = useMemo(() => categoryPage?.category
-    ? new URLSearchParams({ category_ids: String(categoryPage.category.id) }) : routeParams, [categoryPage, routeParams]);
+  const [completedLudoscopioSession, setCompletedLudoscopioSession] = useState<LudoscopioSession | null>(
+    () => readLudoscopioSessionCache(),
+  );
+  const mode = location.state?.exploreResultMode;
+  const routedLudoscopio = location.state?.ludoscopioSearch as LudoscopioSearchState | undefined;
+  const restored = !categoryPage && mode !== "ordinary" && !routedLudoscopio
+    && (mode === "semantic" || !hasLudoscopioControlParams(routeParams)) ? completedLudoscopioSession : null;
+  const ludoscopioPrompt = !categoryPage && mode !== "ordinary" ? routedLudoscopio?.prompt ?? restored?.prompt ?? "" : "";
+  const restoredFilters = restored?.filters;
+  const theme = routedLudoscopio ? routedLudoscopio.theme
+    : restoredFilters ? restoredFilters.theme : restored?.prompt.slice(0, 250).trim() || null;
+  const exactTitle = routedLudoscopio ? routedLudoscopio.exactTitle : restoredFilters?.exactTitle ?? null;
+  const searchParams = useMemo(() => {
+    if (categoryPage?.category) return new URLSearchParams({ category_ids: String(categoryPage.category.id) });
+    if (restoredFilters && !hasLudoscopioControlParams(routeParams)) return writeLudoscopioControlParams(routeParams, restoredFilters);
+    return routeParams;
+  }, [categoryPage, routeParams, restoredFilters]);
   useEffect(() => {
     if (!categoryPage || !routeParams.size) return;
     const next = new URLSearchParams(searchParams);
@@ -278,6 +288,10 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
     navigate(`/search?${next}`, { replace: true, state: { exploreResultMode: "ordinary" } });
   }, [categoryPage, routeParams, searchParams, navigate]);
   const controls = useMemo(() => parseExploreControlParams(searchParams), [searchParams]);
+  const ludoscopioFilters = useMemo<LudoscopioFilters | null>(
+    () => ludoscopioPrompt ? readLudoscopioControlParams(searchParams, theme, exactTitle) : null,
+    [exactTitle, ludoscopioPrompt, searchParams, theme],
+  );
   const requestedTextQuery = searchParams.get("q")?.trim() ?? "";
   const [queryHandoff] = useState<QueryInputHandoff | null>(() => {
     const handoff = location.state?.exploreQueryInput;
@@ -291,35 +305,39 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
     queryInputRef.current.focus({ preventScroll: true });
     queryInputRef.current.setSelectionRange(queryHandoff.start, queryHandoff.end, queryHandoff.direction);
   }, [queryHandoff]);
-  const [activeCategories, setActiveCategories] = useState<Set<number>>(() =>
-    parsePositiveIntegerSetParam(searchParams.get("category_ids")),
-  );
-  const [activeMechanics, setActiveMechanics] = useState<Set<number>>(() =>
-    parsePositiveIntegerSetParam(searchParams.get("mechanic_ids")),
-  );
+  const activeCategories = useMemo(() => parsePositiveIntegerSetParam(searchParams.get("category_ids")), [searchParams]);
+  const activeMechanics = useMemo(() => parsePositiveIntegerSetParam(searchParams.get("mechanic_ids")), [searchParams]);
   const [categoriesCollapsed, setCategoriesCollapsed] = useState(true);
   const [mechanicsCollapsed, setMechanicsCollapsed] = useState(true);
-  const [players, setPlayers] = useState<number | null>(controls.players);
-  const [playtimes, setPlaytimes] = useState<Set<PlaytimeKey>>(() => new Set(controls.playtimes as PlaytimeKey[]));
-  const [complexity, setComplexity] = useState<[number, number]>(controls.complexity as [number, number]);
-  // A completed prompt must remain usable even when sessionStorage rejects writes.
-  const completedSemanticSession = useRef<{ prompt: string; results: FilterableSemanticResult[] } | null>(null);
-  // Resolve each history entry, including same-component Explore navigation and Back.
-  // Filter edits retain their result mode; an external category URL starts ordinary Search.
-  const cachedLudoscopioSession = useMemo(() => {
-    const mode = location.state?.exploreResultMode;
-    if (categoryPage || mode === "ordinary" || (mode !== "semantic" && parsePositiveIntegerSetParam(searchParams.get("category_ids")).size > 0)) return null;
-    return completedSemanticSession.current ?? readLudoscopioSessionCache();
-  }, [categoryPage, location.key, location.state, searchParams]);
-  const semanticQuery = cachedLudoscopioSession?.prompt ?? "";
-  const semanticGames: FilterableSemanticResult[] | null = cachedLudoscopioSession?.results ?? null;
+  const players = ludoscopioFilters ? ludoscopioFilters.players : controls.players;
+  const playerOptions = players !== null && players > 6 ? [...PLAYER_OPTIONS, players] : PLAYER_OPTIONS;
+  const playtimes = useMemo(() => new Set<PlaytimeKey>(ludoscopioFilters?.playtimes ?? controls.playtimes as PlaytimeKey[]),
+    [controls, ludoscopioFilters],
+  );
+  const complexity = useMemo<[number, number]>(
+    () => ludoscopioFilters ? [ludoscopioFilters.complexityMin ?? 1, ludoscopioFilters.complexityMax ?? 5] : controls.complexity as [number, number],
+    [controls, ludoscopioFilters],
+  );
   const setSearchParams = useCallback((update: URLSearchParams | ((params: URLSearchParams) => URLSearchParams), options?: NavigateOptions) => {
-    const next = typeof update === "function" ? update(new URLSearchParams(searchParams)) : update;
-    const state = { exploreResultMode: semanticGames ? "semantic" : "ordinary", ...options?.state };
+    const next = new URLSearchParams(typeof update === "function" ? update(new URLSearchParams(searchParams)) : update);
+    // These URL parameters launch a search once. Control edits must not copy them forward.
+    next.delete("ludoscopio");
+    next.delete("ludoscopioPrompt");
+    const state = ludoscopioPrompt ? {
+      exploreResultMode: "semantic",
+      ludoscopioSearch: { prompt: ludoscopioPrompt, theme, exactTitle },
+      ...options?.state,
+    } : { exploreResultMode: "ordinary", ...options?.state };
     if (categoryPage) navigate(`/search${next.size ? `?${next}` : ""}`, { state, flushSync: options?.flushSync });
     else setRouteParams(next, { ...options, state });
-  }, [categoryPage, navigate, searchParams, semanticGames, setRouteParams]);
-  const [isSemanticLoading, setIsSemanticLoading] = useState(false);
+  }, [categoryPage, exactTitle, ludoscopioPrompt, navigate, searchParams, setRouteParams, theme]);
+  const promptRequest = useRef<AbortController | null>(null);
+  const refinementRequest = useRef<AbortController | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
+  const [promptError, setPromptError] = useState<{ prompt: string; locationKey: string } | null>(null);
+  const failedPrompt = pendingPrompt ? null : promptError?.locationKey === location.key
+    ? promptError.prompt : location.state?.ludoscopioFailedPrompt ?? null;
+  const isLudoscopio = Boolean(ludoscopioPrompt || pendingPrompt || failedPrompt);
   const selectedPlaytimeRanges = useMemo(
     () =>
       Array.from(playtimes)
@@ -340,7 +358,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
   );
   const { filterOptions, games, hasMore, isLoading, isLoadingMore, loadMore } = useCatalogSearchGames(
     searchRequest,
-    semanticGames,
+    isLudoscopio,
   );
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
@@ -372,18 +390,20 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
   };
   const changePlayers = (value: number) => {
     const next = players === value ? null : value;
-    setPlayers(next); updateControl({ players: next === null ? null : String(next) });
+    updateControl({ players: next === null ? null : String(next) });
   };
   const changePlaytime = (value: PlaytimeKey) => {
     const next = new Set(playtimes);
     if (next.has(value)) next.delete(value); else next.add(value);
-    setPlaytimes(next);
-    updateControl({ playtimes: next.size ? PLAYTIME_OPTIONS.filter(option => next.has(option.key)).map(option => option.key).join(",") : null });
+    updateControl({
+      playtimes: next.size ? PLAYTIME_OPTIONS.filter(option => next.has(option.key)).map(option => option.key).join(",") : null,
+      duration_min: null,
+      duration_max: null,
+    });
   };
   const changeComplexity = (value: number) => {
     const next: [number, number] = complexity[0] === value && complexity[1] === value ? [1, 5]
       : value < complexity[0] ? [value, complexity[1]] : value > complexity[1] ? [complexity[0], value] : [value, value];
-    setComplexity(next);
     updateControl({ complexity_min: next[0] === 1 && next[1] === 5 ? null : String(next[0]),
       complexity_max: next[0] === 1 && next[1] === 5 ? null : String(next[1]) });
   };
@@ -391,49 +411,82 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
   const toggleTaxonomy = (
     activeIds: Set<number>,
     value: number,
-    setter: (ids: Set<number>) => void,
     paramName: "category_ids" | "mechanic_ids",
   ) => {
     const nextIds = new Set(activeIds);
     if (nextIds.has(value)) nextIds.delete(value); else nextIds.add(value);
-    setter(nextIds);
     setSearchParams(
       (currentParams) => setPositiveIntegerSetParam(currentParams, paramName, nextIds),
       { replace: true },
     );
   };
 
-  const results = useMemo<Array<Game & { canonicalPath?: string }>>(
-    () => semanticGames ? filterSemanticSearchResults(semanticGames, searchRequest) : games,
-    [games, searchRequest, semanticGames],
-  );
+  const hasCurrentResults = completedLudoscopioSession?.prompt === ludoscopioPrompt &&
+    ((restored && !completedLudoscopioSession.filters && !hasLudoscopioControlParams(routeParams)) ||
+      sameLudoscopioFilters(completedLudoscopioSession.filters, ludoscopioFilters));
+  const needsRefinement = Boolean(ludoscopioFilters && !hasCurrentResults && !pendingPrompt && !failedPrompt);
+  const refinementKey = needsRefinement ? JSON.stringify([ludoscopioPrompt, ludoscopioFilters]) : null;
+  const [failedRefinement, setFailedRefinement] = useState<string | null>(null);
+  const [refinementAttempt, retryRefinement] = useState(0);
+  const showRefinementError = refinementKey !== null && failedRefinement === refinementKey;
+  const saveLudoscopioSession = useCallback((prompt: string, session: { filters: LudoscopioFilters; results: Game[] }) => {
+    writeLudoscopioSessionCache(prompt, session.filters, session.results);
+    setCompletedLudoscopioSession({ prompt, ...session });
+  }, []);
+
+  useEffect(() => {
+    if (!refinementKey || !ludoscopioFilters) return;
+
+    setFailedRefinement(null);
+    const controller = new AbortController();
+    refinementRequest.current = controller;
+    const timeout = window.setTimeout(() => {
+      loadLudoscopioCatalogGames({ filters: ludoscopioFilters }, controller.signal)
+        .then(session => {
+          if (!controller.signal.aborted) saveLudoscopioSession(ludoscopioPrompt, session);
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setFailedRefinement(refinementKey);
+        });
+    }, 250);
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+      if (refinementRequest.current === controller) refinementRequest.current = null;
+    };
+  }, [ludoscopioFilters, ludoscopioPrompt, refinementAttempt, refinementKey, saveLudoscopioSession]);
+
+  const results: Array<Game & { canonicalPath?: string }> = isLudoscopio
+    ? (hasCurrentResults ? completedLudoscopioSession?.results ?? [] : []) : games;
+  const hasComplexityFilter = ludoscopioFilters
+    ? ludoscopioFilters.complexityMin !== null || ludoscopioFilters.complexityMax !== null
+    : complexity[0] !== 1 || complexity[1] !== 5;
 
   const activeFilterCount =
     (query.trim() ? 1 : 0) +
-    (semanticQuery ? 1 : 0) +
+    (ludoscopioPrompt || pendingPrompt || failedPrompt ? 1 : 0) +
+    (ludoscopioFilters?.durationMin != null ? 1 : 0) +
+    (ludoscopioFilters?.durationMax != null ? 1 : 0) +
     activeCategories.size +
     activeMechanics.size +
     (players !== null ? 1 : 0) +
     playtimes.size +
-    (complexity[0] !== 1 || complexity[1] !== 5 ? 1 : 0);
-  const isResultsLoading = isLoading || isSemanticLoading;
-  const resultCountText = `${results.length}${!semanticGames && hasMore ? "+" : ""} resultado${results.length !== 1 ? "s" : ""}`;
+    (hasComplexityFilter ? 1 : 0);
+  const isLudoscopioLoading = Boolean(pendingPrompt || (needsRefinement && !showRefinementError));
+  const isResultsLoading = isLudoscopio ? isLudoscopioLoading : isLoading;
+  const resultCountText = `${results.length}${!isLudoscopio && hasMore ? "+" : ""} resultado${results.length !== 1 ? "s" : ""}`;
 
   const clearAll = () => {
     setQuery("");
-    setActiveCategories(new Set());
-    setActiveMechanics(new Set());
-    setPlayers(null);
-    setPlaytimes(new Set());
-    setComplexity([1, 5]);
-    completedSemanticSession.current = null;
+    promptRequest.current?.abort();
+    promptRequest.current = null;
+    refinementRequest.current?.abort();
+    setPendingPrompt(null);
+    setPromptError(null);
+    setCompletedLudoscopioSession(null);
     clearLudoscopioSessionCache();
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("q");
-    nextParams.delete("category_ids");
-    nextParams.delete("mechanic_ids");
-    for (const key of ["players", "playtimes", "complexity_min", "complexity_max"]) nextParams.delete(key);
-    setSearchParams(nextParams, { replace: true, state: { exploreResultMode: "ordinary" } });
+    const nextParams = writeLudoscopioControlParams(searchParams, readLudoscopioControlParams(new URLSearchParams(), null, null));
+    setSearchParams(nextParams, { replace: true, state: { exploreResultMode: "ordinary", ludoscopioSearch: null } });
   };
 
   const handleTextQueryChange = (value: string) => {
@@ -453,36 +506,54 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
     }, handoff ? { state: { exploreQueryInput: handoff }, flushSync: true } : { replace: true });
   };
 
-  const handleLudoscopioSearch = useCallback(async (value: string) => {
+  const handleLudoscopioSearch = useCallback(async (value: string, fromUrl = false) => {
     const prompt = value.trim();
-    if (!prompt || isSemanticLoading) return;
+    if (!prompt) return;
     if (categoryPage) {
       clearLudoscopioSessionCache();
       navigate(`/search?${new URLSearchParams({ ludoscopio: prompt })}`);
       return;
     }
 
-    setIsSemanticLoading(true);
+    promptRequest.current?.abort();
+    refinementRequest.current?.abort();
+    const controller = new AbortController();
+    promptRequest.current = controller;
+    setPendingPrompt(prompt);
+    setPromptError(null);
     try {
-      const details = await loadSemanticCatalogGameDetails(prompt, 40);
-      const semanticResults = details.map(mapDetailToFilterableSemanticResult);
-      completedSemanticSession.current = { prompt, results: semanticResults };
-      writeLudoscopioSessionCache(prompt, semanticResults);
-      setQuery("");
-      setSearchParams((currentParams) => {
-        const nextParams = new URLSearchParams(currentParams);
-        for (const key of ["q", "category_ids", "mechanic_ids", "players", "playtimes", "complexity_min", "complexity_max", "ludoscopio", "ludoscopioPrompt"]) nextParams.delete(key);
-        return nextParams;
-      }, { replace: true, state: { exploreResultMode: "semantic" } });
-      setActiveCategories(new Set());
-      setActiveMechanics(new Set());
-      setPlayers(null);
-      setPlaytimes(new Set());
-      setComplexity([1, 5]);
+      const session = await loadLudoscopioCatalogGames({ prompt }, controller.signal);
+      if (controller.signal.aborted) return;
+      saveLudoscopioSession(prompt, session);
+      setQuery(session.filters.query ?? "");
+      setSearchParams(
+        (currentParams) => writeLudoscopioControlParams(currentParams, session.filters),
+        { replace: true, state: {
+          exploreResultMode: "semantic",
+          ludoscopioSearch: { prompt, theme: session.filters.theme, exactTitle: session.filters.exactTitle },
+        } },
+      );
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (fromUrl) {
+        setSearchParams(searchParams, { replace: true, state: { ludoscopioFailedPrompt: prompt } });
+      } else {
+        setPromptError({ prompt, locationKey: location.key });
+      }
+      throw error;
     } finally {
-      setIsSemanticLoading(false);
+      if (promptRequest.current === controller) {
+        promptRequest.current = null;
+        setPendingPrompt(null);
+      }
     }
-  }, [categoryPage, isSemanticLoading, navigate, setSearchParams]);
+  }, [categoryPage, location.key, navigate, saveLudoscopioSession, searchParams, setSearchParams]);
+
+  const updateLudoscopioSearch = (values: Partial<Pick<LudoscopioSearchState, "theme" | "exactTitle">>) => {
+    setSearchParams(new URLSearchParams(searchParams), { replace: true, state: {
+      ludoscopioSearch: { prompt: ludoscopioPrompt, theme, exactTitle, ...values },
+    } });
+  };
 
   const shouldOpenLudoscopio = searchParams.get("ludoscopio") === "open";
 
@@ -490,19 +561,12 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
     setQuery(current => current.trim() === requestedTextQuery ? current : requestedTextQuery);
   }, [requestedTextQuery]);
 
-  useEffect(() => {
-    setPlayers(controls.players);
-    setPlaytimes(new Set(controls.playtimes as PlaytimeKey[]));
-    setComplexity(controls.complexity as [number, number]);
-  }, [controls]);
-
-  useEffect(() => {
-    const nextCategories = parsePositiveIntegerSetParam(searchParams.get("category_ids"));
-    const nextMechanics = parsePositiveIntegerSetParam(searchParams.get("mechanic_ids"));
-
-    setActiveCategories((current) => (sameNumberSet(current, nextCategories) ? current : nextCategories));
-    setActiveMechanics((current) => (sameNumberSet(current, nextMechanics) ? current : nextMechanics));
-  }, [searchParams]);
+  useEffect(() => () => {
+    if (!promptRequest.current) return;
+    promptRequest.current.abort();
+    promptRequest.current = null;
+    setPendingPrompt(null);
+  }, [location.key]);
 
   useEffect(() => {
     const ludoscopioParam = searchParams.get("ludoscopio")?.trim();
@@ -510,17 +574,12 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
       ludoscopioParam && ludoscopioParam !== "open"
         ? ludoscopioParam
         : searchParams.get("ludoscopioPrompt")?.trim();
-    if (!ludoscopioParam && !requestedPrompt) return;
-
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("ludoscopio");
-    nextParams.delete("ludoscopioPrompt");
-    setSearchParams(nextParams, { replace: true });
-    if (requestedPrompt) void handleLudoscopioSearch(requestedPrompt);
+    if (requestedPrompt) void handleLudoscopioSearch(requestedPrompt, true).catch(() => {});
+    else if (ludoscopioParam === "open") setSearchParams(searchParams, { replace: true });
   }, [handleLudoscopioSearch, searchParams, setSearchParams]);
 
   useEffect(() => {
-    if (semanticGames || !hasMore || isResultsLoading) return;
+    if (isLudoscopio || !hasMore || isResultsLoading) return;
 
     const target = loadMoreRef.current;
     if (!target || typeof IntersectionObserver === "undefined") return;
@@ -534,7 +593,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [hasMore, isResultsLoading, loadMore, semanticGames]);
+  }, [hasMore, isLudoscopio, isResultsLoading, loadMore]);
 
   return (
     <div
@@ -584,6 +643,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
                 type="text"
                 ref={queryInputRef}
                 value={query}
+                maxLength={isLudoscopio ? 500 : undefined}
                 onChange={(e) => handleTextQueryChange(e.target.value)}
                 onCompositionStart={() => { queryComposingRef.current = true; }}
                 onCompositionEnd={(event) => {
@@ -610,9 +670,11 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
           <div>
             <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2">Jugadores</label>
             <div className="flex gap-1.5 flex-wrap">
-              {PLAYER_OPTIONS.map((n) => (
+              {playerOptions.map((n) => (
                 <button
                   key={n}
+                  type="button"
+                  aria-pressed={players === n}
                   onClick={() => changePlayers(n)}
                   className={`w-9 h-9 rounded-full text-sm border transition-colors ${
                     players === n
@@ -620,7 +682,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
                       : "bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-white hover:border-neutral-700"
                   }`}
                 >
-                  {n === 6 ? "6+" : n}
+                  {n === 6 && !isLudoscopio ? "6+" : n}
                 </button>
               ))}
             </div>
@@ -638,6 +700,12 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
                   onClick={() => changePlaytime(opt.key)}
                 />
               ))}
+              {ludoscopioFilters?.durationMin != null && (
+                <Toggle label={`Mínimo ${ludoscopioFilters.durationMin} min`} active removable onClick={() => updateControl({ duration_min: null })} />
+              )}
+              {ludoscopioFilters?.durationMax != null && (
+                <Toggle label={`Máximo ${ludoscopioFilters.durationMax} min`} active removable onClick={() => updateControl({ duration_max: null })} />
+              )}
             </div>
           </div>
 
@@ -655,6 +723,8 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
                 return (
                   <button
                     key={n}
+                    type="button"
+                    aria-pressed={inRange}
                     onClick={() => changeComplexity(n)}
                     className={`flex-1 py-1.5 rounded-md text-sm border transition-colors ${
                       inRange
@@ -668,6 +738,15 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
               })}
             </div>
             <p className="text-xs text-neutral-600 mt-1.5">Toca un valor para fijar, o dos para definir un rango.</p>
+            {ludoscopioFilters && hasComplexityFilter && (
+              <button
+                type="button"
+                onClick={() => updateControl({ complexity_min: null, complexity_max: null })}
+                className="mt-1 text-xs text-fuchsia-300 hover:text-fuchsia-200"
+              >
+                Quitar filtro de complejidad
+              </button>
+            )}
           </div>
 
           {/* Categories */}
@@ -703,7 +782,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
                     label={t(category.name)}
                     active={activeCategories.has(category.id)}
                     onClick={() =>
-                      toggleTaxonomy(activeCategories, category.id, setActiveCategories, "category_ids")
+                      toggleTaxonomy(activeCategories, category.id, "category_ids")
                     }
                     removable
                   />
@@ -745,7 +824,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
                     label={t(mechanic.name)}
                     active={activeMechanics.has(mechanic.id)}
                     onClick={() =>
-                      toggleTaxonomy(activeMechanics, mechanic.id, setActiveMechanics, "mechanic_ids")
+                      toggleTaxonomy(activeMechanics, mechanic.id, "mechanic_ids")
                     }
                     removable
                   />
@@ -780,7 +859,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
                     label={t(category.name)}
                     active
                     onClick={() =>
-                      toggleTaxonomy(activeCategories, category.id, setActiveCategories, "category_ids")
+                      toggleTaxonomy(activeCategories, category.id, "category_ids")
                     }
                     removable
                   />
@@ -791,7 +870,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
                     label={t(mechanic.name)}
                     active
                     onClick={() =>
-                      toggleTaxonomy(activeMechanics, mechanic.id, setActiveMechanics, "mechanic_ids")
+                      toggleTaxonomy(activeMechanics, mechanic.id, "mechanic_ids")
                     }
                     removable
                   />
@@ -799,21 +878,40 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
               </div>
             </div>
           )}
-          {semanticQuery && (
+          {ludoscopioPrompt && (
             <div className="mb-5 rounded-lg border border-fuchsia-500/20 bg-neutral-950 px-4 py-3">
               <div className="flex items-start gap-3">
                 <SearchIcon className="mt-0.5 h-4 w-4 flex-none text-fuchsia-300" />
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-neutral-500">LudoRadar</p>
-                  <p className="mt-1 text-sm text-neutral-200">Resultados para “{semanticQuery}”</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs uppercase tracking-wider text-neutral-500">Ludo Radar</p>
+                  <p className="mt-1 break-words text-sm text-neutral-200">Resultados para “{ludoscopioPrompt}”</p>
+                  <ThemeFilter key={theme ?? ""} value={theme} onChange={(value) => updateLudoscopioSearch({ theme: value })} />
+                  {exactTitle && (
+                    <div className="mt-2">
+                      <Toggle label={`Título exacto · ${exactTitle}`} active removable onClick={() => updateLudoscopioSearch({ exactTitle: null })} />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )}
-          {isResultsLoading ? (
+          {failedPrompt || showRefinementError ? (
+            <div role="alert" className="rounded-lg border border-neutral-800 bg-neutral-950 px-4 py-3">
+              <p className="text-sm text-red-300">No se pudo consultar Ludo Radar.</p>
+              <button
+                type="button"
+                className="mt-2 text-sm text-fuchsia-300 hover:text-fuchsia-200"
+                onClick={() => failedPrompt
+                  ? void handleLudoscopioSearch(failedPrompt).catch(() => {})
+                  : retryRefinement(attempt => attempt + 1)}
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : isResultsLoading ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3 border border-dashed border-neutral-800 rounded-xl">
               <Dices className="w-10 h-10 text-neutral-700" />
-              <p className="text-neutral-500 text-sm">{isSemanticLoading ? "Consultando LudoRadar..." : "Cargando catálogo..."}</p>
+              <p className="text-neutral-500 text-sm">{isLudoscopioLoading ? "Consultando Ludo Radar..." : "Cargando catálogo..."}</p>
             </div>
           ) : results.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3 border border-dashed border-neutral-800 rounded-xl">
@@ -848,7 +946,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
                   </Link>
                 ))}
               </div>
-              {!semanticGames && (
+              {!isLudoscopio && (
                 <div
                   ref={loadMoreRef}
                   aria-live="polite"

@@ -257,6 +257,38 @@ export async function fetchSemanticItems(query: { q: string; limit?: number }): 
   return fetchData<ApiItem[]>(`/api/items/semantic-search?${params.toString()}`);
 }
 
+// Matches the public service's LudoscopioFilters. Send either a new prompt
+// or the latest meta.filters to refine without another interpretation.
+export interface LudoscopioFilters {
+  players: number | null;
+  playtimes: Array<"short" | "medium" | "long">;
+  durationMin: number | null;
+  durationMax: number | null;
+  complexityMin: number | null;
+  complexityMax: number | null;
+  categoryIds: number[];
+  mechanicIds: number[];
+  theme: string | null;
+  exactTitle: string | null;
+  query: string | null;
+}
+
+export type LudoscopioInput = ({ prompt: string } | { filters: LudoscopioFilters }) & { limit?: number };
+
+export async function fetchLudoscopioItems(
+  input: LudoscopioInput,
+  signal: AbortSignal,
+): Promise<{ data: ApiItem[]; meta: { count: number; limit: number; filters: LudoscopioFilters } }> {
+  const response = await fetch(`${API_BASE_URL}/api/items/ludoscopio`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+    signal,
+  });
+  if (!response.ok) throw new Error(`Ludora API request failed with ${response.status}`);
+  return response.json();
+}
+
 export async function fetchItem(id: number): Promise<ApiItem> {
   return fetchData<ApiItem>(`/api/items/${id}`);
 }

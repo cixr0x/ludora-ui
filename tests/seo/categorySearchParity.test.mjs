@@ -60,6 +60,66 @@ async function seedSession(page) {
   }, savedSession);
 }
 
+const emptyFilters = {
+  players: null, playtimes: [], durationMin: null, durationMax: null,
+  complexityMin: null, complexityMax: null, categoryIds: [], mechanicIds: [],
+  theme: null, exactTitle: null, query: null,
+};
+
+test("Ludoscopio applies Explore filters, refines on the server, and ignores results returned after clearing", { timeout: 30000 }, async () => {
+  const server = await startFixtureServer({ catalog: true });
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    const page = await browser.newPage();
+    await configure(page);
+    const submissions = [];
+    const filters = {
+      ...emptyFilters, players: 7, durationMax: 35, complexityMin: 1, complexityMax: 2.5,
+      categoryIds: [7], theme: "piratas",
+    };
+    const prompt = "Somos siete y buscamos estrategia fácil sobre piratas de máximo 35 minutos";
+    const first = { ...item, id: 2, canonical_name_es: "Primera coincidencia" };
+    const added = { ...item, id: 3, canonical_name_es: "Coincidencia adicional" };
+    let releaseResponse;
+    const holdResponse = new Promise(resolve => { releaseResponse = resolve; });
+    await page.route("**/api/items/ludoscopio", async route => {
+      assert.equal(route.request().method(), "POST");
+      const body = route.request().postDataJSON();
+      submissions.push(body);
+      const current = body.filters ?? filters;
+      if (submissions.length === 3) await holdResponse;
+      await route.fulfill({ json: {
+        data: body.prompt ? [first] : [first, added],
+        meta: { filters: current },
+      } }).catch(() => {});
+    });
+
+    await page.goto(origin + "/search");
+    await page.getByRole("button", { name: "Ludo Radar", exact: true }).click();
+    await page.getByLabel("Describe la experiencia").fill(prompt);
+    await page.getByRole("button", { name: "Buscar con Ludo Radar" }).click();
+    await expect(page.getByText("Primera coincidencia", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "7", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Estrategia, desactivar filtro", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Tema")).toHaveValue("piratas");
+    await page.getByRole("button", { name: "Máximo 35 min, desactivar filtro" }).click();
+    await expect(page.getByText("Coincidencia adicional", { exact: true })).toBeVisible();
+    assert.deepEqual(submissions.map(({ prompt, filters }) => prompt ?? filters), [prompt, { ...filters, durationMax: null }]);
+
+    await page.reload();
+    await expect(page.getByText("Coincidencia adicional", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Tema")).toHaveValue("piratas");
+    assert.equal(submissions.length, 2);
+    await page.getByRole("button", { name: "Quitar tema" }).click();
+    await expect.poll(() => submissions.length).toBe(3);
+    await page.getByRole("button", { name: /Borrar todo/ }).click();
+    releaseResponse();
+    await expect(page.getByText("Juego 001", { exact: true })).toBeVisible();
+    await expect(page.getByText("Coincidencia adicional", { exact: true })).toHaveCount(0);
+    await expect(page.getByText(`Resultados para “${prompt}”`, { exact: true })).toHaveCount(0);
+  } finally { await browser.close(); await server.close(); }
+});
+
 test("unfiltered Search restores its saved session and explicit Ludoscopio prompts still replace it", { timeout: 40000 }, async () => {
   const server = await startFixtureServer({ catalog: true, category: { id: 33, name: "Estrategia abstracta" } });
   const browser = await chromium.launch({ channel: "chrome", headless: true });
@@ -77,9 +137,12 @@ test("unfiltered Search restores its saved session and explicit Ludoscopio promp
     await page.goBack(); await page.waitForLoadState("networkidle");
     await expect(page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true })).toBeVisible();
     const prompts = [];
-    await page.route("**/api/items/semantic-search?*", route => {
-      prompts.push(new URL(route.request().url()).searchParams.get("q"));
-      return route.fulfill({ json: { data: [{ ...item, id: 2, canonical_name: "Nueva coincidencia", categories: [] }] } });
+    await page.route("**/api/items/ludoscopio", route => {
+      prompts.push(route.request().postDataJSON().prompt);
+      return route.fulfill({ json: {
+        data: [{ ...item, id: 2, canonical_name_es: "Nueva coincidencia", categories: [] }],
+        meta: { filters: emptyFilters },
+      } });
     });
     for (const key of ["ludoscopio", "ludoscopioPrompt"]) {
       const prompt = `nueva búsqueda ${key}`;
@@ -88,7 +151,7 @@ test("unfiltered Search restores its saved session and explicit Ludoscopio promp
       await page.waitForLoadState("networkidle");
       assert.equal(await page.getByText("Nueva coincidencia", { exact: true }).count(), 1);
       assert.equal(new URL(page.url()).search, "");
-      assert.equal(await page.evaluate(() => JSON.parse(sessionStorage.getItem("ludora:ludoscopio:session:v2")).prompt), prompt);
+      assert.equal(await page.evaluate(() => JSON.parse(sessionStorage.getItem("ludora:ludoscopio:session:v3")).prompt), prompt);
       assert.equal(await page.locator('meta[name="robots"]').getAttribute("content"), "noindex, follow");
     }
     assert.deepEqual(prompts, ["nueva búsqueda ludoscopio", "nueva búsqueda ludoscopioPrompt"]);
@@ -104,6 +167,15 @@ test("ordinary and semantic filter navigation retain their result mode through r
     for (const path of ["/search?category_ids=33", "/categoria/33/estrategia-abstracta", "/categoria/33/estrategia-abstracta/pagina/2"]) {
       const page = await browser.newPage(), { errors } = await configure(page, categoryOption);
       await seedSession(page);
+      await page.route("**/api/items/ludoscopio", route => {
+        const { filters } = route.request().postDataJSON();
+        assert.equal(filters.theme, savedSession.prompt);
+        assert.deepEqual(filters.categoryIds, [33]);
+        return route.fulfill({ json: {
+          data: [{ ...item, id: 1, canonical_name_es: "Juego 01", canonical_name: "Resultado guardado" }],
+          meta: { filters },
+        } });
+      });
       await page.goto(origin + path); await page.waitForLoadState("networkidle");
       await page.getByRole("button", { name: "Estrategia abstracta, desactivar filtro", exact: true }).click();
       await page.waitForURL(origin + "/search"); await page.waitForLoadState("networkidle");
@@ -142,7 +214,10 @@ test("an explicit semantic search still works when session storage cannot be wri
   try {
     const page = await browser.newPage(), { errors } = await configure(page);
     await page.addInitScript(() => { Storage.prototype.setItem = () => { throw new Error("storage unavailable"); }; });
-    await page.route("**/api/items/semantic-search?*", route => route.fulfill({ json: { data: [{ ...item, id: 2, canonical_name: "Nueva coincidencia", categories: [] }] } }));
+    await page.route("**/api/items/ludoscopio", route => route.fulfill({ json: {
+      data: [{ ...item, id: 2, canonical_name_es: "Nueva coincidencia", categories: [] }],
+      meta: { filters: route.request().postDataJSON().filters ?? emptyFilters },
+    } }));
     await page.goto(`${origin}/search?ludoscopio=consulta`);
     await expect(page.getByText("Resultados para “consulta”", { exact: true })).toBeVisible();
     assert.equal(await page.getByText("Nueva coincidencia", { exact: true }).count(), 1);
@@ -151,6 +226,94 @@ test("an explicit semantic search still works when session storage cannot be wri
     await expect(page.getByText("Nueva coincidencia", { exact: true })).toBeVisible();
     assert.equal(await page.getByText("Resultados para “consulta”", { exact: true }).count(), 1);
     assert.deepEqual(errors, []);
+  } finally { await browser.close(); await server.close(); }
+});
+
+test("a restored v2 search reapplies historical URL filters to the server", { timeout: 30000 }, async () => {
+  const server = await startFixtureServer({ catalog: true });
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    const page = await browser.newPage();
+    await configure(page);
+    await seedSession(page);
+    const refinements = [];
+    await page.route("**/api/items/ludoscopio", route => {
+      const { filters } = route.request().postDataJSON();
+      refinements.push(filters);
+      return route.fulfill({ json: {
+        data: [{ ...item, id: 2, canonical_name_es: "Coincidencia para cuatro jugadores" }],
+        meta: { filters },
+      } });
+    });
+    await page.goto(origin + "/search?players=4");
+    await page.evaluate(() => history.replaceState({
+      ...history.state, usr: { exploreResultMode: "semantic" },
+    }, ""));
+    await page.reload();
+    await expect(page.getByText("Coincidencia para cuatro jugadores", { exact: true })).toBeVisible();
+    await expect(page.getByText("Resultado guardado", { exact: true })).toHaveCount(0);
+    assert.deepEqual(refinements, [{ ...emptyFilters, players: 4, theme: savedSession.prompt }]);
+  } finally { await browser.close(); await server.close(); }
+});
+
+test("a failed direct prompt is consumed and can be retried explicitly", { timeout: 30000 }, async () => {
+  const server = await startFixtureServer({ catalog: true });
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    const page = await browser.newPage();
+    const { requests } = await configure(page);
+    const prompts = [];
+    const retryPrompt = "juegos de jardinería";
+    await page.route("**/api/items/ludoscopio", route => {
+      const { prompt } = route.request().postDataJSON();
+      prompts.push(prompt);
+      if (prompt === retryPrompt && prompts.filter(value => value === retryPrompt).length === 2) {
+        return route.fulfill({ json: { data: [], meta: { filters: emptyFilters } } });
+      }
+      return route.fulfill({ status: 503, json: { error: { message: "Unavailable" } } });
+    });
+    const firstPrompt = "juegos de trenes";
+    await page.goto(`${origin}/search?${new URLSearchParams({ ludoscopio: firstPrompt })}`);
+    await expect(page.getByRole("alert")).toContainText("No se pudo consultar Ludo Radar");
+    assert.equal(new URL(page.url()).search, "");
+    await page.getByRole("button", { name: "4", exact: true }).first().click();
+    await expect.poll(() => requests.some(request => request.players === "4")).toBe(true);
+    assert.deepEqual(prompts, [firstPrompt]);
+
+    await page.goto(`${origin}/search?${new URLSearchParams({ ludoscopioPrompt: retryPrompt })}`);
+    await expect(page.getByRole("alert")).toContainText("No se pudo consultar Ludo Radar");
+    await page.getByRole("button", { name: "Reintentar" }).click();
+    await expect(page.getByText(`Resultados para “${retryPrompt}”`, { exact: true })).toBeVisible();
+    assert.deepEqual(prompts, [firstPrompt, retryPrompt, retryPrompt]);
+  } finally { await browser.close(); await server.close(); }
+});
+
+test("editing Explore during a URL prompt cancels it without starting another interpretation", { timeout: 30000 }, async () => {
+  const server = await startFixtureServer({ catalog: true });
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  try {
+    const page = await browser.newPage();
+    const { requests } = await configure(page);
+    let calls = 0;
+    let releaseResponse;
+    const holdResponse = new Promise(resolve => { releaseResponse = resolve; });
+    await page.route("**/api/items/ludoscopio", async route => {
+      calls += 1;
+      await holdResponse;
+      await route.fulfill({ json: {
+        data: [{ ...item, id: 2, canonical_name_es: "Resultado atrasado" }],
+        meta: { filters: emptyFilters },
+      } }).catch(() => {});
+    });
+    await page.goto(`${origin}/search?ludoscopio=juegos+largos`, { waitUntil: "domcontentloaded" });
+    await expect.poll(() => calls).toBe(1);
+    await page.getByRole("button", { name: "4", exact: true }).first().click();
+    await expect.poll(() => requests.some(request => request.players === "4")).toBe(true);
+    assert.equal(new URL(page.url()).search, "?players=4");
+    releaseResponse();
+    await expect(page.getByText("Juego 001", { exact: true })).toBeVisible();
+    await expect(page.getByText("Resultado atrasado", { exact: true })).toHaveCount(0);
+    assert.equal(calls, 1);
   } finally { await browser.close(); await server.close(); }
 });
 

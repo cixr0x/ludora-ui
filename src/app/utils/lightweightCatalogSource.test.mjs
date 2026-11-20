@@ -65,31 +65,6 @@ test("search page uses minimal search results for grid results and lightweight f
   assert.doesNotMatch(searchSource, /loadCatalogGameDetails/);
 });
 
-test("search page keeps semantic results when text query changes and filters them locally", () => {
-  const searchSource = source("../pages/Search.tsx");
-  const handleTextQueryChange = searchSource.match(
-    /const handleTextQueryChange = \(value: string\) => \{[\s\S]*?\n  \};/,
-  )?.[0];
-
-  assert.ok(handleTextQueryChange, "handleTextQueryChange should be present");
-  assert.match(handleTextQueryChange, /setQuery\(value\)/);
-  assert.doesNotMatch(handleTextQueryChange, /setSemanticGames\(\s*null\s*\)/);
-  assert.match(
-    searchSource,
-    /semanticGames\s*\?\s*filterSemanticSearchResults\(\s*semanticGames,\s*searchRequest\s*\)\s*:\s*games/,
-  );
-});
-
-test("search page persists Ludoscopio semantic results in session storage", () => {
-  const searchSource = source("../pages/Search.tsx");
-
-  assert.match(searchSource, /readLudoscopioSessionCache/);
-  assert.match(searchSource, /writeLudoscopioSessionCache\(\s*prompt,\s*semanticResults\s*\)/);
-  assert.match(searchSource, /clearLudoscopioSessionCache\(\s*\)/);
-  assert.match(searchSource, /cachedLudoscopioSession\?\.prompt/);
-  assert.match(searchSource, /cachedLudoscopioSession\?\.results/);
-});
-
 test("site header autocomplete uses minimal search results", () => {
   const headerSource = source("../components/SiteHeader.tsx");
 

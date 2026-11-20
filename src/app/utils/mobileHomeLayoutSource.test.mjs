@@ -12,25 +12,25 @@ test("home restores its original content spacing at the desktop breakpoint", () 
   assert.match(homeSource, /px-3 py-10[\s\S]*md:px-14 md:py-16/);
 });
 
-test("home places the LudoRadar dismiss control after its primary action", () => {
+test("home places the Ludo Radar dismiss control after its primary action", () => {
   const calloutSource = source("../components/LudoscopioCallout.tsx");
 
   assert.match(
     calloutSource,
-    /onClick=\{onTrigger\}[\s\S]*?<SearchIcon[\s\S]*?LudoRadar[\s\S]*?\{onDismiss && \([\s\S]*?aria-label="Cerrar sugerencia de LudoRadar"/,
+    /onClick=\{onTrigger\}[\s\S]*?<SearchIcon[\s\S]*?Ludo Radar[\s\S]*?\{onDismiss && \([\s\S]*?aria-label="Cerrar sugerencia de Ludo Radar"/,
   );
 });
 
-test("semantic search uses LudoRadar wording and magnifier icons on public surfaces", () => {
+test("semantic search uses Ludo Radar wording and magnifier icons on public surfaces", () => {
   const calloutSource = source("../components/LudoscopioCallout.tsx");
   const searchSource = source("../pages/Search.tsx");
 
   assert.doesNotMatch(calloutSource, /<Sparkles/);
-  assert.match(calloutSource, /Prueba nuestro LudoRadar/);
-  assert.match(calloutSource, /Buscar con LudoRadar/);
+  assert.match(calloutSource, /Prueba nuestro Ludo Radar/);
+  assert.match(calloutSource, /Buscar con Ludo Radar/);
   assert.match(searchSource, /<SearchIcon className="mt-0\.5 h-4 w-4 flex-none text-fuchsia-300" \/>/);
-  assert.match(searchSource, />LudoRadar<\/p>/);
-  assert.match(searchSource, /Consultando LudoRadar\.\.\./);
+  assert.match(searchSource, />Ludo Radar<\/p>/);
+  assert.match(searchSource, /Consultando Ludo Radar\.\.\./);
 });
 
 test("home rows keep responsive rendering and lazy-loading geometry synchronized", () => {

@@ -5,6 +5,7 @@ import {
   fetchItemExpansions,
   fetchItems,
   fetchItemSummaries,
+  fetchLudoscopioItems,
   fetchRelatedItems,
   fetchSearchResults,
   fetchSemanticItems,
@@ -15,6 +16,7 @@ import {
   type ApiOffer,
   type ApiSearchResultItem,
   type ApiTaxonomyEntry,
+  type LudoscopioInput,
 } from "../api/catalog";
 import { isExpansionItem, positiveInteger } from "../utils/expansionDisplay.js";
 import { formatStorePrice } from "../utils/priceFormat.js";
@@ -163,6 +165,11 @@ export async function loadCatalogGameDetails(query?: Parameters<typeof fetchItem
 export async function loadSemanticCatalogGameDetails(query: string, limit = 40): Promise<GameDetail[]> {
   const items = await fetchSemanticItems({ q: query, limit });
   return items.map((item) => mapApiItemToDetail(item));
+}
+
+export async function loadLudoscopioCatalogGames(input: LudoscopioInput, signal: AbortSignal) {
+  const { data, meta } = await fetchLudoscopioItems(input, signal);
+  return { filters: meta.filters, results: data.map(game => mapApiItemToGame(game)) };
 }
 
 export async function loadGameDetail(id: number): Promise<GameDetail | undefined> {

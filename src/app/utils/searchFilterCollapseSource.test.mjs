@@ -43,11 +43,11 @@ test("search taxonomy pill changes stay synchronized with the Explore URL", () =
   );
   assert.match(
     source,
-    /toggleTaxonomy\(activeCategories, category\.id, setActiveCategories, "category_ids"\)/,
+    /toggleTaxonomy\(activeCategories, category\.id, "category_ids"\)/,
   );
   assert.match(
     source,
-    /toggleTaxonomy\(activeMechanics, mechanic\.id, setActiveMechanics, "mechanic_ids"\)/,
+    /toggleTaxonomy\(activeMechanics, mechanic\.id, "mechanic_ids"\)/,
   );
   assert.match(
     source,

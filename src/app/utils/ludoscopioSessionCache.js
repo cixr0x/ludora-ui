@@ -1,18 +1,21 @@
-const LUDOSCOPIO_SESSION_CACHE_KEY = "ludora:ludoscopio:session:v2";
+import { readLudoscopioControlParams, sameLudoscopioFilters, writeLudoscopioControlParams } from "./ludoscopioFilters.js";
+
+const LUDOSCOPIO_SESSION_CACHE_KEY = "ludora:ludoscopio:session:v3";
+const LEGACY_SESSION_CACHE_KEY = "ludora:ludoscopio:session:v2";
 
 export function readLudoscopioSessionCache(storage = browserSessionStorage()) {
   try {
     const raw = storage?.getItem(LUDOSCOPIO_SESSION_CACHE_KEY);
-    if (!raw) return null;
-
-    return normalizeSessionCache(JSON.parse(raw));
+    if (raw) return normalizeSessionCache(JSON.parse(raw));
+    const legacy = storage?.getItem(LEGACY_SESSION_CACHE_KEY);
+    return legacy ? normalizeSessionCache(JSON.parse(legacy), true) : null;
   } catch {
     return null;
   }
 }
 
-export function writeLudoscopioSessionCache(prompt, results, storage = browserSessionStorage()) {
-  const normalized = normalizeSessionCache({ prompt, results });
+export function writeLudoscopioSessionCache(prompt, filters, results, storage = browserSessionStorage()) {
+  const normalized = normalizeSessionCache({ prompt, filters, results });
   if (!normalized || !storage) return;
 
   try {
@@ -20,6 +23,7 @@ export function writeLudoscopioSessionCache(prompt, results, storage = browserSe
       LUDOSCOPIO_SESSION_CACHE_KEY,
       JSON.stringify(normalized),
     );
+    storage.removeItem(LEGACY_SESSION_CACHE_KEY);
   } catch {
   }
 }
@@ -27,6 +31,7 @@ export function writeLudoscopioSessionCache(prompt, results, storage = browserSe
 export function clearLudoscopioSessionCache(storage = browserSessionStorage()) {
   try {
     storage?.removeItem(LUDOSCOPIO_SESSION_CACHE_KEY);
+    storage?.removeItem(LEGACY_SESSION_CACHE_KEY);
   } catch {
   }
 }
@@ -39,44 +44,29 @@ function browserSessionStorage() {
   }
 }
 
-function normalizeSessionCache(value) {
+function normalizeSessionCache(value, legacy = false) {
   const prompt = typeof value?.prompt === "string" ? value.prompt.trim() : "";
   if (!prompt || !Array.isArray(value.results)) return null;
 
-  const results = value.results.map(normalizeSemanticResult);
+  const results = value.results.map(normalizeResult);
   if (results.some((result) => !result)) return null;
 
-  return { prompt, results };
+  if (legacy) return { prompt, results };
+  const { filters } = value;
+  if (!filters || !nullableText(filters.theme, 250) || !nullableText(filters.exactTitle, 500)) return null;
+  const params = writeLudoscopioControlParams(new URLSearchParams(), filters);
+  const normalized = readLudoscopioControlParams(params, filters.theme, filters.exactTitle);
+  return sameLudoscopioFilters(filters, normalized) ? { prompt, results, filters: normalized } : null;
 }
 
-function normalizeSemanticResult(value) {
+function normalizeResult(value) {
   const id = positiveInteger(value?.id);
-  if (!id) return null;
-
-  const result = { ...value, id };
-  return isValidSemanticResult(result) ? result : null;
+  if (!id || typeof value.name !== "string" || typeof value.image !== "string" || !Array.isArray(value.genres)) return null;
+  return { ...value, id };
 }
 
-function isValidSemanticResult(value) {
-  return (
-    value &&
-    Number.isInteger(value.id) &&
-    typeof value.name === "string" &&
-    Array.isArray(value.genres) &&
-    Array.isArray(value.categories) &&
-    Array.isArray(value.mechanics) &&
-    Array.isArray(value.categoryNames) &&
-    Array.isArray(value.mechanicNames) &&
-    typeof value.minPlayers === "number" &&
-    typeof value.maxPlayers === "number" &&
-    nullableNumber(value.minMinutes) &&
-    nullableNumber(value.maxMinutes) &&
-    typeof value.complexity === "number"
-  );
-}
-
-function nullableNumber(value) {
-  return value === null || typeof value === "number";
+function nullableText(value, limit) {
+  return value === null || (typeof value === "string" && value.trim() === value && value.length > 0 && value.length <= limit);
 }
 
 function positiveInteger(value) {

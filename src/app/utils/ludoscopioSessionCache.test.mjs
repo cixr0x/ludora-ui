@@ -34,13 +34,20 @@ const validResult = {
   complexity: 2,
 };
 
-test("ludoscopio session cache stores and restores prompt plus semantic results", () => {
+const filters = {
+  players: 7, playtimes: [], durationMin: null, durationMax: 35,
+  complexityMin: 1, complexityMax: 2.5, categoryIds: [4], mechanicIds: [],
+  theme: "piratas", exactTitle: null, query: null,
+};
+
+test("ludoscopio session cache stores and restores the active filters with their results", () => {
   const storage = memoryStorage();
 
-  writeLudoscopioSessionCache(" juegos familiares con animales ", [validResult], storage);
+  writeLudoscopioSessionCache(" juegos familiares con animales ", filters, [validResult], storage);
 
   assert.deepEqual(readLudoscopioSessionCache(storage), {
     prompt: "juegos familiares con animales",
+    filters,
     results: [validResult],
   });
 });
@@ -74,7 +81,8 @@ test("ludoscopio session cache ignores previous cache versions", () => {
 
 test("ludoscopio session cache can be cleared", () => {
   const storage = memoryStorage();
-  writeLudoscopioSessionCache("party games", [validResult], storage);
+  storage.setItem("ludora:ludoscopio:session:v2", JSON.stringify({ prompt: "azul", results: [validResult] }));
+  writeLudoscopioSessionCache("party games", filters, [validResult], storage);
 
   clearLudoscopioSessionCache(storage);
 

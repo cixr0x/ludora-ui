@@ -43,7 +43,7 @@ export function LudoscopioCallout({
       await onSearch(prompt);
       setOpen(false);
     } catch {
-      setError("No se pudo consultar LudoRadar. Intenta de nuevo.");
+      setError("No se pudo consultar Ludo Radar. Intenta de nuevo.");
     } finally {
       setIsSearching(false);
     }
@@ -52,7 +52,7 @@ export function LudoscopioCallout({
   return (
     <div className={`rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3 ${className}`}>
       <p className={`text-sm leading-relaxed text-neutral-300 ${messageClassName}`}>
-        ¿Buscas algo nuevo para jugar? Prueba nuestro LudoRadar y encuentra juegos de mesa que se ajusten al tipo de experiencia que buscas.
+        ¿Buscas algo nuevo para jugar? Prueba nuestro Ludo Radar y encuentra juegos de mesa que se ajusten al tipo de experiencia que buscas.
       </p>
       {onTrigger ? (
         <div className="mt-3 flex items-center gap-2 xl:mt-0 xl:flex-none">
@@ -62,12 +62,12 @@ export function LudoscopioCallout({
             className={`inline-flex h-9 items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-4 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 disabled:pointer-events-none disabled:opacity-60 ${buttonClassName}`}
           >
             <SearchIcon className="h-4 w-4" />
-            LudoRadar
+            Ludo Radar
           </button>
           {onDismiss && (
             <button
               type="button"
-              aria-label="Cerrar sugerencia de LudoRadar"
+              aria-label="Cerrar sugerencia de Ludo Radar"
               onClick={onDismiss}
               className="flex h-9 w-9 flex-none items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-fuchsia-500/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-300"
             >
@@ -80,12 +80,12 @@ export function LudoscopioCallout({
         <DialogTrigger asChild>
           <button className={`mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-4 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 disabled:pointer-events-none disabled:opacity-60 ${buttonClassName}`}>
             <SearchIcon className="h-4 w-4" />
-            LudoRadar
+            Ludo Radar
           </button>
         </DialogTrigger>
         <DialogContent className="border-neutral-800 bg-neutral-950 text-white shadow-2xl sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle className="text-white">LudoRadar</DialogTitle>
+            <DialogTitle className="text-white">Ludo Radar</DialogTitle>
             <DialogDescription className="text-sm leading-relaxed text-neutral-400">
               Describe lo que quieres jugar: “juegos de estrategia con gatitos”, “juegos cooperativos de misterio”.
             </DialogDescription>
@@ -105,6 +105,7 @@ export function LudoscopioCallout({
                 id="ludoscopio-input"
                 type="text"
                 value={input}
+                maxLength={500}
                 onChange={(event) => setInput(event.target.value)}
                 className="h-11 w-full rounded-md border border-neutral-800 bg-neutral-900 px-3 text-sm text-white outline-none transition-colors placeholder:text-neutral-600 focus:border-fuchsia-500/60"
                 autoFocus
@@ -117,7 +118,7 @@ export function LudoscopioCallout({
               className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-4 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 disabled:pointer-events-none disabled:opacity-60"
             >
               {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <SearchIcon className="h-4 w-4" />}
-              Buscar con LudoRadar
+              Buscar con Ludo Radar
             </button>
           </form>
         </DialogContent>
