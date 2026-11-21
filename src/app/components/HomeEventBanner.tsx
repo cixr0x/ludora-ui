@@ -185,10 +185,10 @@ function EventNotice({ event, onDismiss }: { event: BannerEvent; onDismiss: () =
               <p id={questionId} className="text-sky-100">¿Te parece útil esta información?</p>
               <div role="group" aria-labelledby={questionId} className="flex shrink-0 gap-2">
                 <button type="button" aria-label="Me parece útil" onClick={() => vote("yes")} className={voteButtonClass}>
-                  <ThumbsUp aria-hidden="true" className="size-4" />
+                  <ThumbsUp aria-hidden="true" className="size-4 text-green-400" />
                 </button>
                 <button type="button" aria-label="No me parece útil" onClick={() => vote("no")} className={voteButtonClass}>
-                  <ThumbsDown aria-hidden="true" className="size-4" />
+                  <ThumbsDown aria-hidden="true" className="size-4 text-red-400" />
                 </button>
               </div>
             </div>
