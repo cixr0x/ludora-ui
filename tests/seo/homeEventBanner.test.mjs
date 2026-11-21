@@ -34,7 +34,12 @@ test("the homepage event banner reports impressions, clicks and votes until it e
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   try {
     const context = await browser.newContext({ viewport: { width: 390, height: 70 }, timezoneId: "Asia/Tokyo" });
-    await routeHomepage(context, assets, () => event);
+    let visibleEvent = event;
+    let bannerRequests = 0;
+    await routeHomepage(context, assets, () => {
+      bannerRequests += 1;
+      return visibleEvent;
+    });
     const page = await context.newPage();
     const pageErrors = [];
     page.on("pageerror", error => pageErrors.push(error.message));
@@ -71,8 +76,12 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     assert.match(await banner.innerText(), /Centro de Exposiciones, Ciudad de México, México/);
     const intro = banner.getByText("Encontramos un evento próximo que podría interesarte:", { exact: true });
     const poll = banner.getByText("¿Te parece útil esta información?", { exact: true });
+    const close = banner.getByRole("button", { name: "Cerrar aviso del evento", exact: true });
     assert.equal(await intro.count(), 1);
     assert.equal(await poll.count(), 1);
+    assert.equal(await close.count(), 1);
+    const mobileIntro = await intro.boundingBox();
+    assert.ok((await close.boundingBox()).x >= mobileIntro.x + mobileIntro.width, "close is to the right of the event on mobile");
     const places = banner.getByText(/Centro de Exposiciones, Ciudad de México, México/);
     const mobilePlaces = await places.boundingBox();
     assert.ok((await poll.boundingBox()).y >= mobilePlaces.y + mobilePlaces.height, "the poll stacks below the event on mobile");
@@ -107,11 +116,13 @@ test("the homepage event banner reports impressions, clicks and votes until it e
 
     const yes = banner.getByRole("button", { name: "Me parece útil", exact: true });
     const no = banner.getByRole("button", { name: "No me parece útil", exact: true });
-    for (const vote of [yes, no]) {
-      const { width, height } = await vote.boundingBox();
+    const desktopNo = await no.boundingBox();
+    assert.ok((await close.boundingBox()).x >= desktopNo.x + desktopNo.width, "close is the far-right desktop action");
+    for (const button of [yes, no, close]) {
+      const { width, height } = await button.boundingBox();
       assert.ok(width >= 44 && height >= 44, "the icon button has a 44px hit area");
-      assert.equal(await vote.innerText(), "");
-      assert.equal(await vote.locator("svg").count(), 1);
+      assert.equal(await button.innerText(), "");
+      assert.equal(await button.locator("svg").count(), 1);
     }
     await details.press("Tab");
     assert.ok(await yes.evaluate(node => node.matches(":focus-visible") && getComputedStyle(node).boxShadow !== "none"));
@@ -130,11 +141,52 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     assert.deepEqual((await bannerEvents(page)).filter(([name]) => name.startsWith("event_banner_vote")), []);
     assert.deepEqual(pageErrors, [], "the prerendered home hydrates without client errors");
 
+    const requestsBeforeDismissal = bannerRequests;
+    await banner.getByRole("status").press("Tab");
+    assert.ok(await close.evaluate(node => node.matches(":focus-visible") && getComputedStyle(node).boxShadow !== "none"));
+    await close.press("Enter");
+    await banner.waitFor({ state: "detached" });
+
+    visibleEvent = nextEvent;
+    await returnHomeThroughPrivacy(page);
+    await page.getByText("No pudimos cargar el catálogo.").waitFor();
+    assert.equal(bannerRequests, requestsBeforeDismissal);
+    const replacement = page.getByRole("region", { name: nextEvent.name });
+    assert.equal(await replacement.count(), 0);
+
+    await page.reload();
+    await page.getByText("No pudimos cargar el catálogo.").waitFor();
+    assert.equal(bannerRequests, requestsBeforeDismissal);
+    assert.equal(await replacement.count(), 0);
+
+    const freshTab = await context.newPage();
+    await freshTab.clock.setFixedTime(new Date("2026-11-20T18:00:00Z"));
+    await freshTab.goto(homepage);
+    const freshBanner = freshTab.getByRole("region", { name: nextEvent.name });
+    await freshBanner.waitFor();
+    assert.equal(bannerRequests, requestsBeforeDismissal + 1);
+
+    // Restore a document after another page in its tab recorded the dismissal.
+    const dismissedSession = await page.evaluate(() => Object.entries(window.sessionStorage));
+    await freshTab.evaluate(entries => {
+      for (const [key, value] of entries) window.sessionStorage.setItem(key, value);
+      window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
+    }, dismissedSession);
+    await freshBanner.waitFor({ state: "detached", timeout: 5000 });
+    assert.equal(bannerRequests, requestsBeforeDismissal + 1);
+    await freshTab.close();
+
     const privateContext = await browser.newContext();
     let availableEvent = event;
-    await routeHomepage(privateContext, assets, () => availableEvent);
+    let privateBannerRequests = 0;
+    await routeHomepage(privateContext, assets, () => {
+      privateBannerRequests += 1;
+      return availableEvent;
+    });
     await privateContext.addInitScript(() => {
-      Object.defineProperty(window, "localStorage", { get() { throw new Error("Storage is blocked"); } });
+      for (const storage of ["localStorage", "sessionStorage"]) {
+        Object.defineProperty(window, storage, { get() { throw new Error("Storage is blocked"); } });
+      }
     });
     const expiringPage = await privateContext.newPage();
     await expiringPage.clock.install({ time: new Date(beforeExpiration - 1000) });
@@ -150,10 +202,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
       ["event_banner_vote_no", eventParameters],
     ]);
 
-    await expiringPage.getByRole("link", { name: "Aviso de Privacidad" }).press("Enter");
-    await expiringPage.waitForURL(new URL("/privacidad", homepage).href, { timeout: 5000 });
-    await expiringBanner.waitFor({ state: "detached" });
-    await expiringPage.getByRole("link", { name: "Inicio", exact: true }).press("Enter");
+    await returnHomeThroughPrivacy(expiringPage);
     await expiringBanner.waitFor();
     assert.equal(await expiringNo.count(), 0);
     assert.equal(await expiringBanner.getByRole("status").innerText(), "Gracias por tu opinión");
@@ -177,6 +226,17 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     assert.equal(await expiringBanner.count(), 0);
     assert.equal(await nextBanner.count(), 0);
     assert.deepEqual(await bannerEvents(expiringPage), []);
+
+    availableEvent = nextEvent;
+    await returnHomeThroughPrivacy(expiringPage);
+    await nextBanner.waitFor();
+    const privateRequestsBeforeDismissal = privateBannerRequests;
+    await nextBanner.getByRole("button", { name: "Cerrar aviso del evento", exact: true }).press("Enter");
+    await nextBanner.waitFor({ state: "detached" });
+    await returnHomeThroughPrivacy(expiringPage);
+    await expiringPage.getByText("No pudimos cargar el catálogo.").waitFor();
+    assert.equal(await nextBanner.count(), 0, "dismissal persists across SPA navigation when session storage is blocked");
+    assert.equal(privateBannerRequests, privateRequestsBeforeDismissal);
   } finally {
     await browser.close();
   }
@@ -226,4 +286,10 @@ function setPageVisibility(page, state) {
     Object.defineProperty(document, "visibilityState", { configurable: true, value: state });
     document.dispatchEvent(new Event("visibilitychange"));
   }, state);
+}
+
+async function returnHomeThroughPrivacy(page) {
+  await page.getByRole("link", { name: "Aviso de Privacidad" }).press("Enter");
+  await page.waitForURL(new URL("/privacidad", homepage).href, { timeout: 5000 });
+  await page.getByRole("link", { name: "Inicio", exact: true }).press("Enter");
 }

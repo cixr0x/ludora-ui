@@ -1,4 +1,4 @@
-import { Info, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Info, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { fetchBannerEvent, type ApiBannerEvent } from "../api/catalog";
 import { trackGoogleAnalyticsEvent } from "./GoogleAnalytics";
@@ -7,17 +7,26 @@ type BannerEvent = ApiBannerEvent & { endsAt: number; dates: string };
 type Vote = "yes" | "no";
 
 const MAX_TIMEOUT_MS = 2_147_483_647;
+const DISMISSED_BANNER_KEY = "ludora:home-event-banner-dismissed:v1";
 const votesInCurrentDocument = new Set<string>();
+let dismissedInCurrentDocument = false;
 
 export function HomeEventBanner() {
   const [event, setEvent] = useState<BannerEvent | null>(null);
+  const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
+    if (isDismissed || wasEventBannerDismissed()) return;
+
     const controller = new AbortController();
     let activeEvent: BannerEvent | null = null;
     let expirationTimer: number | undefined;
 
     function checkExpiration() {
+      if (wasEventBannerDismissed()) {
+        setIsDismissed(true);
+        return;
+      }
       if (!activeEvent) return;
       window.clearTimeout(expirationTimer);
       const remaining = activeEvent.endsAt - Date.now();
@@ -56,12 +65,22 @@ export function HomeEventBanner() {
       document.removeEventListener("visibilitychange", checkExpiration);
       window.removeEventListener("pageshow", checkExpiration);
     };
-  }, []);
+  }, [isDismissed]);
 
-  return event && <EventNotice key={event.id} event={event} />;
+  function dismissBanner() {
+    dismissedInCurrentDocument = true;
+    try {
+      window.sessionStorage.setItem(DISMISSED_BANNER_KEY, "1");
+    } catch {
+      // The dismissal still applies across navigation within this document.
+    }
+    setIsDismissed(true);
+  }
+
+  return !isDismissed && event && <EventNotice key={event.id} event={event} onDismiss={dismissBanner} />;
 }
 
-function EventNotice({ event }: { event: BannerEvent }) {
+function EventNotice({ event, onDismiss }: { event: BannerEvent; onDismiss: () => void }) {
   const { id, name, dates, venue, city, country, link, endsAt } = event;
   const voteKey = `ludora:event-banner-vote:${id}`;
   const [hasVoted, setHasVoted] = useState(() => hasRecordedVote(voteKey));
@@ -132,9 +151,9 @@ function EventNotice({ event }: { event: BannerEvent }) {
       <section
         ref={bannerRef}
         aria-labelledby={headingId}
-        className="grid gap-2 rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2.5 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-x-6"
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2.5 text-sm md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center md:gap-x-4"
       >
-        <div className="flex min-w-0 items-start gap-2">
+        <div className="col-start-1 row-start-1 flex min-w-0 items-start gap-2">
           <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-sky-300" />
           <div className="min-w-0 [overflow-wrap:anywhere]">
             <p className="font-medium text-sky-100">Encontramos un evento próximo que podría interesarte:</p>
@@ -155,7 +174,7 @@ function EventNotice({ event }: { event: BannerEvent }) {
             <p className="mt-0.5 text-xs text-sky-100/80">{dates} · {venue}, {city}, {country}</p>
           </div>
         </div>
-        <div className="min-w-0 pl-6 md:justify-self-end md:pl-0">
+        <div className="col-span-2 col-start-1 row-start-2 min-w-0 pl-6 md:col-span-1 md:col-start-2 md:row-start-1 md:justify-self-end md:pl-0">
           {!hasVoted && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 md:flex-nowrap">
               <p id={questionId} className="font-medium text-sky-100">¿Te parece útil esta información?</p>
@@ -173,12 +192,29 @@ function EventNotice({ event }: { event: BannerEvent }) {
             {hasVoted ? "Gracias por tu opinión" : null}
           </p>
         </div>
+        <button
+          type="button"
+          aria-label="Cerrar aviso del evento"
+          onClick={onDismiss}
+          className="col-start-2 row-start-1 grid size-11 place-items-center rounded-md text-sky-200/80 hover:bg-sky-400/20 hover:text-white focus-visible:ring-2 focus-visible:ring-sky-200 md:col-start-3"
+        >
+          <X aria-hidden="true" className="size-5" />
+        </button>
       </section>
     </div>
   );
 }
 
 const voteButtonClass = "grid size-11 place-items-center rounded-md border border-sky-400/40 bg-sky-500/10 text-sky-100 hover:bg-sky-400/20 focus-visible:ring-2 focus-visible:ring-sky-200";
+
+function wasEventBannerDismissed(): boolean {
+  if (dismissedInCurrentDocument) return true;
+  try {
+    return window.sessionStorage.getItem(DISMISSED_BANNER_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 function hasRecordedVote(key: string): boolean {
   if (votesInCurrentDocument.has(key)) return true;
