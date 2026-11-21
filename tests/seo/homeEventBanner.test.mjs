@@ -139,7 +139,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     await details.press("Tab");
     assert.ok(await yes.evaluate(node => node.matches(":focus-visible") && getComputedStyle(node).boxShadow !== "none"));
     await Promise.all([statResponse(page, event.id, "positive"), yes.click()]);
-    await banner.getByRole("status").filter({ hasText: "Gracias por tu opinión" }).waitFor();
+    await banner.getByRole("status").filter({ hasText: "Gracias por compartirnos tu opinión." }).waitFor();
     assert.equal(await no.count(), 0);
     assert.deepEqual(await bannerEvents(page), [
       ["event_banner_impression", eventParameters],
@@ -149,7 +149,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
       ["event_banner_vote_yes", eventParameters],
     ]);
     await page.reload();
-    await banner.getByRole("status").filter({ hasText: "Gracias por tu opinión" }).waitFor();
+    await banner.getByRole("status").filter({ hasText: "Gracias por compartirnos tu opinión." }).waitFor();
     assert.equal(await yes.count(), 0);
     assert.deepEqual((await bannerEvents(page)).filter(([name]) => name.startsWith("event_banner_vote")), []);
     assert.deepEqual(pageErrors, [], "the prerendered home hydrates without client errors");
@@ -218,7 +218,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     await expiringBanner.waitFor();
     const expiringNo = expiringBanner.getByRole("button", { name: "No me parece útil", exact: true });
     await Promise.all([statResponse(expiringPage, event.id, "negative"), expiringNo.press("Enter")]);
-    await expiringBanner.getByRole("status").filter({ hasText: "Gracias por tu opinión" }).waitFor();
+    await expiringBanner.getByRole("status").filter({ hasText: "Gracias por compartirnos tu opinión." }).waitFor();
     assert.deepEqual((await bannerEvents(expiringPage)).filter(([name]) => name.startsWith("event_banner_vote")), [
       ["event_banner_vote_no", eventParameters],
     ]);
@@ -226,7 +226,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     await returnHomeThroughPrivacy(expiringPage);
     await expiringBanner.waitFor();
     assert.equal(await expiringNo.count(), 0);
-    assert.equal(await expiringBanner.getByRole("status").innerText(), "Gracias por tu opinión");
+    assert.equal(await expiringBanner.getByRole("status").innerText(), "Gracias por compartirnos tu opinión.");
     assert.deepEqual((await bannerEvents(expiringPage)).filter(([name]) => name.startsWith("event_banner_vote")), [
       ["event_banner_vote_no", eventParameters],
     ]);

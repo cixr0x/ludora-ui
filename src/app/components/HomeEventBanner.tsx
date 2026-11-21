@@ -194,7 +194,7 @@ function EventNotice({ event, onDismiss }: { event: BannerEvent; onDismiss: () =
             </div>
           )}
           <p ref={statusRef} role="status" tabIndex={-1} className="text-sky-100">
-            {hasVoted ? "Gracias por tu opinión" : null}
+            {hasVoted ? "Gracias por compartirnos tu opinión." : null}
           </p>
         </div>
         <button
