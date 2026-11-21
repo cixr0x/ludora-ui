@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router";
 import { GameRow } from "../components/GameRow";
+import { HomeEventBanner } from "../components/HomeEventBanner";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
 import { SiteHeader } from "../components/SiteHeader";
 import { loadFrontPageRows, type CatalogRow } from "../data/catalog";
@@ -88,6 +89,7 @@ export function Home() {
             )}
           </div>
         </section>
+        <HomeEventBanner />
         {isLudoscopioCalloutVisible && (
           <div className="px-3 mb-4 md:px-14 md:mb-7">
             <LudoscopioCallout

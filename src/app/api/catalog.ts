@@ -154,6 +154,21 @@ export interface ApiFrontPageRow {
   products: ApiFrontPageItem[];
 }
 
+export interface ApiBannerEvent {
+  id: string;
+  name: string;
+  description: string;
+  starts_at: string;
+  ends_at: string;
+  time_zone: string;
+  min_price: string | null;
+  max_price: string | null;
+  country: string;
+  city: string;
+  venue: string;
+  link: string;
+}
+
 export interface ContactFormSubmission {
   email: string;
   message: string;
@@ -168,6 +183,10 @@ const API_BASE_URL = ((import.meta.env.VITE_LUDORA_API_URL as string | undefined
 
 export async function fetchFrontPage(): Promise<ApiFrontPageRow[]> {
   return fetchData<ApiFrontPageRow[]>("/api/front-page");
+}
+
+export async function fetchBannerEvent(signal: AbortSignal): Promise<ApiBannerEvent | null> {
+  return fetchData<ApiBannerEvent | null>("/api/events/banner", signal);
 }
 
 export interface ApiItemsQuery {
@@ -295,8 +314,8 @@ export async function fetchItem(id: number): Promise<ApiItem> {
   return fetchData<ApiItem>(`/api/items/${id}`);
 }
 
-async function fetchData<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`);
+async function fetchData<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, { signal });
   if (!response.ok) {
     throw new Error(`Ludora API request failed with ${response.status}`);
   }
