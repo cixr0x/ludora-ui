@@ -68,28 +68,65 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     const bounds = await banner.boundingBox();
     assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390, "the banner fits the mobile viewport");
     assert.match(await banner.innerText(), /28\s*[–-]\s*29 de noviembre de 2026/);
-    assert.match(await banner.innerText(), /Un evento de juegos de mesa que podría interesarte/);
     assert.match(await banner.innerText(), /Centro de Exposiciones, Ciudad de México, México/);
+    const intro = banner.getByText("Encontramos un evento próximo que podría interesarte:", { exact: true });
+    const poll = banner.getByText("¿Te parece útil esta información?", { exact: true });
+    assert.equal(await intro.count(), 1);
+    assert.equal(await poll.count(), 1);
+    const places = banner.getByText(/Centro de Exposiciones, Ciudad de México, México/);
+    const mobilePlaces = await places.boundingBox();
+    assert.ok((await poll.boundingBox()).y >= mobilePlaces.y + mobilePlaces.height, "the poll stacks below the event on mobile");
+    assert.ok(await banner.evaluate(node => node.scrollWidth <= node.clientWidth), "the banner has no mobile overflow");
 
-    const details = banner.getByRole("link", { name: "Ver detalles del evento" });
+    const details = banner.getByRole("link", { name: event.name, exact: true });
+    assert.equal(await banner.getByRole("link").count(), 1);
     assert.equal(await details.getAttribute("href"), event.link);
-    const popupPromise = context.waitForEvent("page");
-    await details.press("Enter");
-    const popup = await popupPromise;
-    await popup.waitForURL(event.link);
-    await popup.close();
+    assert.equal(await details.getAttribute("target"), "_blank");
+    assert.match(await details.getAttribute("rel"), /\bnoopener\b/);
+    assert.ok(await details.evaluate(node => parseFloat(getComputedStyle(node).fontSize) < 14), "the event title is smaller than before");
 
-    await banner.getByRole("button", { name: "Sí", exact: true }).click();
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const desktopIntro = await intro.boundingBox();
+    const desktopPoll = await poll.boundingBox();
+    assert.ok(desktopPoll.x >= desktopIntro.x + desktopIntro.width, "the poll sits to the right on desktop");
+    assert.ok(desktopPoll.y < (await places.boundingBox()).y, "the two sides share the desktop row");
+
+    const [keyboardPopup] = await Promise.all([
+      context.waitForEvent("page", { timeout: 5000 }),
+      details.press("Enter"),
+    ]);
+    await keyboardPopup.waitForURL(event.link, { timeout: 5000 });
+    await keyboardPopup.close();
+
+    // Chromium can start loading a background tab before interception.
+    const [middleClickPopup] = await Promise.all([
+      context.waitForEvent("page", { timeout: 5000 }),
+      details.click({ button: "middle" }),
+    ]);
+    await middleClickPopup.close();
+
+    const yes = banner.getByRole("button", { name: "Me parece útil", exact: true });
+    const no = banner.getByRole("button", { name: "No me parece útil", exact: true });
+    for (const vote of [yes, no]) {
+      const { width, height } = await vote.boundingBox();
+      assert.ok(width >= 44 && height >= 44, "the icon button has a 44px hit area");
+      assert.equal(await vote.innerText(), "");
+      assert.equal(await vote.locator("svg").count(), 1);
+    }
+    await details.press("Tab");
+    assert.ok(await yes.evaluate(node => node.matches(":focus-visible") && getComputedStyle(node).boxShadow !== "none"));
+    await yes.click();
     await banner.getByRole("status").filter({ hasText: "Gracias por tu opinión" }).waitFor();
-    assert.equal(await banner.getByRole("button", { name: "No", exact: true }).count(), 0);
+    assert.equal(await no.count(), 0);
     assert.deepEqual(await bannerEvents(page), [
       ["event_banner_impression", eventParameters],
+      ["event_banner_click", eventParameters],
       ["event_banner_click", eventParameters],
       ["event_banner_vote_yes", eventParameters],
     ]);
     await page.reload();
     await banner.getByRole("status").filter({ hasText: "Gracias por tu opinión" }).waitFor();
-    assert.equal(await banner.getByRole("button", { name: "Sí", exact: true }).count(), 0);
+    assert.equal(await yes.count(), 0);
     assert.deepEqual((await bannerEvents(page)).filter(([name]) => name.startsWith("event_banner_vote")), []);
     assert.deepEqual(pageErrors, [], "the prerendered home hydrates without client errors");
 
@@ -106,7 +143,8 @@ test("the homepage event banner reports impressions, clicks and votes until it e
 
     const expiringBanner = expiringPage.getByRole("region", { name: event.name });
     await expiringBanner.waitFor();
-    await expiringBanner.getByRole("button", { name: "No", exact: true }).press("Enter");
+    const expiringNo = expiringBanner.getByRole("button", { name: "No me parece útil", exact: true });
+    await expiringNo.press("Enter");
     await expiringBanner.getByRole("status").filter({ hasText: "Gracias por tu opinión" }).waitFor();
     assert.deepEqual((await bannerEvents(expiringPage)).filter(([name]) => name.startsWith("event_banner_vote")), [
       ["event_banner_vote_no", eventParameters],
@@ -117,7 +155,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     await expiringBanner.waitFor({ state: "detached" });
     await expiringPage.getByRole("link", { name: "Inicio", exact: true }).press("Enter");
     await expiringBanner.waitFor();
-    assert.equal(await expiringBanner.getByRole("button", { name: "No", exact: true }).count(), 0);
+    assert.equal(await expiringNo.count(), 0);
     assert.equal(await expiringBanner.getByRole("status").innerText(), "Gracias por tu opinión");
     assert.deepEqual((await bannerEvents(expiringPage)).filter(([name]) => name.startsWith("event_banner_vote")), [
       ["event_banner_vote_no", eventParameters],
@@ -129,7 +167,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     await expiringPage.clock.fastForward(1);
     await expiringBanner.waitFor({ state: "detached" });
     const nextBanner = expiringPage.getByRole("region", { name: nextEvent.name });
-    await nextBanner.getByRole("button", { name: "No", exact: true }).waitFor();
+    await nextBanner.getByRole("button", { name: "No me parece útil", exact: true }).waitFor();
     assert.equal(await nextBanner.getByText("1 de diciembre de 2026").count(), 1);
 
     availableEvent = null;

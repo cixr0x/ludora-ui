@@ -1,4 +1,4 @@
-import { ArrowUpRight } from "lucide-react";
+import { Info, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { fetchBannerEvent, type ApiBannerEvent } from "../api/catalog";
 import { trackGoogleAnalyticsEvent } from "./GoogleAnalytics";
@@ -71,6 +71,7 @@ function EventNotice({ event }: { event: BannerEvent }) {
   const bannerRef = useRef<HTMLElement>(null);
   const statusRef = useRef<HTMLParagraphElement>(null);
   const headingId = useId();
+  const linkHintId = useId();
   const questionId = useId();
 
   useEffect(() => {
@@ -131,38 +132,44 @@ function EventNotice({ event }: { event: BannerEvent }) {
       <section
         ref={bannerRef}
         aria-labelledby={headingId}
-        className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 px-3 py-2.5 text-sm"
+        className="grid gap-2 rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2.5 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-x-6"
       >
-        <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-1">
-          <div>
-            <p className="text-xs text-neutral-400">Un evento de juegos de mesa que podría interesarte</p>
-            <h2 id={headingId} className="font-semibold text-white">{name}</h2>
-            <p className="mt-0.5 text-neutral-300">{dates} · {venue}, {city}, {country}</p>
+        <div className="flex min-w-0 items-start gap-2">
+          <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-sky-300" />
+          <div className="min-w-0 [overflow-wrap:anywhere]">
+            <p className="font-medium text-sky-100">Encontramos un evento próximo que podría interesarte:</p>
+            <h2 id={headingId} className="mt-0.5 text-xs font-semibold">
+              <a
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-describedby={linkHintId}
+                onClick={trackClick}
+                onAuxClick={click => { if (click.button === 1) trackClick(); }}
+                className="rounded-sm text-sky-200 underline underline-offset-2 hover:text-white focus-visible:ring-2 focus-visible:ring-sky-200"
+              >
+                {name}
+              </a>
+            </h2>
+            <span id={linkHintId} className="sr-only">Abre en una pestaña nueva</span>
+            <p className="mt-0.5 text-xs text-sky-100/80">{dates} · {venue}, {city}, {country}</p>
           </div>
-          <a
-            href={link}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={trackClick}
-            onAuxClick={click => { if (click.button === 1) trackClick(); }}
-            className="inline-flex min-h-9 items-center gap-1 rounded text-fuchsia-300 underline underline-offset-4 hover:text-fuchsia-200 focus-visible:ring-2 focus-visible:ring-fuchsia-300"
-          >
-            Ver detalles del evento
-            <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />
-            <span className="sr-only"> (abre en una pestaña nueva)</span>
-          </a>
         </div>
-        <div className="mt-1.5 border-t border-fuchsia-500/15 pt-1.5">
+        <div className="min-w-0 pl-6 md:justify-self-end md:pl-0">
           {!hasVoted && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <p id={questionId} className="text-neutral-400">¿Te gustaría ver más avisos de eventos como este?</p>
-              <div role="group" aria-labelledby={questionId} className="flex gap-2">
-                <button type="button" onClick={() => vote("yes")} className={voteButtonClass}>Sí</button>
-                <button type="button" onClick={() => vote("no")} className={voteButtonClass}>No</button>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 md:flex-nowrap">
+              <p id={questionId} className="font-medium text-sky-100">¿Te parece útil esta información?</p>
+              <div role="group" aria-labelledby={questionId} className="flex shrink-0 gap-2">
+                <button type="button" aria-label="Me parece útil" onClick={() => vote("yes")} className={voteButtonClass}>
+                  <ThumbsUp aria-hidden="true" className="size-4" />
+                </button>
+                <button type="button" aria-label="No me parece útil" onClick={() => vote("no")} className={voteButtonClass}>
+                  <ThumbsDown aria-hidden="true" className="size-4" />
+                </button>
               </div>
             </div>
           )}
-          <p ref={statusRef} role="status" tabIndex={-1} className="text-neutral-300">
+          <p ref={statusRef} role="status" tabIndex={-1} className="text-sky-100">
             {hasVoted ? "Gracias por tu opinión" : null}
           </p>
         </div>
@@ -171,7 +178,7 @@ function EventNotice({ event }: { event: BannerEvent }) {
   );
 }
 
-const voteButtonClass = "min-h-8 min-w-11 rounded border border-neutral-700 px-2 font-medium text-neutral-200 hover:border-fuchsia-300 hover:text-white focus-visible:ring-2 focus-visible:ring-fuchsia-300";
+const voteButtonClass = "grid size-11 place-items-center rounded-md border border-sky-400/40 bg-sky-500/10 text-sky-100 hover:bg-sky-400/20 focus-visible:ring-2 focus-visible:ring-sky-200";
 
 function hasRecordedVote(key: string): boolean {
   if (votesInCurrentDocument.has(key)) return true;
