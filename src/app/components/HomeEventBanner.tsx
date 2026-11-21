@@ -157,7 +157,7 @@ function EventNotice({ event, onDismiss }: { event: BannerEvent; onDismiss: () =
           <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-sky-300" />
           <div className="min-w-0 [overflow-wrap:anywhere]">
             <p className="font-medium text-sky-100">Encontramos un evento próximo que podría interesarte:</p>
-            <h2 id={headingId} className="mt-0.5 text-xs font-semibold">
+            <h2 id={headingId} className="mt-0.5 text-[0.8125rem]/4 font-semibold">
               <a
                 href={link}
                 target="_blank"
