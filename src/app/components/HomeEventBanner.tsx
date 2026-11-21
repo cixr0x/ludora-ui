@@ -182,7 +182,7 @@ function EventNotice({ event, onDismiss }: { event: BannerEvent; onDismiss: () =
         <div className="col-span-2 col-start-1 row-start-2 min-w-0 pl-6 md:col-span-1 md:col-start-2 md:row-start-1 md:justify-self-end md:pl-0">
           {!hasVoted && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 md:flex-nowrap">
-              <p id={questionId} className="font-medium text-sky-100">¿Te parece útil esta información?</p>
+              <p id={questionId} className="text-sky-100">¿Te parece útil esta información?</p>
               <div role="group" aria-labelledby={questionId} className="flex shrink-0 gap-2">
                 <button type="button" aria-label="Me parece útil" onClick={() => vote("yes")} className={voteButtonClass}>
                   <ThumbsUp aria-hidden="true" className="size-4" />
