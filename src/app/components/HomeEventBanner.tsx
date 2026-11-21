@@ -1,6 +1,6 @@
 import { Info, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
-import { fetchBannerEvent, type ApiBannerEvent } from "../api/catalog";
+import { fetchBannerEvent, reportBannerEventAction, type ApiBannerEvent } from "../api/catalog";
 import { trackGoogleAnalyticsEvent } from "./GoogleAnalytics";
 
 type BannerEvent = ApiBannerEvent & { endsAt: number; dates: string };
@@ -68,6 +68,7 @@ export function HomeEventBanner() {
   }, [isDismissed]);
 
   function dismissBanner() {
+    if (!event || dismissedInCurrentDocument) return;
     dismissedInCurrentDocument = true;
     try {
       window.sessionStorage.setItem(DISMISSED_BANNER_KEY, "1");
@@ -75,6 +76,7 @@ export function HomeEventBanner() {
       // The dismissal still applies across navigation within this document.
     }
     setIsDismissed(true);
+    void reportBannerEventAction(event.id, "dismiss");
   }
 
   return !isDismissed && event && <EventNotice key={event.id} event={event} onDismiss={dismissBanner} />;
@@ -125,6 +127,7 @@ function EventNotice({ event, onDismiss }: { event: BannerEvent; onDismiss: () =
 
   function trackClick() {
     if (Date.now() < endsAt) {
+      void reportBannerEventAction(id, "click");
       trackGoogleAnalyticsEvent("event_banner_click", { promoted_event_id: id });
     }
   }
@@ -141,7 +144,9 @@ function EventNotice({ event, onDismiss }: { event: BannerEvent; onDismiss: () =
     } catch {
       // The in-memory vote survives client-side navigation.
     }
-    trackGoogleAnalyticsEvent(response === "yes" ? "event_banner_vote_yes" : "event_banner_vote_no", {
+    const isPositive = response === "yes";
+    void reportBannerEventAction(id, isPositive ? "positive" : "negative");
+    trackGoogleAnalyticsEvent(isPositive ? "event_banner_vote_yes" : "event_banner_vote_no", {
       promoted_event_id: id,
     });
   }

@@ -36,10 +36,11 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     const context = await browser.newContext({ viewport: { width: 390, height: 70 }, timezoneId: "Asia/Tokyo" });
     let visibleEvent = event;
     let bannerRequests = 0;
+    const statWrites = [];
     await routeHomepage(context, assets, () => {
       bannerRequests += 1;
       return visibleEvent;
-    });
+    }, statWrites);
     const page = await context.newPage();
     const pageErrors = [];
     page.on("pageerror", error => pageErrors.push(error.message));
@@ -100,19 +101,30 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     assert.ok(desktopPoll.x >= desktopIntro.x + desktopIntro.width, "the poll sits to the right on desktop");
     assert.ok(desktopPoll.y < (await places.boundingBox()).y, "the two sides share the desktop row");
 
-    const [keyboardPopup] = await Promise.all([
+    const [keyboardPopup, keyboardClick] = await Promise.all([
       context.waitForEvent("page", { timeout: 5000 }),
+      statResponse(page, event.id, "click"),
       details.press("Enter"),
     ]);
+    assert.equal(keyboardClick.status(), 204);
     await keyboardPopup.waitForURL(event.link, { timeout: 5000 });
     await keyboardPopup.close();
 
     // Chromium can start loading a background tab before interception.
     const [middleClickPopup] = await Promise.all([
       context.waitForEvent("page", { timeout: 5000 }),
+      statResponse(page, event.id, "click"),
       details.click({ button: "middle" }),
     ]);
     await middleClickPopup.close();
+
+    const [primaryClickPopup] = await Promise.all([
+      context.waitForEvent("page", { timeout: 5000 }),
+      statResponse(page, event.id, "click"),
+      details.click(),
+    ]);
+    await primaryClickPopup.waitForURL(event.link, { timeout: 5000 });
+    await primaryClickPopup.close();
 
     const yes = banner.getByRole("button", { name: "Me parece útil", exact: true });
     const no = banner.getByRole("button", { name: "No me parece útil", exact: true });
@@ -126,11 +138,12 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     }
     await details.press("Tab");
     assert.ok(await yes.evaluate(node => node.matches(":focus-visible") && getComputedStyle(node).boxShadow !== "none"));
-    await yes.click();
+    await Promise.all([statResponse(page, event.id, "positive"), yes.click()]);
     await banner.getByRole("status").filter({ hasText: "Gracias por tu opinión" }).waitFor();
     assert.equal(await no.count(), 0);
     assert.deepEqual(await bannerEvents(page), [
       ["event_banner_impression", eventParameters],
+      ["event_banner_click", eventParameters],
       ["event_banner_click", eventParameters],
       ["event_banner_click", eventParameters],
       ["event_banner_vote_yes", eventParameters],
@@ -144,7 +157,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     const requestsBeforeDismissal = bannerRequests;
     await banner.getByRole("status").press("Tab");
     assert.ok(await close.evaluate(node => node.matches(":focus-visible") && getComputedStyle(node).boxShadow !== "none"));
-    await close.press("Enter");
+    await Promise.all([statResponse(page, event.id, "dismiss"), close.press("Enter")]);
     await banner.waitFor({ state: "detached" });
 
     visibleEvent = nextEvent;
@@ -174,15 +187,23 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     }, dismissedSession);
     await freshBanner.waitFor({ state: "detached", timeout: 5000 });
     assert.equal(bannerRequests, requestsBeforeDismissal + 1);
+    assert.deepEqual(statWrites, [
+      ["POST", "/api/events/42/stats/click"],
+      ["POST", "/api/events/42/stats/click"],
+      ["POST", "/api/events/42/stats/click"],
+      ["POST", "/api/events/42/stats/positive"],
+      ["POST", "/api/events/42/stats/dismiss"],
+    ]);
     await freshTab.close();
 
     const privateContext = await browser.newContext();
     let availableEvent = event;
     let privateBannerRequests = 0;
+    const privateStatWrites = [];
     await routeHomepage(privateContext, assets, () => {
       privateBannerRequests += 1;
       return availableEvent;
-    });
+    }, privateStatWrites);
     await privateContext.addInitScript(() => {
       for (const storage of ["localStorage", "sessionStorage"]) {
         Object.defineProperty(window, storage, { get() { throw new Error("Storage is blocked"); } });
@@ -196,7 +217,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     const expiringBanner = expiringPage.getByRole("region", { name: event.name });
     await expiringBanner.waitFor();
     const expiringNo = expiringBanner.getByRole("button", { name: "No me parece útil", exact: true });
-    await expiringNo.press("Enter");
+    await Promise.all([statResponse(expiringPage, event.id, "negative"), expiringNo.press("Enter")]);
     await expiringBanner.getByRole("status").filter({ hasText: "Gracias por tu opinión" }).waitFor();
     assert.deepEqual((await bannerEvents(expiringPage)).filter(([name]) => name.startsWith("event_banner_vote")), [
       ["event_banner_vote_no", eventParameters],
@@ -231,12 +252,19 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     await returnHomeThroughPrivacy(expiringPage);
     await nextBanner.waitFor();
     const privateRequestsBeforeDismissal = privateBannerRequests;
-    await nextBanner.getByRole("button", { name: "Cerrar aviso del evento", exact: true }).press("Enter");
+    await Promise.all([
+      statResponse(expiringPage, nextEvent.id, "dismiss"),
+      nextBanner.getByRole("button", { name: "Cerrar aviso del evento", exact: true }).press("Enter"),
+    ]);
     await nextBanner.waitFor({ state: "detached" });
     await returnHomeThroughPrivacy(expiringPage);
     await expiringPage.getByText("No pudimos cargar el catálogo.").waitFor();
     assert.equal(await nextBanner.count(), 0, "dismissal persists across SPA navigation when session storage is blocked");
     assert.equal(privateBannerRequests, privateRequestsBeforeDismissal);
+    assert.deepEqual(privateStatWrites, [
+      ["POST", "/api/events/42/stats/negative"],
+      ["POST", "/api/events/43/stats/dismiss"],
+    ]);
   } finally {
     await browser.close();
   }
@@ -261,18 +289,28 @@ async function buildHomepage() {
   return assets;
 }
 
-async function routeHomepage(context, assets, getEvent) {
+async function routeHomepage(context, assets, getEvent, statWrites) {
   await context.route("**/*", async route => {
     const url = new URL(route.request().url());
     if (url.href === event.link) return route.fulfill({ contentType: "text/html", body: "<title>Official site fixture</title>" });
     if (url.origin !== new URL(homepage).origin) return route.abort();
     if (url.pathname === "/api/events/banner") return route.fulfill({ json: { data: getEvent() } });
+    if (/^\/api\/events\/[^/]+\/stats\//.test(url.pathname)) {
+      statWrites.push([route.request().method(), url.pathname]);
+      return route.fulfill({ status: 204 });
+    }
     if (url.pathname.startsWith("/api/")) return route.fulfill({ json: { data: [] } });
     const body = assets.get(url.pathname);
     if (body === undefined) return route.fulfill({ status: 204 });
     const contentType = url.pathname.endsWith(".js") ? "text/javascript" : url.pathname.endsWith(".css") ? "text/css" : "text/html";
     return route.fulfill({ contentType, body: typeof body === "string" ? body : Buffer.from(body) });
   });
+}
+
+function statResponse(page, id, action) {
+  return page.waitForResponse(response =>
+    response.url() === `${homepage}api/events/${id}/stats/${action}` && response.request().method() === "POST",
+    { timeout: 5000 });
 }
 
 function bannerEvents(page) {

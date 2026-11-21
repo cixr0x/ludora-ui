@@ -189,6 +189,20 @@ export async function fetchBannerEvent(signal: AbortSignal): Promise<ApiBannerEv
   return fetchData<ApiBannerEvent | null>("/api/events/banner", signal);
 }
 
+export async function reportBannerEventAction(
+  id: string,
+  action: "click" | "positive" | "negative" | "dismiss",
+): Promise<void> {
+  try {
+    await fetch(`${API_BASE_URL}/api/events/${encodeURIComponent(id)}/stats/${action}`, {
+      method: "POST",
+      keepalive: true,
+    });
+  } catch {
+    // Reporting must not interrupt the banner interaction.
+  }
+}
+
 export interface ApiItemsQuery {
   categoryIds?: number[];
   complexity?: [number, number];
