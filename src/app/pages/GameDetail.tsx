@@ -19,6 +19,7 @@ import { usePrerenderedProduct } from "../PrerenderData";
 import { ProductMetadata, applyPageMetadata } from "../components/ProductMetadata";
 import { ProductShare } from "../components/ProductShare";
 import { productPath } from "../utils/productRoutes.js";
+import { discoveryPath } from "../utils/discoveryRoutes";
 import { visibleStoreOffers } from "../utils/offerSeo.js";
 import { formatStorePrice } from "../utils/priceFormat.js";
 import { categoryPath } from "../utils/catalogSeo.js";
@@ -842,12 +843,15 @@ export function GameDetail() {
         </div>
 
         {/* ── You might also like ──────────────────────────────────────── */}
-        {relatedGames.length > 0 && (
-          <div>
-            <h2 className="text-white mb-4">También te puede gustar</h2>
-            <RelatedRow games={relatedGames} />
+        <section>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-white">También te puede gustar</h2>
+            <Link to={discoveryPath("similar", [detail.id], true)} className="text-sm font-medium text-fuchsia-300 hover:underline">
+              Ver más como {detail.name}
+            </Link>
           </div>
-        )}
+          {relatedGames.length > 0 && <RelatedRow games={relatedGames} />}
+        </section>
 
       </div>
     </div>

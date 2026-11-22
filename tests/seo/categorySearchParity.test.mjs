@@ -12,7 +12,7 @@ const rows = Array.from({ length: 125 }, (_, i) => ({ id: i + 1,
   canonical_name_es: `Juego ${String(i + 1).padStart(3, "0")}`, image_url: "", image_url_es: "",
   is_expansion: i % 7 === 0, categories: [{ id: 7, name: "Estrategia" }], families: [], mechanics: [] }));
 
-async function configure(page, categoryOption = { id: 7, name: "Estrategia" }) {
+async function configure(page, categoryOption = { id: 7, name: "Estrategia" }, ordinaryRows = rows) {
   const requests = [], errors = [];
   page.on("pageerror", error => errors.push(error.message));
   page.on("console", message => { if (["warning", "error"].includes(message.type())) errors.push(message.text()); });
@@ -23,7 +23,8 @@ async function configure(page, categoryOption = { id: 7, name: "Estrategia" }) {
     const query = new URL(route.request().url()).searchParams;
     requests.push(Object.fromEntries(query));
     const offset = Number(query.get("offset") ?? 0), limit = Number(query.get("limit"));
-    return route.fulfill({ json: { data: rows.slice(offset, offset + limit).map(row => ({ ...row, categories: [categoryOption] })) } });
+    const results = query.has("category_ids") ? rows : ordinaryRows;
+    return route.fulfill({ json: { data: results.slice(offset, offset + limit).map(row => ({ ...row, categories: [categoryOption] })) } });
   });
   return { requests, errors };
 }
@@ -62,7 +63,7 @@ async function seedSession(page) {
 
 const emptyFilters = {
   players: null, playtimes: [], durationMin: null, durationMax: null,
-  complexityMin: null, complexityMax: null, categoryIds: [], mechanicIds: [],
+  complexityMin: null, complexityMax: null, categoryIds: [], mechanicIds: [], suggestedCategoryIds: [], suggestedMechanicIds: [],
   theme: null, exactTitle: null, query: null,
 };
 
@@ -135,13 +136,13 @@ test("Ludoscopio applies Explore filters, refines on the server, and ignores res
     });
 
     await page.goto(origin + "/search");
-    await page.getByRole("button", { name: "Ludo Radar", exact: true }).click();
+    await page.getByRole("button", { name: "En tus palabras", exact: true }).click();
     await page.getByLabel("Describe la experiencia").fill(prompt);
-    await page.getByRole("button", { name: "Buscar con Ludo Radar" }).click();
+    await page.getByRole("button", { name: "Buscar juegos" }).click();
     await expect(page.getByText("Primera coincidencia", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "7", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("button", { name: "Estrategia, desactivar filtro", exact: true })).toBeVisible();
-    await expect(page.getByLabel("Tema")).toHaveValue("piratas");
+    await expect(page.getByRole("textbox", { name: "Tema", exact: true })).toHaveValue("piratas");
     await page.getByRole("button", { name: "Máximo 35 min, desactivar filtro" }).click();
     await expect(page.getByText("Coincidencia adicional", { exact: true })).toBeVisible();
     assert.deepEqual(submissions.map(({ prompt, filters }) => prompt ?? filters), [
@@ -150,7 +151,7 @@ test("Ludoscopio applies Explore filters, refines on the server, and ignores res
 
     await page.reload();
     await expect(page.getByText("Coincidencia adicional", { exact: true })).toBeVisible();
-    await expect(page.getByLabel("Tema")).toHaveValue("piratas");
+    await expect(page.getByRole("textbox", { name: "Tema", exact: true })).toHaveValue("piratas");
     assert.equal(submissions.length, 2);
     await page.getByRole("button", { name: "Quitar tema" }).click();
     await expect.poll(() => submissions.length).toBe(3);
@@ -210,12 +211,16 @@ test("ordinary and semantic filter navigation retain their result mode through r
       const page = await browser.newPage(), { errors } = await configure(page, categoryOption);
       await seedSession(page);
       await page.route("**/api/items/ludoscopio", route => {
-        const { filters } = route.request().postDataJSON();
-        assert.equal(filters.theme, savedSession.prompt);
-        assert.deepEqual(filters.categoryIds, [33]);
+        const { filters, prompt } = route.request().postDataJSON();
+        if (prompt) {
+          assert.equal(prompt, savedSession.prompt);
+        } else {
+          assert.equal(filters.theme, savedSession.prompt);
+          assert.deepEqual(filters.categoryIds, [33]);
+        }
         return route.fulfill({ json: {
           data: [{ ...item, id: 1, canonical_name_es: "Juego 01", canonical_name: "Resultado guardado" }],
-          meta: { filters },
+          meta: { filters: filters ?? { ...emptyFilters, theme: savedSession.prompt } },
         } });
       });
       await page.goto(origin + path); await page.waitForLoadState("networkidle");
@@ -230,6 +235,9 @@ test("ordinary and semantic filter navigation retain their result mode through r
       await page.goBack(); await page.waitForLoadState("networkidle");
       await expect(page.locator('[aria-label="Resultados de juegos"] > a')).toHaveCount(60);
       await page.getByRole("banner").getByRole("link", { name: "Explorar catálogo", exact: true }).click();
+      await expect(page.getByRole("navigation", { name: "Secciones de Explorar" }).getByRole("link", { name: "Catálogo" })).toHaveAttribute("aria-current", "page");
+      await expect(page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true })).toHaveCount(0);
+      await page.goto(`${origin}/search?${new URLSearchParams({ ludoscopioPrompt: savedSession.prompt })}`);
       await page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true }).waitFor();
       await page.waitForLoadState("networkidle");
       await page.getByRole("button", { name: "Expandir categorías", exact: true }).click();
@@ -360,30 +368,43 @@ test("editing Explore during a URL prompt cancels it without starting another in
 });
 
 for (const [name, width, height] of [["desktop", 1280, 900], ["mobile", 390, 844]]) {
-  test(`${name}: Explore restores the same session after category query, slug and page-two navigation`, { timeout: 60000 }, async t => {
+  test(`${name}: Explore opens the ordinary catalog after category query, slug and page-two navigation`, { timeout: 60000 }, async t => {
     const categoryOption = { id: 33, name: "Estrategia abstracta" };
+    const ordinaryTitle = "Título exclusivo del catálogo sin filtros";
+    const ordinaryRows = [{ ...rows[0], canonical_name: ordinaryTitle }, ...rows.slice(1)];
     const server = await startFixtureServer({ catalog: true, category: categoryOption });
     const browser = await chromium.launch({ channel: "chrome", headless: true });
     try {
       const outcomes = [];
       for (const path of ["/search?category_ids=33", "/categoria/33/estrategia-abstracta", "/categoria/33/estrategia-abstracta/pagina/2"]) {
         const page = await browser.newPage({ viewport: { width, height } });
-        const { errors } = await configure(page, categoryOption);
+        const { errors } = await configure(page, categoryOption, ordinaryRows);
         await seedSession(page);
         await page.goto(origin + path); await page.waitForLoadState("networkidle");
         assert.equal(await page.locator('[aria-label="Resultados de juegos"] > a').count(), 60);
-        await page.getByRole("banner").getByRole("link", { name: "Explorar catálogo", exact: true }).click();
-        await page.waitForURL(origin + "/search"); await page.waitForLoadState("networkidle");
+        const [response] = await Promise.all([
+          page.waitForResponse(response => {
+            const { pathname, searchParams } = new URL(response.url());
+            return response.ok() && pathname === "/api/items/search-results" &&
+              !searchParams.has("category_ids") && Number(searchParams.get("offset")) === 0 && searchParams.get("limit") === "60";
+          }),
+          page.getByRole("banner").getByRole("link", { name: "Explorar catálogo", exact: true }).click(),
+        ]);
+        await response.finished();
         const states = [];
         for (const step of ["Explore", "product/Back", "reload"]) {
           if (step === "product/Back") {
             await page.locator('[aria-label="Resultados de juegos"] > a').first().click();
             await page.waitForURL("**/game/1/juego-01"); await page.locator("#store-offers").waitFor();
             await page.goBack(); await page.waitForLoadState("networkidle");
-            await expect(page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true })).toBeVisible();
+            await expect(page.getByRole("navigation", { name: "Secciones de Explorar" }).getByRole("link", { name: "Catálogo" })).toHaveAttribute("aria-current", "page");
           } else if (step === "reload") {
             await page.reload(); await page.waitForLoadState("networkidle");
           }
+          await expect(page).toHaveURL(origin + "/search");
+          const grid = page.locator('[aria-label="Resultados de juegos"]');
+          await expect(grid.getByText(ordinaryTitle, { exact: true })).toBeVisible();
+          await expect(grid.locator(":scope > a")).toHaveCount(60);
           // Neutralize hover and restored scroll before comparing complete visible UI geometry.
           await page.mouse.move(0, 0); await page.evaluate(() => window.scrollTo(0, 0));
           await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))));
@@ -400,8 +421,8 @@ for (const [name, width, height] of [["desktop", 1280, 900], ["mobile", 390, 844
         await page.close();
       }
       for (const states of outcomes) for (const state of states) {
-        assert.equal(state.prompt, 1, `${state.step} restores the saved prompt regardless of mount history`);
-        assert.equal(state.cards, 1);
+        assert.equal(state.prompt, 0, `${state.step} retains the explicitly selected catalog`);
+        assert.equal(state.cards, 60);
         assert.deepEqual(state.ui, outcomes[0][1].ui);
       }
     } finally { await browser.close(); await server.close(); }

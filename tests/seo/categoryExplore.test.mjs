@@ -27,7 +27,7 @@ test("visible homepage category navigation enters the canonical landing before f
           await link.click(); await page.waitForLoadState("networkidle");
           assert.equal(new URL(page.url()).pathname, category);
           assert.equal(new URL(page.url()).search, "");
-          assert.equal(await page.locator("h1").textContent(), "Juegos de mesa de Estrategia");
+          await expect(page.locator("h1")).toHaveText("Juegos de mesa de Estrategia");
           assert.equal(await page.locator("h1").isVisible(), false);
           assert.equal(await page.getByPlaceholder("Nombre, temática, mecánica…").count(), 1);
           assert.equal(await page.getByRole("button", { name: "Estrategia, desactivar filtro", exact: true }).count(), 1);
@@ -115,9 +115,9 @@ test("Ludo Radar submission from a category enters Search and consumes its promp
       } } } });
     });
     await page.goto(`${origin}${category}`);
-    await page.getByRole("button", { name: "Ludo Radar", exact: true }).click();
+    await page.getByRole("button", { name: "En tus palabras", exact: true }).click();
     await page.getByLabel("Describe la experiencia").fill("juegos cooperativos");
-    await page.getByRole("button", { name: "Buscar con Ludo Radar", exact: true }).click();
+    await page.getByRole("button", { name: "Buscar juegos", exact: true }).click();
     await page.waitForURL(url => url.pathname === "/search");
     await page.getByText("Resultados para “juegos cooperativos”", { exact: true }).waitFor();
     await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(error => {

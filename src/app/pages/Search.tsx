@@ -16,6 +16,7 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { SiteHeader } from "../components/SiteHeader";
 import { t } from "../data/translations";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
+import { ExploreTabs } from "../components/ExploreTabs";
 import type { CatalogPageData } from "../PrerenderData";
 import { CatalogPagination } from "../components/CatalogPagination";
 import { catalogSeoMetadata } from "../utils/catalogSeo.js";
@@ -607,6 +608,8 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
     >
       <SiteHeader
         contextBar={
+          <>
+          <ExploreTabs radarActive={isLudoscopio} />
           <div className="flex min-h-12 flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/5 px-4 py-2 sm:px-8">
             <button
               onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate("/"))}
@@ -631,6 +634,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
               </button>
             )}
           </div>
+          </>
         }
       />
 
@@ -886,7 +890,7 @@ export function Search({ categoryPage }: { categoryPage?: CatalogPageData } = {}
               <div className="flex items-start gap-3">
                 <SearchIcon className="mt-0.5 h-4 w-4 flex-none text-fuchsia-300" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs uppercase tracking-wider text-neutral-500">Ludo Radar</p>
+                  <p className="text-xs uppercase tracking-wider text-neutral-500">En tus palabras</p>
                   <p className="mt-1 break-words text-sm text-neutral-200">Resultados para “{ludoscopioPrompt}”</p>
                   <ThemeFilter key={theme ?? ""} value={theme} onChange={(value) => updateLudoscopioSearch({ theme: value })} />
                   {exactTitle && (

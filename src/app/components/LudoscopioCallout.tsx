@@ -52,7 +52,8 @@ export function LudoscopioCallout({
   return (
     <div className={`rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3 ${className}`}>
       <p className={`text-sm leading-relaxed text-neutral-300 ${messageClassName}`}>
-        ¿Buscas algo nuevo para jugar? Prueba nuestro Ludo Radar y encuentra juegos de mesa que se ajusten al tipo de experiencia que buscas.
+        {onTrigger ? "¿Buscas algo nuevo para jugar? Prueba nuestro Ludo Radar y descubre juegos que encajen con tu mesa."
+          : "Cuéntanos qué experiencia buscas y te ayudaremos a encontrar un juego."}
       </p>
       {onTrigger ? (
         <div className="mt-3 flex items-center gap-2 xl:mt-0 xl:flex-none">
@@ -80,12 +81,12 @@ export function LudoscopioCallout({
         <DialogTrigger asChild>
           <button className={`mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-4 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 disabled:pointer-events-none disabled:opacity-60 ${buttonClassName}`}>
             <SearchIcon className="h-4 w-4" />
-            Ludo Radar
+            En tus palabras
           </button>
         </DialogTrigger>
         <DialogContent className="border-neutral-800 bg-neutral-950 text-white shadow-2xl sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle className="text-white">Ludo Radar</DialogTitle>
+            <DialogTitle className="text-white">En tus palabras</DialogTitle>
             <DialogDescription className="text-sm leading-relaxed text-neutral-400">
               Describe lo que quieres jugar: “juegos de estrategia con gatitos”, “juegos cooperativos de misterio”.
             </DialogDescription>
@@ -118,7 +119,7 @@ export function LudoscopioCallout({
               className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-4 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 disabled:pointer-events-none disabled:opacity-60"
             >
               {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <SearchIcon className="h-4 w-4" />}
-              Buscar con Ludo Radar
+              Buscar juegos
             </button>
           </form>
         </DialogContent>

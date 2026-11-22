@@ -3,7 +3,7 @@ import { Root } from "./Root";
 import { Home } from "./pages/Home";
 import { GameDetail } from "./pages/GameDetail";
 import { Browse } from "./pages/Browse";
-import { Search } from "./pages/Search";
+import { Explore } from "./pages/Explore";
 import { PrivacyPolicy } from "./pages/PrivacyPolicy";
 import { TermsOfService } from "./pages/TermsOfService";
 import { Catalog } from "./pages/Catalog";
@@ -24,7 +24,7 @@ export const routeDefinitions: RouteObject[] = [
       { path: "game/:id/:slug", Component: GameDetail },
       { path: "game/:id", Component: GameDetail },
       { path: "browse/:genre", Component: Browse },
-      { path: "search", Component: Search },
+      { path: "search", Component: Explore },
       { path: "privacidad", Component: PrivacyPolicy },
       { path: "terminos", Component: TermsOfService },
     ],

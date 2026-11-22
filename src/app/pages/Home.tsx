@@ -4,6 +4,7 @@ import { GameRow } from "../components/GameRow";
 import { HomeEventBanner } from "../components/HomeEventBanner";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
 import { SiteHeader } from "../components/SiteHeader";
+import { RADAR_PATH } from "../utils/discoveryRoutes";
 import { loadFrontPageRows, type CatalogRow } from "../data/catalog";
 import { usePrerenderedFeaturedGames } from "../PrerenderData";
 import {
@@ -21,7 +22,7 @@ export function Home() {
   const navigate = useNavigate();
 
   const handleLudoscopioOpen = useCallback(() => {
-    navigate("/search?ludoscopio=open");
+    navigate(RADAR_PATH);
   }, [navigate]);
 
   const handleLudoscopioDismiss = useCallback(() => {

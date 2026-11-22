@@ -231,6 +231,7 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
           </div>
           <Link
             to="/search"
+            state={{ exploreResultMode: "ordinary" }}
             aria-label="Explorar catálogo"
             className="flex-none inline-flex h-9 items-center justify-center gap-2 rounded-md bg-fuchsia-500 px-3 text-sm font-medium text-white transition-colors hover:bg-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-300 sm:px-4 disabled:pointer-events-none disabled:opacity-60"
           >

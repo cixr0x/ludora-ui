@@ -27,9 +27,9 @@ test("semantic search uses Ludo Radar wording and magnifier icons on public surf
 
   assert.doesNotMatch(calloutSource, /<Sparkles/);
   assert.match(calloutSource, /Prueba nuestro Ludo Radar/);
-  assert.match(calloutSource, /Buscar con Ludo Radar/);
+  assert.match(calloutSource, /Buscar juegos/);
   assert.match(searchSource, /<SearchIcon className="mt-0\.5 h-4 w-4 flex-none text-fuchsia-300" \/>/);
-  assert.match(searchSource, />Ludo Radar<\/p>/);
+  assert.match(searchSource, />En tus palabras<\/p>/);
   assert.match(searchSource, /Consultando Ludo Radar\.\.\./);
 });
 

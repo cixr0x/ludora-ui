@@ -227,10 +227,30 @@ export async function fetchItemSummaries(query?: ApiItemsQuery): Promise<ApiItem
   return fetchData<ApiItemSummary[]>(`/api/items/summary${suffix}`);
 }
 
-export async function fetchSearchResults(query?: ApiItemsQuery): Promise<ApiSearchResultItem[]> {
+export async function fetchSearchResults(query?: ApiItemsQuery, signal?: AbortSignal): Promise<ApiSearchResultItem[]> {
   const suffix = itemSearchSuffix(query);
 
-  return fetchData<ApiSearchResultItem[]>(`/api/items/search-results${suffix}`);
+  return fetchData<ApiSearchResultItem[]>(`/api/items/search-results${suffix}`, signal);
+}
+
+export type DiscoveryMode = "similar" | "mix";
+export type GuideAnswers = { players: string; minutes: string; complexity: string; style: string };
+export type GuideGame = ApiRelatedItem & Pick<ApiItem, "min_players" | "max_players" | "max_minutes" | "complexity">;
+
+export function fetchGuide(answers: GuideAnswers, signal: AbortSignal) {
+  return fetchData<GuideGame[]>(`/api/items/discovery/guide?${new URLSearchParams(answers)}`, signal);
+}
+export interface DiscoverySource {
+  seed_id: number;
+  traits: { kind: "mechanic" | "category" | "family"; name: string }[];
+}
+
+export async function fetchDiscovery(mode: DiscoveryMode, ids: number[], signal: AbortSignal) {
+  const params = new URLSearchParams({ mode, ids: ids.join(",") });
+  return fetchData<{
+    seeds: ApiRelatedItem[];
+    results: (ApiRelatedItem & { sources: DiscoverySource[] })[];
+  }>(`/api/items/discovery?${params}`, signal);
 }
 
 export async function fetchRelatedItems(id: number, limit?: number): Promise<ApiRelatedItem[]> {
@@ -324,8 +344,8 @@ export async function fetchLudoscopioItems(
   return response.json();
 }
 
-export async function fetchItem(id: number): Promise<ApiItem> {
-  return fetchData<ApiItem>(`/api/items/${id}`);
+export async function fetchItem(id: number, signal?: AbortSignal): Promise<ApiItem> {
+  return fetchData<ApiItem>(`/api/items/${id}`, signal);
 }
 
 async function fetchData<T>(path: string, signal?: AbortSignal): Promise<T> {
