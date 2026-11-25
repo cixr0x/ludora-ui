@@ -76,6 +76,36 @@ test("export freezes maxId, consumes a terminal page, and retains one disk recor
   } finally { await result.cleanup(); }
 });
 
+test("export backs off 503 batches without changing the cursor or maximum ID", async () => {
+  const calls = [];
+  const progress = [];
+  const result = await fetchSeoExport({
+    apiOrigin: "https://api.example",
+    onProgress: stats => progress.push(stats),
+    fetchImpl: async value => {
+      const params = new URL(value).searchParams;
+      const afterId = Number(params.get("after_id"));
+      const limit = Number(params.get("limit"));
+      calls.push([afterId, limit, params.get("maxId")]);
+      if (limit === 200 || (afterId === 1 && limit > 25)) {
+        return new Response("temporarily unavailable", { status: 503 });
+      }
+      const data = afterId === 0 ? [item(1)] : afterId === 1 ? [item(3), item(5)] : [];
+      return Response.json({ data, meta: { export_version: 2, pagination: "keyset", max_id: 5,
+        after_id: afterId, next_after_id: data.at(-1)?.id ?? afterId, count: data.length, limit } });
+    }
+  });
+  try {
+    assert.deepEqual(calls, [
+      [0, 200, null], [0, 100, null],
+      [1, 100, "5"], [1, 50, "5"], [1, 25, "5"], [5, 25, "5"]
+    ]);
+    assert.deepEqual(result.items.map(game => game.id), [1, 3, 5]);
+    assert.deepEqual(await Promise.all([1, 3, 5].map(result.readItem)), [item(1), item(3), item(5)]);
+    assert.deepEqual(progress.map(stats => [stats.batches, stats.games]), [[1, 1], [2, 3], [3, 3]]);
+  } finally { await result.cleanup(); }
+});
+
 test("export rejects missing/v1 envelopes, unexpected empty feeds, changing caps and nonadvancing cursors", async () => {
   for (const mutate of [() => ({}), e => ({ ...e, meta: { ...e.meta, export_version: 1 } }),
     e => ({ ...e, meta: { ...e.meta, next_after_id: 0 } }), e => ({ ...e, data: [e.data[0], e.data[0]] })]) {

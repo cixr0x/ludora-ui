@@ -13,18 +13,24 @@ export async function fetchSeoExport({ apiOrigin, fetchImpl = fetch, spoolParent
   const references = new Set();
   const stats = { games: 0, offers: 0, related: 0, expansions: 0, batches: 0, serializedBytes: 0 };
   let afterId = 0;
+  let limit = 200;
   let maxId;
   try {
     while (items.length <= 100000) {
       signal?.throwIfAborted();
-      const query = new URLSearchParams({ after_id: String(afterId), limit: "200" });
+      const query = new URLSearchParams({ after_id: String(afterId), limit: String(limit) });
       if (maxId !== undefined) query.set("maxId", String(maxId));
       const response = await fetchImpl(`${apiOrigin.replace(/\/+$/, "")}/api/items/prerender?${query}`, { signal });
+      if (response.status === 503 && limit > 25) {
+        await response.body?.cancel();
+        limit /= 2;
+        continue;
+      }
       if (!response.ok) throw new Error(`SEO export request failed with ${response.status}`);
       const envelope = await response.json();
       const meta = envelope?.meta;
       if (!Array.isArray(envelope?.data) || !meta || meta.export_version !== 2 || meta.pagination !== "keyset" ||
-        meta.after_id !== afterId || meta.count !== envelope.data.length || meta.limit !== 200 || envelope.data.length > 200) {
+        meta.after_id !== afterId || meta.count !== envelope.data.length || meta.limit !== limit || envelope.data.length > limit) {
         throw new Error("Malformed SEO export v2 envelope");
       }
       if (!Number.isSafeInteger(meta.max_id) || meta.max_id < 0 || (maxId !== undefined && meta.max_id !== maxId)) {
