@@ -70,12 +70,12 @@ test("homepage first render is unchanged when the Ludoscopio callout was dismiss
     const header = withDismissedCallout.match(/<header\b[\s\S]*?<\/header>/)?.[0] ?? "";
     assert.match(header, /<h1[^>]*>Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México\.<\/h1>/);
     assert.match(header, /1,234 productos en el catálogo/);
-    assert.match(header, /1 tienda monitoreada/);
+    assert.match(header, /1 tienda activa/);
     assert.doesNotMatch(withDismissedCallout, />Ver catálogo<|>Explorar categorías</);
     assert.match(withDismissedCallout, /href="\/game\/4\/fourth"/);
 
     const missingStats = renderHomepageDocument({ featuredGames, template });
-    assert.doesNotMatch(missingStats, /productos en el catálogo|tiendas monitoreadas/);
+    assert.doesNotMatch(missingStats, /productos en el catálogo|tiendas activas/);
     assert.match(missingStats, /href="\/juegos-de-mesa"/);
   } finally {
     console.error = originalConsoleError;

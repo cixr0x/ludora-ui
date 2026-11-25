@@ -79,7 +79,7 @@ async function executeGeneration(config) {
       catalogProductCount: exported.items.length,
       trackedStoreCount: parseHomepageCount(homepageEnvelope?.meta?.tracked_store_count)
         ?? await retryTrackedStoreCount(homepageUrl, fetchImpl, controller.signal)
-        ?? parseHomepageCount(previous?.manifest?.source?.trackedStoreCount),
+        ?? parseHomepageCount(previous?.manifest?.source?.activeStoreCount),
     };
     const fetchMs = Math.round(performance.now() - sourceStart);
     phase("fetch", "complete", { fetchMs, ...exported.stats });
@@ -114,7 +114,7 @@ async function executeGeneration(config) {
     manifest.runtimeDirectory = resolve(runtimeDirectory);
     manifest.previousRuntimeDirectory = previous?.manifest?.runtimeDirectory !== resolve(runtimeDirectory)
       ? previous?.manifest?.runtimeDirectory ?? null : previous?.manifest?.previousRuntimeDirectory ?? null;
-    manifest.source = { ...exported.stats, maxId: exported.maxId, trackedStoreCount: homeStats.trackedStoreCount };
+    manifest.source = { ...exported.stats, maxId: exported.maxId, activeStoreCount: homeStats.trackedStoreCount };
     stageDirectory = config.stageDirectory ?? join(stateDirectory, "generations", generationId);
     const publicDirectory = join(stageDirectory, "public");
     await cp(join(runtimeDirectory, "static"), publicDirectory, { recursive: true });

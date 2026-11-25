@@ -90,7 +90,7 @@ export function Home() {
                 <li>{`${formatCount.format(catalogProductCount)} ${catalogProductCount === 1 ? "producto" : "productos"} en el catálogo`}</li>
               )}
               {trackedStoreCount !== undefined && (
-                <li>{`${formatCount.format(trackedStoreCount)} ${trackedStoreCount === 1 ? "tienda monitoreada" : "tiendas monitoreadas"}`}</li>
+                <li>{`${formatCount.format(trackedStoreCount)} ${trackedStoreCount === 1 ? "tienda activa" : "tiendas activas"}`}</li>
               )}
             </ul>
           )}

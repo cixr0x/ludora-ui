@@ -39,7 +39,7 @@ test("the compact homepage intro and published counts fit the header before and 
       assert.equal(await page.locator('main [hidden] ul a[href^="/game/"]').count(), 8);
       const counts = header.getByRole("list", { name: "Cifras del catálogo" });
       assert.equal(await counts.getByText("10,582 productos en el catálogo", { exact: true }).isVisible(), true);
-      assert.equal(await counts.getByText("79 tiendas monitoreadas", { exact: true }).isVisible(), true);
+      assert.equal(await counts.getByText("79 tiendas activas", { exact: true }).isVisible(), true);
       assert.equal(await header.getByText(sentence, { exact: true }).count(), 1);
       assert.equal(await page.title(), title);
       assert.equal(await page.locator('meta[property="og:title"]').getAttribute("content"), title);
@@ -127,7 +127,7 @@ test("a homepage reached from another document loads available aggregate counts 
     await page.locator('header a[href="/"]').click();
     await page.waitForURL(`${origin}/`);
     await page.getByText("9,876 productos en el catálogo", { exact: true }).waitFor();
-    assert.equal(await page.getByText("0 tiendas monitoreadas", { exact: true }).isVisible(), true);
+    assert.equal(await page.getByText("0 tiendas activas", { exact: true }).isVisible(), true);
     assert.equal(await page.locator("#ludo-radar-prerender-data").count(), 0);
 
     await page.unroute("**/api/front-page");
@@ -137,7 +137,7 @@ test("a homepage reached from another document loads available aggregate counts 
     await page.goto(`${origin}/search`);
     await page.locator('header a[href="/"]').click();
     await page.getByText("9,876 productos en el catálogo", { exact: true }).waitFor();
-    assert.equal(await page.getByText(/tiendas monitoreadas/).count(), 0);
+    assert.equal(await page.getByText(/tiendas activas/).count(), 0);
   } finally { await browser.close(); }
 });
 
@@ -162,9 +162,9 @@ test("the homepage retries a missing aggregate count without replacing loaded ca
     const rowHeading = page.getByRole("heading", { name: "Selección inicial", exact: true });
     await rowHeading.waitFor({ timeout: 5000 });
     assert.equal(await page.getByText("9,876 productos en el catálogo", { exact: true }).isVisible(), true);
-    assert.equal(await page.getByText(/tiendas monitoreadas/).count(), 0);
+    assert.equal(await page.getByText(/tiendas activas/).count(), 0);
     releaseRetry();
-    await page.getByText("79 tiendas monitoreadas", { exact: true }).waitFor({ timeout: 5000 });
+    await page.getByText("79 tiendas activas", { exact: true }).waitFor({ timeout: 5000 });
     assert.equal(await rowHeading.isVisible(), true);
     assert.equal(await page.getByText("9,876 productos en el catálogo", { exact: true }).isVisible(), true);
     await page.waitForLoadState("networkidle");

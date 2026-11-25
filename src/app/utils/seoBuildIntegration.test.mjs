@@ -3,7 +3,7 @@ import test from "node:test";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:http";
-import { mkdtemp, rm, readFile, realpath } from "node:fs/promises";
+import { mkdtemp, rm, readFile, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,7 +54,7 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
     const initialPublic = await realpath(env.LUDORA_SEO_LIVE_PATH);
     const initialHomepage = await readFile(join(initialPublic, "index.html"), "utf8");
     assert.match(visibleText(initialHomepage), /1 producto en el catálogo/);
-    assert.match(visibleText(initialHomepage), /12 tiendas monitoreadas/);
+    assert.match(visibleText(initialHomepage), /12 tiendas activas/);
     assert.doesNotMatch(visibleText(initialHomepage), /999 productos en el catálogo/);
     assert.deepEqual(jsonScript(initialHomepage, "ludo-radar-prerender-data").homepage.stats,
       { catalogProductCount: 1, trackedStoreCount: 12 });
@@ -63,7 +63,7 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
     assert.match(await readFile(join(initialPublic, "juegos-de-mesa.html"), "utf8"), /Fixture Game/);
     assert.match(await readFile(join(initialPublic, "categorias.html"), "utf8"), /Categorías de juegos de mesa/);
     const manifest = JSON.parse(await readFile(join(initialPublic, "..", "manifest.json"), "utf8"));
-    assert.equal(manifest.source.trackedStoreCount, 12);
+    assert.equal(manifest.source.activeStoreCount, 12);
     const releasePath = join(manifest.runtimeDirectory, "release.json");
     const releaseHash = await fileHash(releasePath);
     const workerHash = await fileHash(join(manifest.runtimeDirectory, "refresh-worker.mjs"));
@@ -81,7 +81,7 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
     const nextPublic = await realpath(env.LUDORA_SEO_LIVE_PATH);
     assert.notEqual(nextPublic, initialPublic);
     const nextHomepage = await readFile(join(nextPublic, "index.html"), "utf8");
-    assert.match(visibleText(nextHomepage), /13 tiendas monitoreadas/);
+    assert.match(visibleText(nextHomepage), /13 tiendas activas/);
     const document = await readFile(join(nextPublic, "game/1/fixture-game.html"), "utf8");
     assert.match(document, /After refresh/);
     assert.match(visibleText(document), /\$425\.00 MXN/);
@@ -105,15 +105,33 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
     const retainedPublic = await realpath(env.LUDORA_SEO_LIVE_PATH);
     assert.equal(await readFile(join(retainedPublic, "index.html"), "utf8"), nextHomepage);
     const retainedManifest = JSON.parse(await readFile(join(retainedPublic, "..", "manifest.json"), "utf8"));
-    assert.equal(retainedManifest.source.trackedStoreCount, 13);
+    assert.equal(retainedManifest.source.activeStoreCount, 13);
 
     homepageResponses = [{ meta: { tracked_store_count: 0 } }];
     const zero = await run("scripts/refresh-seo.mjs", env);
     assert.equal(zero.code, 0, zero.output.slice(-6000));
     const zeroPublic = await realpath(env.LUDORA_SEO_LIVE_PATH);
-    assert.match(visibleText(await readFile(join(zeroPublic, "index.html"), "utf8")), /0 tiendas monitoreadas/);
-    const zeroManifest = JSON.parse(await readFile(join(zeroPublic, "..", "manifest.json"), "utf8"));
-    assert.equal(zeroManifest.source.trackedStoreCount, 0);
+    assert.match(visibleText(await readFile(join(zeroPublic, "index.html"), "utf8")), /0 tiendas activas/);
+    const zeroManifestPath = join(zeroPublic, "..", "manifest.json");
+    const zeroManifest = JSON.parse(await readFile(zeroManifestPath, "utf8"));
+    assert.equal(zeroManifest.source.activeStoreCount, 0);
+
+    // Model a prior release whose private count excluded stores with both tracking flags disabled.
+    zeroManifest.source.trackedStoreCount = 21;
+    delete zeroManifest.source.activeStoreCount;
+    await writeFile(zeroManifestPath, JSON.stringify(zeroManifest));
+    const validationPath = join(zeroPublic, "..", "validation.json");
+    const validation = JSON.parse(await readFile(validationPath, "utf8"));
+    validation.manifestHash = await fileHash(zeroManifestPath);
+    await writeFile(validationPath, JSON.stringify(validation));
+
+    homepageResponses = [{}, {}];
+    const legacy = await run("scripts/refresh-seo.mjs", env);
+    assert.equal(legacy.code, 0, legacy.output.slice(-6000));
+    const legacyPublic = await realpath(env.LUDORA_SEO_LIVE_PATH);
+    const legacyHomepage = await readFile(join(legacyPublic, "index.html"), "utf8");
+    assert.deepEqual(jsonScript(legacyHomepage, "ludo-radar-prerender-data").homepage.stats, { catalogProductCount: 1 });
+    assert.doesNotMatch(visibleText(legacyHomepage), /tiendas activas/);
     t.diagnostic(JSON.stringify({ fetchMs: completed.fetchMs, catalogMs: completed.catalogMs, prepareMs: completed.prepareMs,
       graphMs: completed.graphMs, renderMs: completed.renderMs, peakRssBytes: completed.peakRssBytes, rendered: completed.rendered, reused: completed.reused }));
   } finally {

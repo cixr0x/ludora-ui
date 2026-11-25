@@ -88,7 +88,7 @@ test("compiled publications reconcile significant changes, removals and exact si
     assert.ok(previous.manifest.pages[`${category}/pagina/2`]);
     const homepage = await documentAt(origin, "/");
     assert.match(visibleText(homepage), /49 productos en el catálogo/);
-    assert.doesNotMatch(visibleText(homepage), /tiendas monitoreadas/);
+    assert.doesNotMatch(visibleText(homepage), /tiendas activas/);
 
     // A successful source re-check alone must preserve the exact published HTML and XML.
     records = records.map(record => ({ ...record, updated_at: "2030-01-01T00:00:00Z", offers: record.offers.map(value => ({

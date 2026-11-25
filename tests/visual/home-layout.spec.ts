@@ -117,7 +117,8 @@ test("home catalog keeps its responsive visual layout", async ({ page }) => {
   await expect(header.getByRole("heading", {
     level: 1, name: "Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México.", exact: true,
   })).toBeVisible();
-  await expect(header.getByRole("list", { name: "Cifras del catálogo" })).toBeVisible();
+  const counts = header.getByRole("list", { name: "Cifras del catálogo" });
+  await expect(counts.getByText("42 tiendas activas", { exact: true })).toBeVisible();
 
   const renderedRows = page.locator('[data-row-image-status="visible"]');
   await expect(renderedRows).toHaveCount(frontPageRows.length);
