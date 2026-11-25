@@ -664,7 +664,7 @@ export function GameDetail() {
                 <span className="mt-1 inline-flex flex-none items-center gap-2" style={{ fontSize: "1.35rem" }}>
                   {detail.bggId && (
                     <a
-                      href={`https://boardgamegeek.com/boardgame/${detail.bggId}`}
+                      href={detail.bggUrl || `https://boardgamegeek.com/boardgame/${detail.bggId}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`Ver ${detail.name} en BoardGameGeek`}

@@ -16,6 +16,7 @@ test("game detail links the supplied BoardGameGeek logo to the linked item besid
     /export function mapApiItemToDetail[\s\S]*bggId:\s*positiveInteger\(item\.bgg_id\)/,
   );
   assert.match(gamesSource, /bggId\?: number/);
+  assert.match(catalogSource, /bggUrl:\s*boardGameGeekUrl\(item\.bgg_url\)/);
   assert.match(source, /const BGG_PRIMARY_LOGO_URL = "\/bgg-primary-logo-reverse\.svg"/);
   assert.match(source, /\{detail\.bggId && \(/);
   assert.match(source, /src=\{BGG_PRIMARY_LOGO_URL\}/);
@@ -23,7 +24,7 @@ test("game detail links the supplied BoardGameGeek logo to the linked item besid
   assert.match(source, /className="h-7 w-auto flex-none"/);
   assert.match(
     source,
-    /href=\{`https:\/\/boardgamegeek\.com\/boardgame\/\$\{detail\.bggId\}`\}/,
+    /href=\{detail\.bggUrl \|\| `https:\/\/boardgamegeek\.com\/boardgame\/\$\{detail\.bggId\}`\}/,
   );
   assert.match(source, /target="_blank"/);
   assert.match(source, /rel="noopener noreferrer"/);

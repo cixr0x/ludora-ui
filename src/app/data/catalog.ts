@@ -271,6 +271,7 @@ export function mapApiItemToDetail(item: ApiItem): GameDetail {
   return {
     ...base,
     bggId: positiveInteger(item.bgg_id),
+    bggUrl: boardGameGeekUrl(item.bgg_url),
     rating: numericValue(item.rating, 0),
     categories,
     categoryEntries,
@@ -294,6 +295,22 @@ export function mapApiItemToDetail(item: ApiItem): GameDetail {
           storeAvailabilityRank(left.availabilityStatus) - storeAvailabilityRank(right.availabilityStatus),
       ),
   };
+}
+
+function boardGameGeekUrl(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    const kind = url.pathname.split("/")[1];
+    if (url.protocol === "https:" && !url.port && !url.username && !url.password &&
+        ["boardgamegeek.com", "www.boardgamegeek.com", "rpggeek.com", "www.rpggeek.com"].includes(url.hostname) &&
+        ["boardgame", "boardgameexpansion", "boardgameaccessory", "boardgameversion", "rpgitem"].includes(kind)) {
+      return url.href;
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
 }
 
 function itemReferences(items: ApiItemReference[]): GameReference[] {

@@ -51,6 +51,7 @@ export interface StoreEntry {
 
 export interface GameDetail extends Game {
   bggId?: number;
+  bggUrl?: string;
   rating: number;
   categories: string[];
   categoryEntries?: GameTaxonomyEntry[];
