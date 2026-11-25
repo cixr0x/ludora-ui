@@ -33,6 +33,7 @@ export function SiteHeader({ contextBar, intro }: SiteHeaderProps) {
   const navigate = useNavigate();
   const activeSearchQuery = homeSearchQuery(searchValue);
   const shouldLoadCategoryStrip = contextBar === undefined;
+  const rowSize = intro === undefined ? "md:h-16 md:py-0" : "md:min-h-16 md:py-1";
 
   const clearSearch = useCallback(() => {
     setSearchValue("");
@@ -137,7 +138,7 @@ export function SiteHeader({ contextBar, intro }: SiteHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 bg-neutral-950/85 backdrop-blur-md border-b border-white/5">
-      <div className="flex flex-col gap-2 px-3 py-3 md:h-16 md:flex-row md:items-center md:justify-between md:gap-4 md:px-8 md:py-0">
+      <div className={`flex flex-col gap-2 px-3 py-3 md:flex-row md:items-center md:justify-between md:gap-4 md:px-8 ${rowSize}`}>
         <div className="flex w-full min-w-0 items-center gap-3 md:w-auto md:flex-1">
           <Link
             to="/"

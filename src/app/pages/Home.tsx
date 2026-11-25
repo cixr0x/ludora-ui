@@ -82,7 +82,7 @@ export function Home() {
       <SiteHeader intro={
         <>
           <h1 id="homepage-title" className="text-[length:inherit] leading-[inherit] font-semibold">
-            Compara precios de juegos de mesa en México
+            Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México.
           </h1>
           {(catalogProductCount !== undefined || trackedStoreCount !== undefined) && (
             <ul aria-label="Cifras del catálogo" className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] leading-tight tracking-tight text-neutral-400 xl:text-xs">

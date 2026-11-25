@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
 import { once } from "node:events";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -37,8 +40,10 @@ test("the build rejects a malformed homepage feed before generating a blank feat
   }
 });
 
-test("homepage first render is unchanged when the Ludoscopio callout was dismissed", async () => {
-  const vite = await createViteServer({ root: projectRoot, server: { middlewareMode: true }, appType: "custom" });
+test("homepage first render is unchanged when the Ludoscopio callout was dismissed", async t => {
+  const cacheDir = await mkdtemp(join(tmpdir(), "ludoradar-home-ssr-"));
+  t.after(() => rm(cacheDir, { recursive: true, force: true }));
+  const vite = await createViteServer({ root: projectRoot, cacheDir, server: { middlewareMode: true, hmr: false }, appType: "custom" });
   const originalWindow = globalThis.window;
   const originalConsoleError = console.error;
 
@@ -63,7 +68,7 @@ test("homepage first render is unchanged when the Ludoscopio callout was dismiss
 
     assert.equal(rootMarkup(withDismissedCallout), rootMarkup(withoutSessionStorage));
     const header = withDismissedCallout.match(/<header\b[\s\S]*?<\/header>/)?.[0] ?? "";
-    assert.match(header, /<h1[^>]*>Compara precios de juegos de mesa en México<\/h1>/);
+    assert.match(header, /<h1[^>]*>Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México\.<\/h1>/);
     assert.match(header, /1,234 productos en el catálogo/);
     assert.match(header, /1 tienda monitoreada/);
     assert.doesNotMatch(withDismissedCallout, />Ver catálogo<|>Explorar categorías</);

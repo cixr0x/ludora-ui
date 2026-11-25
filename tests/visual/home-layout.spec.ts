@@ -114,7 +114,9 @@ test("home catalog keeps its responsive visual layout", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
 
   const header = page.getByRole("banner");
-  await expect(header.getByRole("heading", { level: 1, name: "Compara precios de juegos de mesa en México" })).toBeVisible();
+  await expect(header.getByRole("heading", {
+    level: 1, name: "Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México.", exact: true,
+  })).toBeVisible();
   await expect(header.getByRole("list", { name: "Cifras del catálogo" })).toBeVisible();
 
   const renderedRows = page.locator('[data-row-image-status="visible"]');

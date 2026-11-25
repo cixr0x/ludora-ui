@@ -19,8 +19,9 @@ test("home header uses two mobile rows and restores its desktop row at md", () =
 
   assert.match(
     source,
-    /flex flex-col gap-2 px-3 py-3[^\"]*md:h-16 md:flex-row md:items-center md:justify-between md:gap-4 md:px-8 md:py-0/,
+    /flex flex-col gap-2 px-3 py-3 md:flex-row md:items-center md:justify-between md:gap-4 md:px-8/,
   );
+  assert.match(source, /"md:h-16 md:py-0" : "md:min-h-16 md:py-1"/);
   assert.match(source, /flex w-full min-w-0 items-center gap-3 md:w-auto md:flex-1/);
   assert.match(source, /flex w-full min-w-0 items-center gap-2 sm:gap-3 md:w-auto/);
   assert.match(source, /relative min-w-0 flex-1 md:flex-none/);

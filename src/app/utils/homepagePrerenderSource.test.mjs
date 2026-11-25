@@ -16,7 +16,7 @@ test("the homepage renders durable SEO content and hydrates homepage prerender d
   const homeSource = source("../pages/Home.tsx");
   const mainSource = source("../../main.tsx");
 
-  assert.match(homeSource, /<h1[^>]*>\s*Compara precios de juegos de mesa en México\s*<\/h1>/);
+  assert.match(homeSource, /<h1[^>]*>\s*Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México\.\s*<\/h1>/);
   assert.match(homeSource, /Juegos destacados/);
   assert.match(homeSource, /usePrerenderedHomepage/);
   assert.match(mainSource, /prerenderData\?\.homepage/);
