@@ -8,10 +8,12 @@ import assert from "node:assert/strict";
 import { buildCatalogIndex, catalogPageDescriptors, catalogPageModel } from "../../src/app/utils/catalogSeo.js";
 import { apiMinimumPrice } from "../../src/app/utils/offerSeo.js";
 
-export async function startFixtureServer({ catalog = false, category = { id: 7, name: "Estrategia" }, productionAnalytics = false, homepageStats } = {}) {
+export async function startFixtureServer({ catalog = false, category = { id: 7, name: "Estrategia" },
+  productionAnalytics = false, homepageStats, port = 5175, cacheDir } = {}) {
   const root = fileURLToPath(new URL("../../", import.meta.url));
   const vite = await createViteServer({
     root,
+    cacheDir,
     server: { middlewareMode: true, hmr: false },
     appType: "custom",
     define: productionAnalytics ? { "import.meta.env.PROD": "true" } : {},
@@ -89,9 +91,10 @@ export async function startFixtureServer({ catalog = false, category = { id: 7, 
       res.end(await vite.transformIndexHtml(req.url, html));
     } else vite.middlewares(req, res, () => { res.writeHead(404); res.end(); });
   });
-  try { server.listen(5175, "127.0.0.1"); await once(server, "listening"); }
+  try { server.listen(port, "127.0.0.1"); await once(server, "listening"); }
   catch (error) { await vite.close(); throw error; }
-  return { artifact: fileURLToPath(artifact), async close() { server.closeAllConnections(); server.close(); await once(server, "close"); await vite.close(); } };
+  return { artifact: fileURLToPath(artifact), origin: `http://127.0.0.1:${server.address().port}`,
+    async close() { server.closeAllConnections(); server.close(); await once(server, "close"); await vite.close(); } };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

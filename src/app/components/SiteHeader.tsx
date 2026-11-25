@@ -19,9 +19,12 @@ interface CategoryStripItem {
 
 interface SiteHeaderProps {
   contextBar?: ReactNode;
+  intro?: ReactNode;
 }
 
-export function SiteHeader({ contextBar }: SiteHeaderProps) {
+const introClassName = "min-w-0 flex-1 text-xs leading-snug text-neutral-300 sm:text-sm md:text-xs md:leading-tight lg:max-w-sm lg:text-sm lg:leading-snug";
+
+export function SiteHeader({ contextBar, intro }: SiteHeaderProps) {
   const [searchValue, setSearchValue] = useState("");
   const [searchResults, setSearchResults] = useState<Game[]>([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
@@ -152,9 +155,13 @@ export function SiteHeader({ contextBar }: SiteHeaderProps) {
               className="h-7 w-7 flex-none object-contain sm:h-8 sm:w-8"
             />
           </Link>
-          <p className="min-w-0 flex-1 text-xs leading-snug text-neutral-300 sm:text-sm md:text-xs md:leading-tight lg:max-w-sm lg:text-sm lg:leading-snug">
-            Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México.
-          </p>
+          {intro === undefined ? (
+            <p className={introClassName}>
+              Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México.
+            </p>
+          ) : (
+            <div className={introClassName}>{intro}</div>
+          )}
         </div>
 
         <div className="flex w-full min-w-0 items-center gap-2 sm:gap-3 md:w-auto">

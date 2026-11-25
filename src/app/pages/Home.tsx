@@ -14,15 +14,17 @@ import { productPath } from "../utils/productRoutes.js";
 import { BGG_FOOTER_LOGO_URL } from "../utils/siteFooter.js";
 
 const formatCount = new Intl.NumberFormat("es-MX");
+const STATS_RETRY_DELAY_MS = 500;
 
 export function Home() {
   const [frontPage, setFrontPage] = useState<Awaited<ReturnType<typeof loadFrontPage>>>();
   const [isLudoscopioCalloutVisible, setIsLudoscopioCalloutVisible] = useState(false);
   const prerendered = usePrerenderedHomepage();
   const featuredGames = prerendered?.featuredGames ?? [];
+  const publishedStats = prerendered?.stats;
   const rows = frontPage?.rows ?? [];
-  const catalogProductCount = prerendered?.stats?.catalogProductCount ?? frontPage?.stats?.catalogProductCount;
-  const trackedStoreCount = prerendered?.stats?.trackedStoreCount ?? frontPage?.stats?.trackedStoreCount;
+  const catalogProductCount = publishedStats?.catalogProductCount ?? frontPage?.stats?.catalogProductCount;
+  const trackedStoreCount = publishedStats?.trackedStoreCount ?? frontPage?.stats?.trackedStoreCount;
   const navigate = useNavigate();
 
   const handleLudoscopioOpen = useCallback(() => {
@@ -40,14 +42,34 @@ export function Home() {
 
   useEffect(() => {
     let isActive = true;
+    let retryTimer: number | undefined;
     loadFrontPage().then(next => {
-      if (isActive) setFrontPage(next);
+      if (!isActive) return;
+      setFrontPage(next);
+
+      const productCountMissing = (publishedStats?.catalogProductCount ?? next.stats?.catalogProductCount) === undefined;
+      const storeCountMissing = (publishedStats?.trackedStoreCount ?? next.stats?.trackedStoreCount) === undefined;
+      if (!next.rows.length || (!productCountMissing && !storeCountMissing)) return;
+
+      // Give a shared API stats query time to finish before making the second request.
+      retryTimer = window.setTimeout(async () => {
+        const retry = await loadFrontPage();
+        if (!isActive || !retry.stats) return;
+        setFrontPage({
+          rows: next.rows,
+          stats: {
+            catalogProductCount: next.stats?.catalogProductCount ?? retry.stats.catalogProductCount,
+            trackedStoreCount: next.stats?.trackedStoreCount ?? retry.stats.trackedStoreCount,
+          },
+        });
+      }, STATS_RETRY_DELAY_MS);
     });
 
     return () => {
       isActive = false;
+      window.clearTimeout(retryTimer);
     };
-  }, []);
+  }, [publishedStats]);
 
 
   return (
@@ -57,49 +79,40 @@ export function Home() {
         background: "radial-gradient(ellipse 130% 38% at 50% -5%, rgba(217, 70, 239, 0.08) 0%, transparent 58%), rgb(10, 10, 10)",
       }}
     >
-      <SiteHeader />
+      <SiteHeader intro={
+        <>
+          <h1 id="homepage-title" className="text-[length:inherit] leading-[inherit] font-semibold">
+            Compara precios de juegos de mesa en México
+          </h1>
+          {(catalogProductCount !== undefined || trackedStoreCount !== undefined) && (
+            <ul aria-label="Cifras del catálogo" className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] leading-tight tracking-tight text-neutral-400 xl:text-xs">
+              {catalogProductCount !== undefined && (
+                <li>{`${formatCount.format(catalogProductCount)} ${catalogProductCount === 1 ? "producto" : "productos"} en el catálogo`}</li>
+              )}
+              {trackedStoreCount !== undefined && (
+                <li>{`${formatCount.format(trackedStoreCount)} ${trackedStoreCount === 1 ? "tienda monitoreada" : "tiendas monitoreadas"}`}</li>
+              )}
+            </ul>
+          )}
+        </>
+      } />
 
       {/* Main content */}
       <main className="pt-4 pb-10 md:pt-8 md:pb-16">
-        <section className="px-3 pb-5 md:px-14 md:pb-7" aria-labelledby="homepage-title">
-          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
-            <div>
-              <h1 id="homepage-title" className="text-2xl font-bold tracking-tight md:text-4xl">
-                Compara precios de juegos de mesa en México
-              </h1>
-              {(catalogProductCount !== undefined || trackedStoreCount !== undefined) && (
-                <ul aria-label="Cifras del catálogo" className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-neutral-300">
-                  {catalogProductCount !== undefined && (
-                    <li>{`${formatCount.format(catalogProductCount)} ${catalogProductCount === 1 ? "producto" : "productos"} en el catálogo`}</li>
-                  )}
-                  {trackedStoreCount !== undefined && (
-                    <li>{`${formatCount.format(trackedStoreCount)} ${trackedStoreCount === 1 ? "tienda monitoreada" : "tiendas monitoreadas"}`}</li>
-                  )}
-                </ul>
-              )}
-            </div>
-            <nav aria-label="Explora todos los juegos" className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-fuchsia-300">
-              <Link to="/juegos-de-mesa" className="inline-flex min-h-11 items-center rounded-md bg-fuchsia-700 px-4 font-semibold text-white transition-colors hover:bg-fuchsia-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300">
-                Ver catálogo
-              </Link>
-              <Link to="/categorias" className="hover:underline">Explorar categorías</Link>
-            </nav>
-          </div>
-          <div hidden>
-            <h2 className="text-lg font-semibold">Juegos destacados</h2>
-            {featuredGames.length > 0 && (
-              <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-sm text-fuchsia-300">
-                {featuredGames.map((game) => (
-                  <li key={game.id}>
-                    <Link to={productPath(game.id, game.name)} className="hover:text-fuchsia-200 hover:underline">
-                      {game.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
+        <div hidden>
+          <h2 className="text-lg font-semibold">Juegos destacados</h2>
+          {featuredGames.length > 0 && (
+            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-sm text-fuchsia-300">
+              {featuredGames.map((game) => (
+                <li key={game.id}>
+                  <Link to={productPath(game.id, game.name)} className="hover:text-fuchsia-200 hover:underline">
+                    {game.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <HomeEventBanner />
         {isLudoscopioCalloutVisible && (
           <div className="px-3 mb-4 md:px-14 md:mb-7">

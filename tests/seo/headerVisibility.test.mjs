@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdir } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { startFixtureServer } from "./fixture-server.mjs";
@@ -9,27 +11,26 @@ const sentence = "Descubre juegos de mesa, compara precios y encuentra ofertas d
 const heading = "Compara precios de juegos de mesa en México";
 const title = "Comparador de precios de juegos de mesa en México | Ludo Radar";
 
-test("the homepage exposes its comparison heading, catalog link and published counts before and after hydration", { timeout: 60000 }, async () => {
+test("the compact homepage header exposes the comparison heading and published counts before and after hydration", { timeout: 60000 }, async () => {
   const server = await startFixtureServer({ catalog: true, homepageStats: { catalogProductCount: 50, trackedStoreCount: 13 } });
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   try {
     const assertHomepageContent = async page => {
-      const nav = page.locator('header nav[aria-label="Catálogo y categorías"]');
-      const section = page.locator('section[aria-labelledby="homepage-title"]');
+      const header = page.getByRole("banner");
+      const nav = header.locator('nav[aria-label="Catálogo y categorías"]');
       assert.equal(await nav.evaluate(element => element.hidden), true);
       assert.equal(await nav.isVisible(), false);
       assert.equal(await page.getByRole("navigation", { name: "Catálogo y categorías" }).count(), 0);
-      assert.equal(await page.getByRole("heading", { name: heading, level: 1, exact: true }).isVisible(), true);
+      assert.equal(await header.getByRole("heading", { name: heading, level: 1, exact: true }).isVisible(), true);
       assert.equal(await page.getByRole("heading", { name: "Juegos destacados", exact: true }).count(), 0);
       assert.deepEqual(await nav.locator("a").evaluateAll(links => links.map(link => link.getAttribute("href"))), ["/juegos-de-mesa", "/categorias"]);
-      assert.deepEqual(await section.locator("nav a").evaluateAll(links => links.map(link => link.getAttribute("href"))), ["/juegos-de-mesa", "/categorias"]);
-      const catalog = section.getByRole("link", { name: "Ver catálogo", exact: true });
-      assert.equal(await catalog.isVisible(), true);
-      assert.equal(await catalog.getAttribute("href"), "/juegos-de-mesa");
-      assert.equal(await section.locator('ul a[href^="/game/"]').count(), 8);
-      assert.equal(await section.getByText("50 productos en el catálogo", { exact: true }).isVisible(), true);
-      assert.equal(await section.getByText("13 tiendas monitoreadas", { exact: true }).isVisible(), true);
-      assert.equal(await page.locator("header").getByText(sentence, { exact: true }).isVisible(), true);
+      assert.equal(await page.getByRole("link", { name: "Ver catálogo", exact: true }).count(), 0);
+      assert.equal(await page.getByRole("link", { name: "Explorar categorías", exact: true }).count(), 0);
+      assert.equal(await page.locator('main [hidden] ul a[href^="/game/"]').count(), 8);
+      const counts = header.getByRole("list", { name: "Cifras del catálogo" });
+      assert.equal(await counts.getByText("50 productos en el catálogo", { exact: true }).isVisible(), true);
+      assert.equal(await counts.getByText("13 tiendas monitoreadas", { exact: true }).isVisible(), true);
+      assert.equal(await header.getByText(sentence, { exact: true }).count(), 0);
       assert.equal(await page.title(), title);
       assert.equal(await page.locator('meta[property="og:title"]').getAttribute("content"), title);
       assert.equal(await page.locator('meta[name="twitter:title"]').getAttribute("content"), title);
@@ -44,18 +45,26 @@ test("the homepage exposes its comparison heading, catalog link and published co
     for (const [name, width, height] of [["desktop", 1280, 900], ["small-desktop", 1024, 900], ["wide-tablet", 900, 900], ["tablet", 768, 900], ["below-md", 767, 900], ["mobile", 390, 844], ["small-mobile", 320, 800]]) {
       await page.setViewportSize({ width, height });
       const logo = await page.locator("header .ludora-wordmark").boundingBox();
-      const description = await page.locator("header").getByText(sentence, { exact: true }).boundingBox();
+      const homeHeading = page.getByRole("banner").getByRole("heading", { name: heading, level: 1, exact: true });
+      const description = await homeHeading.locator("..").boundingBox();
       const input = await page.getByPlaceholder("Buscar juegos...").boundingBox();
       assert.ok(logo && description && input);
-      assert.ok(description.x >= logo.x + logo.width - 1, `${name}: sentence stays next to logo`);
+      assert.ok(description.x >= logo.x + logo.width - 1, `${name}: heading and counts stay next to logo`);
+      const fontSize = await homeHeading.evaluate(element => parseFloat(getComputedStyle(element).fontSize));
+      assert.equal(fontSize, width >= 1024 || (width >= 640 && width < 768) ? 14 : 12, `${name}: heading uses the intro text scale`);
+      if (width >= 1024) {
+        const countParts = await page.getByRole("list", { name: "Cifras del catálogo" }).locator("li").evaluateAll(elements =>
+          elements.map(element => element.getBoundingClientRect().y));
+        assert.equal(countParts[0], countParts[1], `${name}: both counts share a line`);
+      }
       assert.ok(input.width >= 100, `${name}: search remains usable`);
       if (width >= 768) {
         const row = await page.locator("header > div").first().boundingBox();
         assert.ok(Math.abs((logo.y + logo.height / 2) - (input.y + input.height / 2)) <= 1, `${name}: logo and search share the md desktop row`);
         assert.equal(row.height, 64, `${name}: md row retains its 64px height`);
         assert.equal(input.width, width >= 1024 ? 288 : Math.min(256, Math.max(128, width - 640)), `${name}: search scales within its desktop width bounds`);
-        assert.ok(description.y >= row.y && description.y + description.height <= row.y + row.height, `${name}: whole sentence fits inside the desktop row ${JSON.stringify({ row, logo, description, input })}`);
-        assert.ok(input.x >= description.x + description.width, `${name}: sentence does not overlap search`);
+        assert.ok(description.y >= row.y && description.y + description.height <= row.y + row.height, `${name}: heading and counts fit inside the desktop row ${JSON.stringify({ row, logo, description, input })}`);
+        assert.ok(input.x >= description.x + description.width, `${name}: heading and counts do not overlap search`);
       } else {
         assert.ok(input.y >= Math.max(logo.y + logo.height, description.y + description.height), `${name}: search remains on the second mobile row`);
       }
@@ -76,18 +85,17 @@ test("the homepage exposes its comparison heading, catalog link and published co
       json: { data: [], meta: { catalog_product_count: 9876, tracked_store_count: 21 } },
     }));
     await hydrated.goto("http://127.0.0.1:5175/", { waitUntil: "commit" });
-    await hydrated.locator('section[aria-labelledby="homepage-title"]').waitFor({ state: "attached" });
+    await hydrated.locator("header #homepage-title").waitFor({ state: "attached" });
     await hydrated.evaluate(() => { window.originalHomeRoot = document.getElementById("root").firstChild; });
     releaseClient(); await hydrated.waitForLoadState("networkidle");
     await assertHomepageContent(hydrated);
     assert.equal(await hydrated.evaluate(() => window.originalHomeRoot === document.getElementById("root").firstChild), true);
-    await hydrated.getByRole("link", { name: "Ver catálogo", exact: true }).click();
-    await hydrated.waitForURL("**/juegos-de-mesa");
-    await hydrated.locator('header a[href="/"]').click();
-    await hydrated.getByRole("heading", { name: heading, level: 1, exact: true }).waitFor();
     await hydrated.getByPlaceholder("Buscar juegos...").fill("Dixit");
     await hydrated.getByPlaceholder("Buscar juegos...").press("Enter");
     await hydrated.waitForURL("**/search?q=Dixit");
+    const otherHeader = hydrated.getByRole("banner");
+    await otherHeader.getByText(sentence, { exact: true }).waitFor();
+    assert.equal(await otherHeader.getByRole("heading", { name: heading, level: 1, exact: true }).count(), 0);
     assert.deepEqual(errors, []);
   } finally { await browser.close(); await server.close(); }
 });
@@ -101,6 +109,7 @@ test("a homepage reached from another document loads available aggregate counts 
       json: { data: [], meta: { catalog_product_count: 9876, tracked_store_count: 0 } },
     }));
     await page.goto("http://127.0.0.1:5175/search");
+    await page.getByRole("banner").getByText(sentence, { exact: true }).waitFor();
     await page.locator('header a[href="/"]').click();
     await page.waitForURL("http://127.0.0.1:5175/");
     await page.getByText("9,876 productos en el catálogo", { exact: true }).waitFor();
@@ -116,4 +125,44 @@ test("a homepage reached from another document loads available aggregate counts 
     await page.getByText("9,876 productos en el catálogo", { exact: true }).waitFor();
     assert.equal(await page.getByText(/tiendas monitoreadas/).count(), 0);
   } finally { await browser.close(); await server.close(); }
+});
+
+test("the homepage retries a missing aggregate count without replacing loaded catalog rows", { timeout: 60000 }, async t => {
+  const cacheDir = await mkdtemp(join(tmpdir(), "ludoradar-home-browser-"));
+  let server;
+  t.after(async () => {
+    await server?.close();
+    await rm(cacheDir, { recursive: true, force: true });
+  });
+  server = await startFixtureServer({ catalog: true, port: 0, cacheDir });
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  let releaseRetry;
+  const retryGate = new Promise(resolve => { releaseRetry = resolve; });
+  try {
+    const page = await browser.newPage();
+    let requests = 0;
+    await page.route("**/api/front-page", async route => {
+      if (++requests === 1) return route.fulfill({ json: {
+        data: [{ id: 1, category_type: "category", category_id: 7, category_name: "Estrategia",
+          title: "Selección inicial", order: 1, products: [{ id: 1, canonical_name: "Juego inicial" }] }],
+        meta: { catalog_product_count: 9876 },
+      } });
+      await retryGate;
+      return route.fulfill({ json: { data: [], meta: { catalog_product_count: 10000, tracked_store_count: 79 } } });
+    });
+    await page.goto(server.origin);
+    const rowHeading = page.getByRole("heading", { name: "Selección inicial", exact: true });
+    await rowHeading.waitFor({ timeout: 5000 });
+    assert.equal(await page.getByText("9,876 productos en el catálogo", { exact: true }).isVisible(), true);
+    assert.equal(await page.getByText(/tiendas monitoreadas/).count(), 0);
+    releaseRetry();
+    await page.getByText("79 tiendas monitoreadas", { exact: true }).waitFor({ timeout: 5000 });
+    assert.equal(await rowHeading.isVisible(), true);
+    assert.equal(await page.getByText("9,876 productos en el catálogo", { exact: true }).isVisible(), true);
+    await page.waitForLoadState("networkidle");
+    assert.equal(requests, 2);
+  } finally {
+    releaseRetry();
+    await browser.close();
+  }
 });
