@@ -1,10 +1,14 @@
 import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { productPath } from "../../src/app/utils/productRoutes.js";
 import { apiMinimumPrice } from "../../src/app/utils/offerSeo.js";
 
-export async function fetchSeoExport({ apiOrigin, fetchImpl = fetch, spoolParent = tmpdir(), signal, onProgress = () => {} }) {
+const MINIMUM_BATCH_SIZE = 25;
+const MINIMUM_BATCH_RETRY_DELAYS = [1000, 4000];
+
+export async function fetchSeoExport({ apiOrigin, fetchImpl = fetch, sleepImpl = delay, spoolParent = tmpdir(), signal, onProgress = () => {} }) {
   await mkdir(spoolParent, { recursive: true });
   const directory = await mkdtemp(join(spoolParent, "export-"));
   const cleanup = () => rm(directory, { recursive: true, force: true });
@@ -14,6 +18,7 @@ export async function fetchSeoExport({ apiOrigin, fetchImpl = fetch, spoolParent
   const stats = { games: 0, offers: 0, related: 0, expansions: 0, batches: 0, serializedBytes: 0 };
   let afterId = 0;
   let limit = 200;
+  let floorRetries = 0;
   let maxId;
   try {
     while (items.length <= 100000) {
@@ -21,9 +26,14 @@ export async function fetchSeoExport({ apiOrigin, fetchImpl = fetch, spoolParent
       const query = new URLSearchParams({ after_id: String(afterId), limit: String(limit) });
       if (maxId !== undefined) query.set("maxId", String(maxId));
       const response = await fetchImpl(`${apiOrigin.replace(/\/+$/, "")}/api/items/prerender?${query}`, { signal });
-      if (response.status === 503 && limit > 25) {
+      if (response.status === 503 && (limit > MINIMUM_BATCH_SIZE || floorRetries < MINIMUM_BATCH_RETRY_DELAYS.length)) {
         await response.body?.cancel();
-        limit /= 2;
+        if (limit > MINIMUM_BATCH_SIZE) {
+          limit /= 2;
+        } else {
+          await sleepImpl(MINIMUM_BATCH_RETRY_DELAYS[floorRetries], undefined, { signal });
+          floorRetries++;
+        }
         continue;
       }
       if (!response.ok) throw new Error(`SEO export request failed with ${response.status}`);
@@ -67,6 +77,7 @@ export async function fetchSeoExport({ apiOrigin, fetchImpl = fetch, spoolParent
         ids.add(id); lastId = id;
       }
       if (meta.next_after_id !== lastId) throw new Error("SEO export returned a nonadvancing or invalid next_after_id");
+      floorRetries = 0;
       onProgress({ ...stats });
       if (!envelope.data.length) {
         if (!items.length) throw new Error("Unexpected empty SEO export");

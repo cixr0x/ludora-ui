@@ -106,6 +106,39 @@ test("export backs off 503 batches without changing the cursor or maximum ID", a
   } finally { await result.cleanup(); }
 });
 
+test("export waits for transient 503s at the minimum limit and resets the retry delay after a page", async () => {
+  const controller = new AbortController();
+  const delays = [];
+  const floorAttempts = [];
+  const result = await fetchSeoExport({
+    apiOrigin: "https://api.example",
+    signal: controller.signal,
+    sleepImpl: async (delay, _value, { signal }) => {
+      assert.equal(signal, controller.signal);
+      delays.push(delay);
+    },
+    fetchImpl: async value => {
+      const params = new URL(value).searchParams;
+      const afterId = Number(params.get("after_id"));
+      const limit = Number(params.get("limit"));
+      if (afterId > 0 && limit > 25) return new Response(null, { status: 503 });
+      if (limit === 25) {
+        floorAttempts.push([afterId, params.get("maxId")]);
+        if (floorAttempts.length <= 2 || floorAttempts.length === 4) return new Response(null, { status: 503 });
+      }
+      const data = afterId === 0 ? [item(1)] : afterId === 1 ? [item(3)] : [];
+      return Response.json({ data, meta: { export_version: 2, pagination: "keyset", max_id: 3,
+        after_id: afterId, next_after_id: data.at(-1)?.id ?? afterId, count: data.length, limit } });
+    }
+  });
+  try {
+    assert.deepEqual(floorAttempts, [[1, "3"], [1, "3"], [1, "3"], [3, "3"], [3, "3"]]);
+    assert.deepEqual(delays, [1000, 4000, 1000]);
+    assert.deepEqual(result.items.map(game => game.id), [1, 3]);
+    assert.equal(result.stats.batches, 3);
+  } finally { await result.cleanup(); }
+});
+
 test("export rejects missing/v1 envelopes, unexpected empty feeds, changing caps and nonadvancing cursors", async () => {
   for (const mutate of [() => ({}), e => ({ ...e, meta: { ...e.meta, export_version: 1 } }),
     e => ({ ...e, meta: { ...e.meta, next_after_id: 0 } }), e => ({ ...e, data: [e.data[0], e.data[0]] })]) {
