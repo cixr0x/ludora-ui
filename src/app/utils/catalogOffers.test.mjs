@@ -46,3 +46,27 @@ test("API offer mapping preserves eligibility, unknown availability and source t
     assert.deepEqual(productOfferSchema([unknownBundle]), []);
   } finally { await vite.close(); }
 });
+
+test("maps valid BGG edition and RPG URLs and omits unsupported paths", async () => {
+  const vite = await createServer({ configFile: false, optimizeDeps: { noDiscovery: true, include: [] }, server: { middlewareMode: true }, appType: "custom" });
+  try {
+    const { mapApiItemToDetail } = await vite.ssrLoadModule("/src/app/data/catalog.ts");
+    const game = { id: 77, canonical_name: "Edition", bgg_id: 350656 };
+    for (const url of [
+      "https://boardgamegeek.com/boardgameversion/350656/example",
+      "https://rpggeek.com/rpgitem/350656/example",
+    ]) {
+      assert.equal(mapApiItemToDetail({ ...game, bgg_url: url }).bggUrl, url);
+    }
+    for (const url of [
+      "https://boardgamegeek.com/boardgameversion/",
+      "https://boardgamegeek.com/boardgameversion/0",
+      "https://boardgamegeek.com/boardgameversion/wrong",
+      "https://rpggeek.com/boardgameversion/350656",
+    ]) {
+      const detail = mapApiItemToDetail({ ...game, bgg_url: url });
+      assert.equal(detail.bggUrl, undefined);
+      assert.equal(detail.bggId, 350656);
+    }
+  } finally { await vite.close(); }
+});

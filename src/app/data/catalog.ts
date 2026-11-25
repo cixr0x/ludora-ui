@@ -301,10 +301,14 @@ function boardGameGeekUrl(value: string | null | undefined): string | undefined 
   if (!value) return undefined;
   try {
     const url = new URL(value);
-    const kind = url.pathname.split("/")[1];
-    if (url.protocol === "https:" && !url.port && !url.username && !url.password &&
-        ["boardgamegeek.com", "www.boardgamegeek.com", "rpggeek.com", "www.rpggeek.com"].includes(url.hostname) &&
-        ["boardgame", "boardgameexpansion", "boardgameaccessory", "boardgameversion", "rpgitem"].includes(kind)) {
+    const [, kind, id] = url.pathname.split("/");
+    const isRpgGeek = ["rpggeek.com", "www.rpggeek.com"].includes(url.hostname);
+    const isBoardGameGeek = ["boardgamegeek.com", "www.boardgamegeek.com"].includes(url.hostname);
+    const validKind = isRpgGeek ? kind === "rpgitem" : isBoardGameGeek &&
+      ["boardgame", "boardgameexpansion", "boardgameaccessory", "boardgameversion", "rpgitem"].includes(kind);
+    const itemId = Number(id);
+    if (url.protocol === "https:" && !url.port && !url.username && !url.password && validKind &&
+        /^\d+$/.test(id) && Number.isSafeInteger(itemId) && itemId > 0) {
       return url.href;
     }
   } catch {
