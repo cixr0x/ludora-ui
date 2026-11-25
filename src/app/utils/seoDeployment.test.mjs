@@ -32,7 +32,9 @@ async function fixture(t) {
   const fetchImpl = async value => {
     requests++;
     const url = new URL(value), after = Number(url.searchParams.get("after_id"));
-    return new Response(JSON.stringify(url.pathname === "/api/front-page" ? { data: [{ products: [item] }] } : {
+    return new Response(JSON.stringify(url.pathname === "/api/front-page" ? {
+      data: [{ products: [item] }], meta: { tracked_store_count: 1 },
+    } : {
       data: after === 0 ? [item] : [], meta: { export_version: 2, max_id: 1, count: after === 0 ? 1 : 0, limit: 200,
         pagination: "keyset", after_id: after, next_after_id: 1 },
     }));

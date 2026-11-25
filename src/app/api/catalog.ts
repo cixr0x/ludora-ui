@@ -179,10 +179,17 @@ interface ApiEnvelope<T> {
   data: T;
 }
 
+interface ApiFrontPage extends ApiEnvelope<ApiFrontPageRow[]> {
+  meta?: {
+    catalog_product_count?: number;
+    tracked_store_count?: number;
+  };
+}
+
 const API_BASE_URL = ((import.meta.env.VITE_LUDORA_API_URL as string | undefined) ?? "").replace(/\/$/, "");
 
-export async function fetchFrontPage(): Promise<ApiFrontPageRow[]> {
-  return fetchData<ApiFrontPageRow[]>("/api/front-page");
+export async function fetchFrontPage(): Promise<ApiFrontPage> {
+  return fetchEnvelope<ApiFrontPage>("/api/front-page");
 }
 
 export async function fetchBannerEvent(signal: AbortSignal): Promise<ApiBannerEvent | null> {
@@ -329,11 +336,15 @@ export async function fetchItem(id: number): Promise<ApiItem> {
 }
 
 async function fetchData<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const envelope = await fetchEnvelope<ApiEnvelope<T>>(path, signal);
+  return envelope.data;
+}
+
+async function fetchEnvelope<T extends ApiEnvelope<unknown>>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, { signal });
   if (!response.ok) {
     throw new Error(`Ludora API request failed with ${response.status}`);
   }
 
-  const envelope = (await response.json()) as ApiEnvelope<T>;
-  return envelope.data;
+  return response.json();
 }

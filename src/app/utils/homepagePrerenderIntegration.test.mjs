@@ -51,18 +51,25 @@ test("homepage first render is unchanged when the Ludoscopio callout was dismiss
     };
     const { renderHomepageDocument } = await vite.ssrLoadModule("/src/entry-server.tsx");
     const featuredGames = [{ id: 4, name: "Fourth" }];
-    const withoutSessionStorage = renderHomepageDocument({ featuredGames, template });
+    const stats = { catalogProductCount: 1234, trackedStoreCount: 1 };
+    const withoutSessionStorage = renderHomepageDocument({ featuredGames, stats, template });
 
     globalThis.window = {
       sessionStorage: {
         getItem: () => "1",
       },
     };
-    const withDismissedCallout = renderHomepageDocument({ featuredGames, template });
+    const withDismissedCallout = renderHomepageDocument({ featuredGames, stats, template });
 
     assert.equal(rootMarkup(withDismissedCallout), rootMarkup(withoutSessionStorage));
-    assert.match(withDismissedCallout, /<h1[^>]*>Juegos de mesa en México<\/h1>/);
+    assert.match(withDismissedCallout, /<h1[^>]*>Compara precios de juegos de mesa en México<\/h1>/);
+    assert.match(withDismissedCallout, /1,234 productos en el catálogo/);
+    assert.match(withDismissedCallout, /1 tienda monitoreada/);
     assert.match(withDismissedCallout, /href="\/game\/4\/fourth"/);
+
+    const missingStats = renderHomepageDocument({ featuredGames, template });
+    assert.doesNotMatch(missingStats, /productos en el catálogo|tiendas monitoreadas/);
+    assert.match(missingStats, /href="\/juegos-de-mesa"/);
   } finally {
     console.error = originalConsoleError;
     if (originalWindow === undefined) delete globalThis.window;

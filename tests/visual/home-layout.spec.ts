@@ -83,8 +83,14 @@ async function mockCatalog(page: Page) {
   await page.route("**/api/front-page", (route) =>
     route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ data: frontPageRows }),
+      body: JSON.stringify({
+        data: frontPageRows,
+        meta: { catalog_product_count: 15247, tracked_store_count: 42 },
+      }),
     }),
+  );
+  await page.route("**/api/events/banner", (route) =>
+    route.fulfill({ json: { data: null } }),
   );
   await page.route("**/api/items/filter-options", (route) =>
     route.fulfill({

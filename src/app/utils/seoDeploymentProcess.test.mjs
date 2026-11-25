@@ -39,7 +39,9 @@ test("bundled launcher starts a fresh capped heap, acquires its own lease and lo
     requests++;
     const after = Number(new URL(request.url, "http://fixture").searchParams.get("after_id"));
     response.setHeader("Content-Type", "application/json");
-    response.end(JSON.stringify(request.url.startsWith("/api/front-page") ? { data: [{ products: [item] }] } : {
+    response.end(JSON.stringify(request.url.startsWith("/api/front-page") ? {
+      data: [{ products: [item] }], meta: { tracked_store_count: 1 },
+    } : {
       data: after ? [] : [item], meta: { export_version: 2, max_id: 1, count: after ? 0 : 1, limit: 200, pagination: "keyset", after_id: after, next_after_id: 1 }
     }));
   });

@@ -86,6 +86,9 @@ test("compiled publications reconcile significant changes, removals and exact si
     const catalog = "/juegos-de-mesa", category = "/categoria/7/estrategia";
     assert.ok(previous.manifest.pages[`${catalog}/pagina/2`]);
     assert.ok(previous.manifest.pages[`${category}/pagina/2`]);
+    const homepage = await documentAt(origin, "/");
+    assert.match(visibleText(homepage), /49 productos en el catálogo/);
+    assert.doesNotMatch(visibleText(homepage), /tiendas monitoreadas/);
 
     // A successful source re-check alone must preserve the exact published HTML and XML.
     records = records.map(record => ({ ...record, updated_at: "2030-01-01T00:00:00Z", offers: record.offers.map(value => ({
@@ -107,7 +110,8 @@ test("compiled publications reconcile significant changes, removals and exact si
 
     const added = completeRecord(catalogFixtures()[49]); added.categories = [{ id: 7, name: "Estrategia" }, { id: 10, name: "Cooperativos" }];
     records.push(added);
-    previous = await successful(["/game/50/juego-50", catalog, `${catalog}/pagina/2`, category, "/categorias", "/categoria/10/cooperativos"], [game3]);
+    previous = await successful(["/", "/game/50/juego-50", catalog, `${catalog}/pagina/2`, category, "/categorias", "/categoria/10/cooperativos"], [game3]);
+    assert.match(visibleText(await documentAt(origin, "/")), /50 productos en el catálogo/);
 
     records[1].canonical_name = 'Juego 02: Nueva edición & "más"';
     records[1].canonical_path = productPath(2, records[1].canonical_name);
@@ -127,7 +131,8 @@ test("compiled publications reconcile significant changes, removals and exact si
     assert.equal((await fetch(`${origin}/categoria/9/tematicos`)).status, 404);
 
     records = records.slice(0, 48);
-    previous = await successful([catalog, category, "/categorias"], [game3]);
+    previous = await successful(["/", catalog, category, "/categorias"], [game3]);
+    assert.match(visibleText(await documentAt(origin, "/")), /48 productos en el catálogo/);
     for (const removed of ["/game/49/juego-49", "/game/50/juego-50", `${catalog}/pagina/2`, `${category}/pagina/2`, "/categoria/10/cooperativos"]) {
       assert.equal(previous.manifest.pages[removed], undefined, removed);
       assert.equal((await fetch(`${origin}${removed}`)).status, 404, removed);

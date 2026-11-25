@@ -16,7 +16,7 @@ const icon = readFileSync(new URL("../../../public/ludoradar-icon.webp", import.
 test("landing SEO signals describe Ludo Radar on its Mexican domain", () => {
   assert.equal(SITE_NAME, "Ludo Radar");
   assert.equal(DEFAULT_SITE_URL, "https://www.ludoradar.mx");
-  assert.equal(HOME_TITLE, "Juegos de mesa en México: Descubre y compara precios | Ludo Radar");
+  assert.equal(HOME_TITLE, "Comparador de precios de juegos de mesa en México | Ludo Radar");
   assert.equal(
     HOME_DESCRIPTION,
     "Compara precios de juegos de mesa en tiendas de México. Consulta disponibilidad, descubre juegos y encuentra dónde comprarlos.",

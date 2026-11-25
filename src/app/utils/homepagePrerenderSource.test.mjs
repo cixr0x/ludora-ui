@@ -16,13 +16,9 @@ test("the homepage renders durable SEO content and hydrates homepage prerender d
   const homeSource = source("../pages/Home.tsx");
   const mainSource = source("../../main.tsx");
 
-  assert.match(homeSource, /<h1[^>]*>\s*Juegos de mesa en México\s*<\/h1>/);
-  assert.match(
-    homeSource,
-    /Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México\./,
-  );
+  assert.match(homeSource, /<h1[^>]*>\s*Compara precios de juegos de mesa en México\s*<\/h1>/);
   assert.match(homeSource, /Juegos destacados/);
-  assert.match(homeSource, /usePrerenderedFeaturedGames/);
+  assert.match(homeSource, /usePrerenderedHomepage/);
   assert.match(mainSource, /prerenderData\?\.homepage/);
   assert.match(mainSource, /hydrateRoot\(root, app\)/);
 });

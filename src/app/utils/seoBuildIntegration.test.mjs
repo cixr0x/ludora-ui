@@ -16,6 +16,10 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
   const root = await mkdtemp(join(tmpdir(), "ludoradar-seo-build-"));
   let description = "Before refresh";
   let price = 350;
+  let homepageResponses = [
+    { meta: { catalog_product_count: 999 } },
+    { data: [], meta: { tracked_store_count: 12 } },
+  ];
   const requests = [];
   const server = createServer((request, response) => {
     const url = new URL(request.url, "http://localhost"); requests.push(url.pathname);
@@ -23,7 +27,15 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
       categories: [], mechanics: [], families: [], designers: [], publishers: [], parent_items: [],
       offers: [{ ...offer, price }], related_items: [], expansion_items: [] };
     let envelope;
-    if (url.pathname === "/api/front-page") envelope = { data: [{ products: [item] }] };
+    if (url.pathname === "/api/front-page") {
+      const fixture = homepageResponses.shift();
+      if (fixture === "slow") {
+        const reply = setTimeout(() => response.end(JSON.stringify({ meta: { tracked_store_count: 999 } })), 3500);
+        response.once("close", () => clearTimeout(reply));
+        return;
+      }
+      envelope = { data: [{ products: [item] }], ...fixture };
+    }
     else if (url.pathname === "/api/items/prerender") {
       const after = Number(url.searchParams.get("after_id"));
       const data = after === 0 ? [item] : [];
@@ -40,9 +52,18 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
     const initial = await run("scripts/build.mjs", env);
     assert.equal(initial.code, 0, initial.output.slice(-6000));
     const initialPublic = await realpath(env.LUDORA_SEO_LIVE_PATH);
+    const initialHomepage = await readFile(join(initialPublic, "index.html"), "utf8");
+    assert.match(visibleText(initialHomepage), /1 producto en el catálogo/);
+    assert.match(visibleText(initialHomepage), /12 tiendas monitoreadas/);
+    assert.doesNotMatch(visibleText(initialHomepage), /999 productos en el catálogo/);
+    assert.deepEqual(jsonScript(initialHomepage, "ludo-radar-prerender-data").homepage.stats,
+      { catalogProductCount: 1, trackedStoreCount: 12 });
+    assert.equal(jsonScript(initialHomepage, "ludo-radar-prerender-data").homepage.featuredGames[0].id, 1);
+    assert.equal(requests.filter(path => path === "/api/front-page").length, 2);
     assert.match(await readFile(join(initialPublic, "juegos-de-mesa.html"), "utf8"), /Fixture Game/);
     assert.match(await readFile(join(initialPublic, "categorias.html"), "utf8"), /Categorías de juegos de mesa/);
     const manifest = JSON.parse(await readFile(join(initialPublic, "..", "manifest.json"), "utf8"));
+    assert.equal(manifest.source.trackedStoreCount, 12);
     const releasePath = join(manifest.runtimeDirectory, "release.json");
     const releaseHash = await fileHash(releasePath);
     const workerHash = await fileHash(join(manifest.runtimeDirectory, "refresh-worker.mjs"));
@@ -54,10 +75,13 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
     assert.equal(jsonScript(initialHtml, "product-structured-data")["@graph"][0].offers[0].price, 350);
     description = "After refresh";
     price = 425;
+    homepageResponses = [{ meta: { tracked_store_count: 13 } }];
     const refreshed = await run("scripts/refresh-seo.mjs", env);
     assert.equal(refreshed.code, 0, refreshed.output.slice(-6000));
     const nextPublic = await realpath(env.LUDORA_SEO_LIVE_PATH);
     assert.notEqual(nextPublic, initialPublic);
+    const nextHomepage = await readFile(join(nextPublic, "index.html"), "utf8");
+    assert.match(visibleText(nextHomepage), /13 tiendas monitoreadas/);
     const document = await readFile(join(nextPublic, "game/1/fixture-game.html"), "utf8");
     assert.match(document, /After refresh/);
     assert.match(visibleText(document), /\$425\.00 MXN/);
@@ -69,12 +93,31 @@ test("a retained self-contained renderer refreshes real HTML without recompiling
     assert.equal(await fileHash(join(manifest.runtimeDirectory, "refresh-worker.mjs")), workerHash);
     assert.equal(requests.every(path => ["/api/front-page", "/api/items/prerender"].includes(path)), true);
     const completed = JSON.parse(refreshed.output.trim().split("\n").at(-1));
-    assert.equal(completed.rendered, 2);
-    assert.equal(completed.reused, 2);
+    assert.equal(completed.rendered, 3);
+    assert.equal(completed.reused, 1);
     assert.ok(completed.fetchMs >= 0 && completed.renderMs > 0 && completed.catalogMs >= 0 && completed.prepareMs >= 0 && completed.graphMs >= 0);
+
+    const homepageRequestCount = requests.filter(path => path === "/api/front-page").length;
+    homepageResponses = [{}, "slow"];
+    const retained = await run("scripts/refresh-seo.mjs", env);
+    assert.equal(retained.code, 0, retained.output.slice(-6000));
+    assert.equal(requests.filter(path => path === "/api/front-page").length, homepageRequestCount + 2);
+    const retainedPublic = await realpath(env.LUDORA_SEO_LIVE_PATH);
+    assert.equal(await readFile(join(retainedPublic, "index.html"), "utf8"), nextHomepage);
+    const retainedManifest = JSON.parse(await readFile(join(retainedPublic, "..", "manifest.json"), "utf8"));
+    assert.equal(retainedManifest.source.trackedStoreCount, 13);
+
+    homepageResponses = [{ meta: { tracked_store_count: 0 } }];
+    const zero = await run("scripts/refresh-seo.mjs", env);
+    assert.equal(zero.code, 0, zero.output.slice(-6000));
+    const zeroPublic = await realpath(env.LUDORA_SEO_LIVE_PATH);
+    assert.match(visibleText(await readFile(join(zeroPublic, "index.html"), "utf8")), /0 tiendas monitoreadas/);
+    const zeroManifest = JSON.parse(await readFile(join(zeroPublic, "..", "manifest.json"), "utf8"));
+    assert.equal(zeroManifest.source.trackedStoreCount, 0);
     t.diagnostic(JSON.stringify({ fetchMs: completed.fetchMs, catalogMs: completed.catalogMs, prepareMs: completed.prepareMs,
       graphMs: completed.graphMs, renderMs: completed.renderMs, peakRssBytes: completed.peakRssBytes, rendered: completed.rendered, reused: completed.reused }));
   } finally {
+    server.closeAllConnections();
     server.close(); await once(server, "close");
     await rm(root, { recursive: true, force: true });
   }

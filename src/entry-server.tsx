@@ -3,7 +3,7 @@ import { createMemoryRouter } from "react-router";
 
 import App from "./app/App";
 import type { ApiItem } from "./app/api/catalog";
-import { mapApiItemToDetail, mapApiItemToGame } from "./app/data/catalog";
+import { mapApiItemToDetail, mapApiItemToGame, type HomepageStats } from "./app/data/catalog";
 import { routeDefinitions } from "./app/routes";
 import { productSeoMetadata } from "./app/utils/productSeo.js";
 import { productPath } from "./app/utils/productRoutes.js";
@@ -36,12 +36,14 @@ export function renderCatalogDocument({ model, template, siteUrl = DEFAULT_SITE_
 
 export function renderHomepageDocument({
   featuredGames,
+  stats,
   template,
 }: {
   featuredGames: PrerenderedFeaturedGame[];
+  stats?: HomepageStats;
   template: string;
 }): string {
-  const prerenderData = { homepage: { featuredGames } };
+  const prerenderData = { homepage: { featuredGames, stats } };
   const router = createMemoryRouter(routeDefinitions, { initialEntries: ["/"] });
   const appHtml = renderToString(<App prerenderData={prerenderData} router={router} />);
   const rootMarkup = `<div id="root">${appHtml}</div><script id="ludo-radar-prerender-data" type="application/json">${serializeJsonForHtml(prerenderData)}</script>`;

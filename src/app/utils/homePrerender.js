@@ -1,5 +1,10 @@
 const FEATURED_GAME_LIMIT = 8;
 
+/** @param {unknown} value */
+export function parseHomepageCount(value) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
+
 export function selectFeaturedGames(rows) {
   if (!Array.isArray(rows)) {
     throw new Error("Homepage prerender feed did not contain a rows array");

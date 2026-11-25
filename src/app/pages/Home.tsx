@@ -4,8 +4,8 @@ import { GameRow } from "../components/GameRow";
 import { HomeEventBanner } from "../components/HomeEventBanner";
 import { LudoscopioCallout } from "../components/LudoscopioCallout";
 import { SiteHeader } from "../components/SiteHeader";
-import { loadFrontPageRows, type CatalogRow } from "../data/catalog";
-import { usePrerenderedFeaturedGames } from "../PrerenderData";
+import { loadFrontPage } from "../data/catalog";
+import { usePrerenderedHomepage } from "../PrerenderData";
 import {
   dismissHomeLudoscopioCallout,
   isHomeLudoscopioCalloutDismissed,
@@ -13,11 +13,16 @@ import {
 import { productPath } from "../utils/productRoutes.js";
 import { BGG_FOOTER_LOGO_URL } from "../utils/siteFooter.js";
 
+const formatCount = new Intl.NumberFormat("es-MX");
+
 export function Home() {
-  const [rows, setRows] = useState<CatalogRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [frontPage, setFrontPage] = useState<Awaited<ReturnType<typeof loadFrontPage>>>();
   const [isLudoscopioCalloutVisible, setIsLudoscopioCalloutVisible] = useState(false);
-  const featuredGames = usePrerenderedFeaturedGames();
+  const prerendered = usePrerenderedHomepage();
+  const featuredGames = prerendered?.featuredGames ?? [];
+  const rows = frontPage?.rows ?? [];
+  const catalogProductCount = prerendered?.stats?.catalogProductCount ?? frontPage?.stats?.catalogProductCount;
+  const trackedStoreCount = prerendered?.stats?.trackedStoreCount ?? frontPage?.stats?.trackedStoreCount;
   const navigate = useNavigate();
 
   const handleLudoscopioOpen = useCallback(() => {
@@ -35,16 +40,9 @@ export function Home() {
 
   useEffect(() => {
     let isActive = true;
-    setIsLoading(true);
-
-    loadFrontPageRows()
-      .then((nextRows) => {
-        if (!isActive) return;
-        setRows(nextRows);
-      })
-      .finally(() => {
-        if (isActive) setIsLoading(false);
-      });
+    loadFrontPage().then(next => {
+      if (isActive) setFrontPage(next);
+    });
 
     return () => {
       isActive = false;
@@ -63,18 +61,31 @@ export function Home() {
 
       {/* Main content */}
       <main className="pt-4 pb-10 md:pt-8 md:pb-16">
-        <section hidden className="px-3 pb-6 md:px-14 md:pb-8" aria-labelledby="homepage-title">
-          <h1 id="homepage-title" className="text-2xl font-bold tracking-tight md:text-4xl">
-            Juegos de mesa en México
-          </h1>
-          <p className="mt-2 max-w-3xl text-sm text-neutral-300 md:text-base">
-            Descubre juegos de mesa, compara precios y encuentra ofertas disponibles en tiendas de México.
-          </p>
-          <nav aria-label="Explora todos los juegos" className="mt-4 flex gap-5 text-sm text-fuchsia-300">
-            <Link to="/juegos-de-mesa" className="hover:underline">Ver todos los juegos</Link>
-            <Link to="/categorias" className="hover:underline">Explorar categorías</Link>
-          </nav>
-          <div className="mt-5">
+        <section className="px-3 pb-5 md:px-14 md:pb-7" aria-labelledby="homepage-title">
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
+            <div>
+              <h1 id="homepage-title" className="text-2xl font-bold tracking-tight md:text-4xl">
+                Compara precios de juegos de mesa en México
+              </h1>
+              {(catalogProductCount !== undefined || trackedStoreCount !== undefined) && (
+                <ul aria-label="Cifras del catálogo" className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-neutral-300">
+                  {catalogProductCount !== undefined && (
+                    <li>{`${formatCount.format(catalogProductCount)} ${catalogProductCount === 1 ? "producto" : "productos"} en el catálogo`}</li>
+                  )}
+                  {trackedStoreCount !== undefined && (
+                    <li>{`${formatCount.format(trackedStoreCount)} ${trackedStoreCount === 1 ? "tienda monitoreada" : "tiendas monitoreadas"}`}</li>
+                  )}
+                </ul>
+              )}
+            </div>
+            <nav aria-label="Explora todos los juegos" className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-fuchsia-300">
+              <Link to="/juegos-de-mesa" className="inline-flex min-h-11 items-center rounded-md bg-fuchsia-700 px-4 font-semibold text-white transition-colors hover:bg-fuchsia-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300">
+                Ver catálogo
+              </Link>
+              <Link to="/categorias" className="hover:underline">Explorar categorías</Link>
+            </nav>
+          </div>
+          <div hidden>
             <h2 className="text-lg font-semibold">Juegos destacados</h2>
             {featuredGames.length > 0 && (
               <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-sm text-fuchsia-300">
@@ -100,7 +111,7 @@ export function Home() {
             />
           </div>
         )}
-        {isLoading ? (
+        {!frontPage ? (
           <div className="flex min-h-[60vh] items-center justify-center px-3 py-10 text-center text-neutral-500 text-sm md:px-14 md:py-16">
             <span className="flex flex-col items-center justify-center gap-3">
               <span>Cargando catálogo...</span>

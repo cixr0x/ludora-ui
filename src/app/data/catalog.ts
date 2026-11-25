@@ -19,6 +19,7 @@ import {
   type LudoscopioInput,
 } from "../api/catalog";
 import { isExpansionItem, positiveInteger } from "../utils/expansionDisplay.js";
+import { parseHomepageCount } from "../utils/homePrerender.js";
 import { withLudoscopioSuggestionDefaults } from "../utils/ludoscopioFilters.js";
 import { formatStorePrice } from "../utils/priceFormat.js";
 import { storeDisplayName, storeOfferUrl } from "../utils/storeLinks.js";
@@ -38,6 +39,11 @@ export interface CatalogRow {
   categoryType: string;
   title: string;
   games: Game[];
+}
+
+export interface HomepageStats {
+  catalogProductCount?: number;
+  trackedStoreCount?: number;
 }
 
 export interface CatalogGameSummary extends Game {
@@ -91,19 +97,26 @@ export function gamesFromRows(rows: CatalogRow[]): Game[] {
   return Array.from(gamesById.values());
 }
 
-export async function loadFrontPageRows(): Promise<CatalogRow[]> {
+export async function loadFrontPage(): Promise<{ rows: CatalogRow[]; stats?: HomepageStats }> {
   try {
-    const rows = await fetchFrontPage();
-    return rows
+    const { data, meta } = await fetchFrontPage();
+    const rows = data
       .map(mapFrontPageRow)
       .filter((row) => row.games.length > 0);
+    return {
+      rows,
+      stats: {
+        catalogProductCount: parseHomepageCount(meta?.catalog_product_count),
+        trackedStoreCount: parseHomepageCount(meta?.tracked_store_count),
+      },
+    };
   } catch {
-    return [];
+    return { rows: [] };
   }
 }
 
 export async function loadGames(): Promise<Game[]> {
-  return gamesFromRows(await loadFrontPageRows());
+  return gamesFromRows((await loadFrontPage()).rows);
 }
 
 export async function loadCatalogGameSummaries(query?: Parameters<typeof fetchItemSummaries>[0]): Promise<CatalogGameSummary[]> {

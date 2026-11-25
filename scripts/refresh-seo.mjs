@@ -6,7 +6,7 @@ import { fetchSeoExport } from "./seo/export.mjs";
 import { canonicalFile, contentFingerprint, reconcilePages } from "./seo/manifest.mjs";
 import { fileHash, publishGeneration, pruneManagedState, readLiveGeneration, readVerifiedRuntime, requireLease, withGenerationLock, writeJsonAtomic } from "./seo/publish.mjs";
 import { robotsDocument, sitemapDocument } from "./seo-output.mjs";
-import { selectFeaturedGames } from "../src/app/utils/homePrerender.js";
+import { parseHomepageCount, selectFeaturedGames } from "../src/app/utils/homePrerender.js";
 import { buildCatalogIndex, catalogPageDescriptors, catalogPageModel, categoryPath, CATALOG_PAGE_SIZE } from "../src/app/utils/catalogSeo.js";
 import { captureBaseIdentity } from "./seo/base.mjs";
 import { checkedDirectory } from "./seo/paths.mjs";
@@ -14,6 +14,8 @@ import { processEvidence } from "./seo/process.mjs";
 import { refreshCurrentGeneration } from "./seo/current.mjs";
 import { createDocumentScan } from "./seo/documentScan.mjs";
 export { refreshCurrentGeneration } from "./seo/current.mjs";
+
+const HOMEPAGE_STATS_RETRY_TIMEOUT_MS = 1500;
 
 export async function refreshSeo(config) {
   if (!config.lease) return withGenerationLock(config.lockPath, lease => refreshSeo({ ...config, lease }));
@@ -65,12 +67,20 @@ async function executeGeneration(config) {
     const baseIdentity = publish ? undefined : await captureBaseIdentity(livePath, checkDeadline);
     const sourceStart = performance.now();
     phase("fetch", "started");
-    const homepageResponse = await fetchImpl(`${apiOrigin.replace(/\/+$/, "")}/api/front-page`, { signal: controller.signal });
+    const homepageUrl = `${apiOrigin.replace(/\/+$/, "")}/api/front-page`;
+    const homepageResponse = await fetchImpl(homepageUrl, { signal: controller.signal });
     if (!homepageResponse.ok) throw new Error(`Homepage prerender request failed with ${homepageResponse.status}`);
     const homepageEnvelope = await homepageResponse.json();
     const featuredGames = selectFeaturedGames(homepageEnvelope?.data);
     exported = await fetchSeoExport({ apiOrigin, fetchImpl, spoolParent: join(stateDirectory, "work"), signal: controller.signal,
       onProgress: counts => { checkDeadline(); log({ status: "fetching", generationId, ...counts }); } });
+    // Let the export proceed before retrying, so a shared API stats query has time to settle.
+    const homeStats = {
+      catalogProductCount: exported.items.length,
+      trackedStoreCount: parseHomepageCount(homepageEnvelope?.meta?.tracked_store_count)
+        ?? await retryTrackedStoreCount(homepageUrl, fetchImpl, controller.signal)
+        ?? parseHomepageCount(previous?.manifest?.source?.trackedStoreCount),
+    };
     const fetchMs = Math.round(performance.now() - sourceStart);
     phase("fetch", "complete", { fetchMs, ...exported.stats });
     const ids = new Set(exported.items.map(item => item.id));
@@ -81,7 +91,8 @@ async function executeGeneration(config) {
     const catalogIndex = buildCatalogIndex(exported.items);
     const catalogMs = Math.round(performance.now() - renderStart);
     const publishedAt = now();
-    const candidates = [{ canonicalPath: "/", fingerprint: contentFingerprint({ featuredGames, siteUrl: release.siteUrl, indexingEnabled: release.indexingEnabled }) }];
+    const candidates = [{ canonicalPath: "/", fingerprint: contentFingerprint({ featuredGames, stats: homeStats,
+      siteUrl: release.siteUrl, indexingEnabled: release.indexingEnabled }) }];
     for (const summary of exported.items) {
       checkDeadline();
       const item = await exported.readItem(summary.id);
@@ -103,7 +114,7 @@ async function executeGeneration(config) {
     manifest.runtimeDirectory = resolve(runtimeDirectory);
     manifest.previousRuntimeDirectory = previous?.manifest?.runtimeDirectory !== resolve(runtimeDirectory)
       ? previous?.manifest?.runtimeDirectory ?? null : previous?.manifest?.previousRuntimeDirectory ?? null;
-    manifest.source = { ...exported.stats, maxId: exported.maxId };
+    manifest.source = { ...exported.stats, maxId: exported.maxId, trackedStoreCount: homeStats.trackedStoreCount };
     stageDirectory = config.stageDirectory ?? join(stateDirectory, "generations", generationId);
     const publicDirectory = join(stageDirectory, "public");
     await cp(join(runtimeDirectory, "static"), publicDirectory, { recursive: true });
@@ -130,7 +141,7 @@ async function executeGeneration(config) {
       } else {
         let document;
         const pagePublishedAt = manifest.pages[candidate.canonicalPath].lastmod;
-        if (candidate.canonicalPath === "/") document = renderer.renderHomepageDocument({ featuredGames, template, publishedAt: pagePublishedAt });
+        if (candidate.canonicalPath === "/") document = renderer.renderHomepageDocument({ featuredGames, stats: homeStats, template });
         else if (candidate.descriptor) {
           const model = { ...catalogPageModel(catalogIndex, candidate.descriptor), indexingEnabled: release.indexingEnabled };
           const rendered = renderer.renderCatalogDocument({ model, template, siteUrl: release.siteUrl });
@@ -221,6 +232,24 @@ async function executeGeneration(config) {
     return result;
   } finally {
     clearTimeout(timer); process.removeListener("SIGTERM", abort); process.removeListener("SIGINT", abort);
+  }
+}
+
+async function retryTrackedStoreCount(homepageUrl, fetchImpl, generationSignal) {
+  generationSignal.throwIfAborted();
+  const controller = new AbortController();
+  const abort = () => controller.abort(generationSignal.reason);
+  generationSignal.addEventListener("abort", abort, { once: true });
+  const timer = setTimeout(() => controller.abort(), HOMEPAGE_STATS_RETRY_TIMEOUT_MS);
+  timer.unref();
+  try {
+    const response = await fetchImpl(homepageUrl, { signal: controller.signal });
+    if (response.ok) return parseHomepageCount((await response.json())?.meta?.tracked_store_count);
+  } catch {
+    // The original homepage rows and any previous count remain usable.
+  } finally {
+    clearTimeout(timer);
+    generationSignal.removeEventListener("abort", abort);
   }
 }
 

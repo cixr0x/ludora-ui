@@ -86,7 +86,7 @@ test("real browser hydration retains SSR offers and relationships then refreshes
       await page.goto(`http://127.0.0.1:5175${path}`);
       await page.waitForFunction(() => document.querySelector("#store-offers") === null);
       assert.equal(new URL(page.url()).pathname, path);
-      assert.equal(await page.title(), "Juegos de mesa en México: Descubre y compara precios | Ludo Radar");
+      assert.equal(await page.title(), "Comparador de precios de juegos de mesa en México | Ludo Radar");
       assert.equal(await page.locator('link[rel="canonical"]').getAttribute("href"), "https://www.ludoradar.mx/");
       assert.equal(await page.locator("#product-structured-data").count(), 0);
       assert.equal(await page.locator('meta[property="og:type"]').getAttribute("content"), "website");

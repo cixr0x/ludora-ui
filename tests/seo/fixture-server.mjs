@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { buildCatalogIndex, catalogPageDescriptors, catalogPageModel } from "../../src/app/utils/catalogSeo.js";
 import { apiMinimumPrice } from "../../src/app/utils/offerSeo.js";
 
-export async function startFixtureServer({ catalog = false, category = { id: 7, name: "Estrategia" }, productionAnalytics = false } = {}) {
+export async function startFixtureServer({ catalog = false, category = { id: 7, name: "Estrategia" }, productionAnalytics = false, homepageStats } = {}) {
   const root = fileURLToPath(new URL("../../", import.meta.url));
   const vite = await createViteServer({
     root,
@@ -40,7 +40,8 @@ export async function startFixtureServer({ catalog = false, category = { id: 7, 
     if (catalog) {
       const index = buildCatalogIndex(records.map(record => ({ id: record.id, name: record.canonical_name,
         canonicalPath: record.canonical_path, categories: record.categories, image: "", minimumPrice: apiMinimumPrice(record.offers) })));
-      documents.set("/", renderHomepageDocument({ template, featuredGames: records.slice(0, 8).map(record => ({ id: record.id, name: record.canonical_name })) }));
+      documents.set("/", renderHomepageDocument({ template, stats: homepageStats,
+        featuredGames: records.slice(0, 8).map(record => ({ id: record.id, name: record.canonical_name })) }));
       for (const descriptor of catalogPageDescriptors(index)) {
         const model = { ...catalogPageModel(index, descriptor), indexingEnabled: true };
         documents.set(model.canonicalPath, renderCatalogDocument({ model, template }).document.replace("</body>", '<script>window.fetchedHtmlExecutions=(window.fetchedHtmlExecutions||0)+1</script></body>'));
