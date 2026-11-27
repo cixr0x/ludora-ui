@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, Compass, Copy, MessageCircle, Shuffle } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { ExploreTabs } from "../components/ExploreTabs";
 import { discoveryPath, RADAR_PATH } from "../utils/discoveryRoutes";
@@ -55,22 +55,52 @@ export function Explore() {
 
 function DiscoveryHub() {
   const tools = [
-    { to: RADAR_PATH + "&tool=palabras", icon: MessageCircle, name: "En tus palabras", description: "Describe lo que se te antoja jugar." },
-    { to: discoveryPath("similar"), icon: Copy, name: "Si te gustó…", description: "Encuentra otro juego como tu favorito." },
-    { to: discoveryPath("mix"), icon: Shuffle, name: "La Mezcladora", description: "Combina las mecánicas de dos o tres juegos." },
-    { to: GUIDE_PATH, icon: Compass, name: "Brújula de mesa", description: "Responde cuatro preguntas sobre tu próxima partida." },
+    {
+      to: RADAR_PATH + "&tool=palabras",
+      image: "/discovery-tools/palabras.webp",
+      name: "En tus palabras",
+      description: "Describe lo que se te antoja jugar.",
+    },
+    {
+      to: discoveryPath("similar"),
+      image: "/discovery-tools/similares.webp",
+      name: "Si te gustó…",
+      description: "Encuentra otro juego como tu favorito.",
+    },
+    {
+      to: discoveryPath("mix"),
+      image: "/discovery-tools/mezcladora.webp",
+      name: "La Mezcladora",
+      description: "Combina las mecánicas de dos o tres juegos.",
+    },
+    {
+      to: GUIDE_PATH,
+      image: "/discovery-tools/brujula.webp",
+      name: "Brújula de mesa",
+      description: "Responde cuatro preguntas sobre tu próxima partida.",
+    },
   ];
-  return <>
-    <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Ludo Radar</h1>
-    <h2 className="mt-5 text-lg">¿Por dónde quieres empezar?</h2>
-    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-      {tools.map(({ to, icon: Icon, name, description }) => (
-        <Link key={to} to={to} className="flex items-center gap-4 rounded-xl border border-neutral-800 bg-neutral-900 p-4 hover:border-fuchsia-400">
-          <Icon className="size-5 shrink-0 text-fuchsia-300" aria-hidden="true" />
-          <div className="flex-1"><h3 className="font-semibold">{name}</h3><p className="text-sm text-neutral-400">{description}</p></div>
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
-      ))}
+  return (
+    <div className="mx-auto max-w-3xl">
+      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Ludo Radar</h1>
+      <h2 className="sr-only text-lg text-neutral-300 sm:not-sr-only sm:mt-5">¿Por dónde quieres empezar?</h2>
+      <ul className="mt-2 space-y-2 sm:mt-4 sm:space-y-3">
+        {tools.map(({ to, image, name, description }) => (
+          <li key={to}>
+            <Link
+              to={to}
+              className="flex items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 p-2 transition-colors hover:border-fuchsia-400/70 hover:bg-neutral-800/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-400 sm:gap-5 sm:p-3"
+            >
+              <img src={image} alt="" className="size-18 shrink-0 rounded-xl object-cover sm:size-24 lg:size-28" />
+              <div className="min-w-0 flex-1">
+                <h3 className="text-lg font-semibold leading-tight sm:text-xl">{name}</h3>
+                <p className="mt-1 text-sm text-neutral-300 sm:text-base">{description}</p>
+              </div>
+              <ArrowRight className="mr-2 hidden size-5 shrink-0 text-neutral-400 sm:block" aria-hidden="true" />
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
-  </>;
+  );
 }
