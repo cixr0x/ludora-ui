@@ -50,27 +50,44 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     const banner = page.getByRole("region", { name: event.name });
     await banner.waitFor({ timeout: 5000 });
     assert.ok((await banner.boundingBox()).y > 70, "the banner starts below the mobile viewport");
+    await waitForBannerIntersection(banner, false);
     assert.deepEqual(await bannerEvents(page), []);
+    assert.deepEqual(statWrites, [], "a banner below the viewport has no impression");
 
     await setPageVisibility(page, "hidden");
     await page.setViewportSize({ width: 390, height: 700 });
     await banner.scrollIntoViewIfNeeded();
-    await banner.evaluate(node => new Promise(resolve => {
-      const observer = new IntersectionObserver(entries => {
-        if (entries.some(entry => entry.intersectionRatio > 0)) {
-          observer.disconnect();
-          setTimeout(resolve, 0);
-        }
-      });
-      observer.observe(node);
-    }));
+    await waitForBannerIntersection(banner, true);
     assert.deepEqual(await bannerEvents(page), [], "an intersecting banner in a hidden tab has no impression");
+    assert.deepEqual(statWrites, [], "an intersecting banner in a hidden tab has no first-party impression");
 
+    await banner.evaluate(node => {
+      node.style.position = "fixed";
+      node.style.inset = "100vh 0 auto";
+    });
     await setPageVisibility(page, "visible");
+    assert.deepEqual(await waitForBannerIntersection(banner, false), { isIntersecting: true, intersectionRatio: 0 });
+    assert.deepEqual(statWrites, [], "contact with the viewport edge alone has no impression");
+
+    const [impression] = await Promise.all([
+      statResponse(page, event.id, "impression"),
+      banner.evaluate(node => { node.style.top = "calc(100vh - 1px)"; }),
+    ]);
+    assert.equal(impression.status(), 204);
+    await banner.evaluate(node => {
+      node.style.removeProperty("inset");
+      node.style.removeProperty("position");
+    });
     await page.waitForFunction(() => window.dataLayer?.some(args => args[1] === "event_banner_impression"));
+    await setPageVisibility(page, "hidden");
+    await setPageVisibility(page, "visible");
+    await waitForBannerIntersection(banner, true);
     assert.deepEqual(await bannerEvents(page), [
       ["event_banner_impression", eventParameters],
     ]);
+    assert.deepEqual(statWrites, [
+      ["POST", "/api/events/42/stats/impression"],
+    ], "the same display counts once after visibility changes");
     const bounds = await banner.boundingBox();
     assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390, "the banner fits the mobile viewport");
     assert.match(await banner.innerText(), /28\s*[–-]\s*29 de noviembre de 2026/);
@@ -148,7 +165,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
       ["event_banner_click", eventParameters],
       ["event_banner_vote_yes", eventParameters],
     ]);
-    await page.reload();
+    await Promise.all([statResponse(page, event.id, "impression"), page.reload()]);
     await banner.getByRole("status").filter({ hasText: "Gracias por compartirnos tu opinión." }).waitFor();
     assert.equal(await yes.count(), 0);
     assert.deepEqual((await bannerEvents(page)).filter(([name]) => name.startsWith("event_banner_vote")), []);
@@ -173,8 +190,9 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     assert.equal(await replacement.count(), 0);
 
     const freshTab = await context.newPage();
+    await freshTab.setViewportSize({ width: 390, height: 700 });
     await freshTab.clock.setFixedTime(new Date("2026-11-20T18:00:00Z"));
-    await freshTab.goto(homepage);
+    await Promise.all([statResponse(freshTab, nextEvent.id, "impression"), freshTab.goto(homepage)]);
     const freshBanner = freshTab.getByRole("region", { name: nextEvent.name });
     await freshBanner.waitFor();
     assert.equal(bannerRequests, requestsBeforeDismissal + 1);
@@ -188,11 +206,14 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     await freshBanner.waitFor({ state: "detached", timeout: 5000 });
     assert.equal(bannerRequests, requestsBeforeDismissal + 1);
     assert.deepEqual(statWrites, [
+      ["POST", "/api/events/42/stats/impression"],
       ["POST", "/api/events/42/stats/click"],
       ["POST", "/api/events/42/stats/click"],
       ["POST", "/api/events/42/stats/click"],
       ["POST", "/api/events/42/stats/positive"],
+      ["POST", "/api/events/42/stats/impression"],
       ["POST", "/api/events/42/stats/dismiss"],
+      ["POST", "/api/events/43/stats/impression"],
     ]);
     await freshTab.close();
 
@@ -212,7 +233,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     const expiringPage = await privateContext.newPage();
     await expiringPage.clock.install({ time: new Date(beforeExpiration - 1000) });
     await expiringPage.clock.pauseAt(new Date(beforeExpiration));
-    await expiringPage.goto(homepage);
+    await Promise.all([statResponse(expiringPage, event.id, "impression"), expiringPage.goto(homepage)]);
 
     const expiringBanner = expiringPage.getByRole("region", { name: event.name });
     await expiringBanner.waitFor();
@@ -223,7 +244,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
       ["event_banner_vote_no", eventParameters],
     ]);
 
-    await returnHomeThroughPrivacy(expiringPage);
+    await Promise.all([statResponse(expiringPage, event.id, "impression"), returnHomeThroughPrivacy(expiringPage)]);
     await expiringBanner.waitFor();
     assert.equal(await expiringNo.count(), 0);
     assert.equal(await expiringBanner.getByRole("status").innerText(), "Gracias por compartirnos tu opinión.");
@@ -234,7 +255,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     await expiringPage.clock.fastForward(999);
     assert.equal(await expiringBanner.count(), 1);
     availableEvent = nextEvent;
-    await expiringPage.clock.fastForward(1);
+    await Promise.all([statResponse(expiringPage, nextEvent.id, "impression"), expiringPage.clock.fastForward(1)]);
     await expiringBanner.waitFor({ state: "detached" });
     const nextBanner = expiringPage.getByRole("region", { name: nextEvent.name });
     await nextBanner.getByRole("button", { name: "No me parece útil", exact: true }).waitFor();
@@ -249,7 +270,7 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     assert.deepEqual(await bannerEvents(expiringPage), []);
 
     availableEvent = nextEvent;
-    await returnHomeThroughPrivacy(expiringPage);
+    await Promise.all([statResponse(expiringPage, nextEvent.id, "impression"), returnHomeThroughPrivacy(expiringPage)]);
     await nextBanner.waitFor();
     const privateRequestsBeforeDismissal = privateBannerRequests;
     await Promise.all([
@@ -262,7 +283,11 @@ test("the homepage event banner reports impressions, clicks and votes until it e
     assert.equal(await nextBanner.count(), 0, "dismissal persists across SPA navigation when session storage is blocked");
     assert.equal(privateBannerRequests, privateRequestsBeforeDismissal);
     assert.deepEqual(privateStatWrites, [
+      ["POST", "/api/events/42/stats/impression"],
       ["POST", "/api/events/42/stats/negative"],
+      ["POST", "/api/events/42/stats/impression"],
+      ["POST", "/api/events/43/stats/impression"],
+      ["POST", "/api/events/43/stats/impression"],
       ["POST", "/api/events/43/stats/dismiss"],
     ]);
   } finally {
@@ -324,6 +349,19 @@ function setPageVisibility(page, state) {
     Object.defineProperty(document, "visibilityState", { configurable: true, value: state });
     document.dispatchEvent(new Event("visibilitychange"));
   }, state);
+}
+
+function waitForBannerIntersection(banner, intersects) {
+  return banner.evaluate((node, intersects) => new Promise(resolve => {
+    const observer = new IntersectionObserver(entries => {
+      const entry = entries.find(entry => (entry.intersectionRatio > 0) === intersects);
+      if (!entry) return;
+      observer.disconnect();
+      const { isIntersecting, intersectionRatio } = entry;
+      setTimeout(() => resolve({ isIntersecting, intersectionRatio }), 0);
+    });
+    observer.observe(node);
+  }), intersects);
 }
 
 async function returnHomeThroughPrivacy(page) {
