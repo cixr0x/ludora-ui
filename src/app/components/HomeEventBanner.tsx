@@ -98,13 +98,15 @@ function EventNotice({ event, onDismiss }: { event: BannerEvent; onDismiss: () =
   useEffect(() => {
     const banner = bannerRef.current;
     if (!banner || typeof IntersectionObserver === "undefined" || hasImpression.current) return;
+    // Notify when zero-area contact with the viewport gains visible area.
     const observer = new IntersectionObserver(entries => {
       if (hasImpression.current || document.visibilityState !== "visible" || Date.now() >= endsAt) return;
       if (!entries.some(entry => entry.isIntersecting && entry.intersectionRatio > 0)) return;
       hasImpression.current = true;
       observer.disconnect();
+      void reportBannerEventAction(id, "impression");
       trackGoogleAnalyticsEvent("event_banner_impression", { promoted_event_id: id });
-    });
+    }, { threshold: Number.EPSILON });
     const observeWhenVisible = () => {
       observer.disconnect();
       observer.takeRecords();

@@ -199,7 +199,7 @@ export async function fetchBannerEvent(signal: AbortSignal): Promise<ApiBannerEv
 
 export async function reportBannerEventAction(
   id: string,
-  action: "click" | "positive" | "negative" | "dismiss",
+  action: "click" | "positive" | "negative" | "dismiss" | "impression",
 ): Promise<void> {
   try {
     await fetch(`${API_BASE_URL}/api/events/${encodeURIComponent(id)}/stats/${action}`, {
