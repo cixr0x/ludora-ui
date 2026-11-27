@@ -111,8 +111,8 @@ test("home opens the discovery hub and its free-text results can return to the o
     const sections = page.getByRole("navigation", { name: "Secciones de Explorar" });
     await expect(sections.getByRole("link", { name: "Ludo Radar" })).toHaveAttribute("aria-current", "page");
     assert.deepEqual(prompts, ["Cooperativo para dos"]);
-    await sections.getByRole("link", { name: "Catálogo" }).click();
-    await expect(sections.getByRole("link", { name: "Catálogo" })).toHaveAttribute("aria-current", "page");
+    await sections.getByRole("link", { name: "Búsqueda" }).click();
+    await expect(sections.getByRole("link", { name: "Búsqueda" })).toHaveAttribute("aria-current", "page");
     await expect(page.locator('[aria-label="Resultados de juegos"] > a').first()).toBeVisible();
     await expect(page.getByText("Resultados para “Cooperativo para dos”")).toHaveCount(0);
     await expect(page).toHaveURL(origin + "/search");

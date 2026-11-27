@@ -235,7 +235,7 @@ test("ordinary and semantic filter navigation retain their result mode through r
       await page.goBack(); await page.waitForLoadState("networkidle");
       await expect(page.locator('[aria-label="Resultados de juegos"] > a')).toHaveCount(60);
       await page.getByRole("banner").getByRole("link", { name: "Explorar catálogo", exact: true }).click();
-      await expect(page.getByRole("navigation", { name: "Secciones de Explorar" }).getByRole("link", { name: "Catálogo" })).toHaveAttribute("aria-current", "page");
+      await expect(page.getByRole("navigation", { name: "Secciones de Explorar" }).getByRole("link", { name: "Búsqueda" })).toHaveAttribute("aria-current", "page");
       await expect(page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true })).toHaveCount(0);
       await page.goto(`${origin}/search?${new URLSearchParams({ ludoscopioPrompt: savedSession.prompt })}`);
       await page.getByText(`Resultados para “${savedSession.prompt}”`, { exact: true }).waitFor();
@@ -397,7 +397,7 @@ for (const [name, width, height] of [["desktop", 1280, 900], ["mobile", 390, 844
             await page.locator('[aria-label="Resultados de juegos"] > a').first().click();
             await page.waitForURL("**/game/1/juego-01"); await page.locator("#store-offers").waitFor();
             await page.goBack(); await page.waitForLoadState("networkidle");
-            await expect(page.getByRole("navigation", { name: "Secciones de Explorar" }).getByRole("link", { name: "Catálogo" })).toHaveAttribute("aria-current", "page");
+            await expect(page.getByRole("navigation", { name: "Secciones de Explorar" }).getByRole("link", { name: "Búsqueda" })).toHaveAttribute("aria-current", "page");
           } else if (step === "reload") {
             await page.reload(); await page.waitForLoadState("networkidle");
           }
